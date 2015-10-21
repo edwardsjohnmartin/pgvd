@@ -28,7 +28,7 @@ class LinesProgram {
     char vertex_shader[1024 * 256];
     char fragment_shader[1024 * 256];
     assert(parse_file_into_str(
-        "../viewer/shaders/lines.vert", vertex_shader, 1024 * 256));
+        "../viewer/shaders/lines-v1.2.vert", vertex_shader, 1024 * 256));
     assert(parse_file_into_str(
         "../viewer/shaders/lines.frag", fragment_shader, 1024 * 256));
 	
