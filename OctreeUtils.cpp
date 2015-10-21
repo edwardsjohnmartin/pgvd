@@ -1,12 +1,12 @@
 #include "./OctreeUtils.h"
-#include "./karras.h"
+#include "./Karras.h"
 
 #include <iostream>
 #include <fstream>
 #include <set>
 
 #include "./BoundingBox.h"
-#include "./opencl/geom.h"
+#include "./opencl/Geom.h"
 
 using std::vector;
 using std::cout;

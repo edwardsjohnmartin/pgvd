@@ -15,9 +15,9 @@
 #include "gl_utils.h"
 #include <stdio.h>
 #include <time.h>
-// #include <string.h>
+#include <string.h>
 #include <assert.h>
-#include <string>
+//#includeom <string>
 #include <iostream>
 #define GL_LOG_FILE "gl.log"
 #define MAX_SHADER_LENGTH 262144

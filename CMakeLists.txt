@@ -47,7 +47,7 @@ SET(SRCS
    ./bigint/BigIntegerAlgorithms.cc
    ./bigint/BigIntegerUtils.cc
    ./bigint/BigUnsignedInABase.cc
-   ./options.cpp
+   ./Options.cpp
 #  ../opencl.cpp
 #  ../octree.cpp
 #  ../octree_gpu.cpp
