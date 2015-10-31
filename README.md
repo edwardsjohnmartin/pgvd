@@ -19,7 +19,8 @@ To build with CMake
 * On Windows
   1. Open the CMake GUI.
   2. Select the pgvd dir for the source
-  3. Select a prefered build location
+  3. Select a prefered build location INSIDE the pgvd directory. 
+    * Since kernels and shaders are relative to the pgvd dir, placing the build folder in ./pgvd is required.
   4. Click Configure
   5. Select visual studio 12 2013 
   6. Click Generate
