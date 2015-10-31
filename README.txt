@@ -11,10 +11,40 @@ TODO pgvd2
 
 To build with CMake
 ------------------------------------------------------------
-mkdir release
-cd release
-cmake ..
-make
+* On Linux/Mac
+  1. mkdir release
+  2. cd release
+  3. cmake ..
+  4. make
+* On Windows
+  1. Open the CMake GUI.
+  2. Select the pgvd dir for the source
+  3. Select a prefered build location
+  4. Click Configure
+  5. Select visual studio 12 2013 
+  6. Click Generate
+  7. Follow the Visual Studio Setup
+
+To Setup Visual Studio
+------------------------------------------------------------
+1. Open the PGVD.sln in your build folder.
+2. Right click pgvd2 in the solution explorer and click properties.
+3. In Configuration Properties -> C/C++ -> General -> Additional Include Directories
+  * Add "<git directory>\pgvd\dependencies\glew-1.13.0\include"
+  * Add "<git directory>\pgvd\dependencies\glfw-3.1.2.bin.WIN32\include"
+4. In Configuration Properties -> Linker -> General -> Additional Library Directories
+  * Add "<git directory>\pgvd\dependencies\glew-1.13.0\lib\Release\Win32"
+  * Add "<git directory>\pgvd\dependencies\glfw-3.1.2.bin.WIN32\lib-vc2013"
+5. In Configuration Properties -> Linker -> Input -> Additional Dependencies
+  * Add "glfw3.lib"
+  * Add "glew32.lib"
+  * Add "OpenGL32.lib"
+6. Click Ok
+7. Click "Solution 'PGVD'" in the solution explorer.
+  * Set Startup Project to "pgvd2"
+8. Open "<git directory>\pgvd\dependencies\glew-1.13.0\bin\Release\Win32
+  * Copy glew32.dll to <your build folder>\Debug\
+
 
 
 Style guide
