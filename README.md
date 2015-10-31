@@ -38,7 +38,7 @@ To Setup Visual Studio
 5. In Configuration Properties -> Linker -> Input -> Additional Dependencies
   * Add "glfw3.lib"
   * Add "glew32.lib"
-  * Add "OpenGL32.lib"
+  * Add "opengl32.lib"
 6. Click Ok
 7. Click "Solution 'PGVD'" in the solution explorer.
   * Set Startup Project to "pgvd2"
