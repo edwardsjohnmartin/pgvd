@@ -8,7 +8,8 @@ namespace Color {
 inline float3 randomColor() {
   float3 c = make_float3(0);
   for (int i = 0; i < 3; ++i) {
-    c[i] = random() / static_cast<float>(RAND_MAX);
+	//random not supported in VC++
+    c[i] = rand() / static_cast<float>(RAND_MAX);
   }
   return c;
 }
@@ -25,7 +26,8 @@ inline float3 randomColor(const float3& avoid) {
 
 // Returned color may not be close to avoid
 inline float3 randomColor(int seed, const float3& avoid) {
-  srandom(seed+1);
+  //srandom not supported in VC++
+  srand(seed+1);
   return randomColor(avoid);
 }
 

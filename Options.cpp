@@ -16,6 +16,9 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#if defined (WIN32)
+	#include <functional>
+#endif
 
 #include "./Options.h"
 
@@ -99,7 +102,6 @@ bool Options::ProcessArg(int& i, char** argv) {
   } 
   return i != orig_i;
 }
-
 // trim from start
 string& ltrim(string &s) {
   s.erase(s.begin(), find_if(s.begin(),
