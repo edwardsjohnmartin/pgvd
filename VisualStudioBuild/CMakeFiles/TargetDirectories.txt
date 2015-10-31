@@ -1,0 +1,3 @@
+C:/Users/Nate/git/pgvd/VisualStudioBuild/CMakeFiles/ALL_BUILD.dir
+C:/Users/Nate/git/pgvd/VisualStudioBuild/CMakeFiles/pgvd2.dir
+C:/Users/Nate/git/pgvd/VisualStudioBuild/CMakeFiles/ZERO_CHECK.dir
