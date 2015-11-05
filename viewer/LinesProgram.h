@@ -27,10 +27,19 @@ class LinesProgram {
     //------------------------------------------------------------
     char vertex_shader[1024 * 256];
     char fragment_shader[1024 * 256];
+    GLint major, minor;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    std::string vshaderfn = "../viewer/shaders/lines-v1.2.vert";
+    std::string fshaderfn = "../viewer/shaders/lines-v1.2.frag";
+    if ((major == 4 && minor >= 1) || major >= 5) {
+      vshaderfn = "../viewer/shaders/lines.vert";
+      fshaderfn = "../viewer/shaders/lines.frag";
+    }
     assert(parse_file_into_str(
-        "../viewer/shaders/lines-v1.2.vert", vertex_shader, 1024 * 256));
+        vshaderfn.c_str(), vertex_shader, 1024 * 256));
     assert(parse_file_into_str(
-        "../viewer/shaders/lines.frag", fragment_shader, 1024 * 256));
+        fshaderfn.c_str(), fragment_shader, 1024 * 256));
 	
     print_error("-1");
     GLuint vs = glCreateShader (GL_VERTEX_SHADER);
