@@ -30,7 +30,8 @@ OctCell FindLeaf(
   OctNode const * node = &octree[0];
   int idx = 0;
   for (int i = resln.mbits-DIM; i >= 0; i-=DIM) {
-    const int octant = (z >> i).getBlock(0) & mask;
+    // const int octant = (z >> i).getBlock(0) & mask;
+    const int octant = (z >> i) & mask;
     width /= 2;
 
     if (octant % 2 == 1)

@@ -7,8 +7,8 @@
 #include "./opencl/defs.h"
 
 // typedef unsigned int Morton;
-// typedef unsigned long Morton;
-typedef BigUnsigned Morton;
+typedef unsigned long Morton;
+// typedef BigUnsigned Morton;
 
 // Stores resolution and octree height values
 struct Resln {

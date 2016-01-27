@@ -99,7 +99,9 @@ class LcpLength {
 
 struct BrtNode {
   // If lcp is 10011 and DIM == 2 then the last bit is dropped
-  // and return is [0b10, 0b01] = [2, 1].
+  // and return is [10, 01] = [2, 1] where the two values
+  // correspond to 10011 and 10011.
+  //               ^^          ^^
   vector<int> oct_nodes() const {
     static const int mask = (DIM == 2) ? 3 : 7;
     if (DIM > 3)
@@ -110,7 +112,8 @@ struct BrtNode {
     for (int i = 0; i < n; ++i) {
       const int offset = DIM * (n-i-1) + bias;
       // TODO: could be a bug here
-      ret[i] = (lcp >> offset).getBlock(0) & mask;
+      // ret[i] = (lcp >> offset).getBlock(0) & mask;
+      ret[i] = (lcp >> offset) & mask;
     }
     return ret;
   }
@@ -128,13 +131,42 @@ struct BrtNode {
   int parent;
 };
 
-vector<intn> Quantize(const vector<floatn>& points, const Resln& resln) {
+// dwidth is passed in for performance reasons. It is equal to
+//   float dwidth = bb.max_size();
+intn Quantize(
+    const floatn& p, const Resln& resln,
+    const BoundingBox<floatn>& bb, const float dwidth) {
+  intn q = make_intn(0);
+  for (int k = 0; k < DIM; ++k) {
+    const double d =
+        (resln.width-1) * ((p.s[k] - bb.min().s[k]) / dwidth);
+    const int v = static_cast<int>(d+0.5);
+    if (v < 0) {
+      cerr << "Coordinate in dimension " << k << " is less than zero.  d = "
+           << d << " v = " << v << endl;
+      cerr << "  p[k] = " << p.s[k]
+           << " bb.min()[k] = " << bb.min().s[k] << endl;
+      cerr << "  dwidth = " << dwidth << " kwidth = " << resln.width << endl;
+      throw logic_error("bad coordinate");
+    }
+    q.s[k] = v;
+  }
+  return q;
+}
+
+vector<intn> Quantize(
+    const vector<floatn>& points, const Resln& resln,
+    const BoundingBox<floatn>* customBB) {
   if (points.empty())
     return vector<intn>();
 
   BoundingBox<floatn> bb;
-  for (const floatn& p : points) {
-    bb(p);
+  if (customBB) {
+    bb = *customBB;
+  } else {
+    for (const floatn& p : points) {
+      bb(p);
+    }
   }
   const float dwidth = bb.max_size();
   if (dwidth == 0) {
@@ -147,21 +179,7 @@ vector<intn> Quantize(const vector<floatn>& points, const Resln& resln) {
   vector<intn> qpoints(points.size());
   for (int i = 0; i < points.size(); ++i) {
     const floatn& p = points[i];
-    intn q = make_intn(0);
-    for (int k = 0; k < DIM; ++k) {
-      const double d =
-          (resln.width-1) * ((p.s[k] - bb.min().s[k]) / dwidth);
-      const int v = static_cast<int>(d+0.5);
-      if (v < 0) {
-        cerr << "Coordinate in dimension " << k << " is less than zero.  d = "
-             << d << " v = " << v << endl;
-        cerr << "  p[k] = " << p.s[k]
-             << " bb.min()[k] = " << bb.min().s[k] << endl;
-        cerr << "  dwidth = " << dwidth << " kwidth = " << resln.width << endl;
-        throw logic_error("bad coordinate");
-      }
-      q.s[k] = v;
-    }
+    const intn q = Quantize(p, resln, bb, dwidth);
     qpoints[i] = q;
   }
   
@@ -179,6 +197,14 @@ vector<OctNode> BuildOctree(
   }
 
   sort(mpoints.begin(), mpoints.end());
+
+  if (verbose) {
+    cout << "mpoints: ";
+    for (int i = 0; i < mpoints.size(); ++i) {
+      cout << mpoints[i] << " ";
+    }
+    cout << endl;
+  }
 
   // Make sure points are unique
   std::vector<Morton>::iterator it;
@@ -283,9 +309,13 @@ vector<OctNode> BuildOctree(
 
   // Determine number of octree nodes necessary
   // First pass - initialize temporary array
+  // local_splits stores how many times the octree needs to be
+  // split from a parent to a child. For example, in 2D if a child
+  // has an lcp_length of 8 and the parent has lcp_length of 4, then
+  // the child represents two octree splits.
   vector<int> local_splits(n-1, 0);
   if (n > 0)
-    local_splits[0] = 1;
+    local_splits[0] = 1 + I[0].lcp_length / DIM;
   for (int i = 0; i < n-1; ++i) {
     const int local = I[i].lcp_length / DIM;
     const int left = I[i].left;
@@ -306,6 +336,12 @@ vector<OctNode> BuildOctree(
   }
 
   if (verbose) {
+    cout << "Local splits: ";
+    for (int i = 0; i < local_splits.size(); ++i) {
+      cout << local_splits[i] << " ";
+    }
+    cout << endl;
+    cout << "Prefix sums: ";
     for (int i = 0; i < prefix_sums.size(); ++i) {
       cout << prefix_sums[i] << " ";
     }
@@ -323,9 +359,14 @@ vector<OctNode> BuildOctree(
     if (local_splits[brt_i] > 0) {
       // m = number of local splits
       const int m = local_splits[brt_i];
-      // onodes = vector of octree indices \in [0, 2^DIM]
+      // Given an lcp, oct_nodes() computes the indices
+      // of the octree nodes that are created by the split
+      // of this internal node. For example, if the lcp is
+      // 1011, then there are two octree node splits (in 2D).
+      // One child, 10, and one grandchild, 10|11 are created.
+      // In this case, onodes = [10, 11].
       const vector<int> onodes = I[brt_i].oct_nodes();
-      // current octree node index
+      // Current octree node index
       int oct_i = prefix_sums[brt_i];
       for (int j = 0; j < m-1; ++j) {
         const int oct_parent = oct_i+1;

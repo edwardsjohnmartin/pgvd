@@ -14,7 +14,16 @@ namespace Karras {
 Morton xyz2z(intn p, const Resln& r);
 intn z2xyz(const Morton z, const Resln& r);
 
-std::vector<intn> Quantize(const std::vector<floatn>& points, const Resln& r);
+// Quantize a single point.
+// dwidth is passed in for performance reasons. It is equal to
+//   float dwidth = bb.max_size();
+intn Quantize(
+    const floatn& p, const Resln& resln,
+    const BoundingBox<floatn>& bb, const float dwidth);
+
+std::vector<intn> Quantize(
+    const std::vector<floatn>& points, const Resln& r,
+    const BoundingBox<floatn>* customBB = 0);
 
 std::vector<OctNode> BuildOctree(
     const std::vector<intn>& opoints, const Resln& r, const bool verbose=false);

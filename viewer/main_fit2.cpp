@@ -1,360 +1,388 @@
-#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <assert.h>
-#include <iostream>
-#include <fstream>
-#include <utility>
-#include <vector>
-#include <stdexcept>
-#include <algorithm>
-#include <string>
-#include <sstream>
+#include <string.h>
+#include <stdarg.h>
+#include <math.h>
+#define GL_LOG_FILE "gl.log"
 
-#include "./common.h"
+#include "gl_utils.h"
+
 #include "../opencl/vec.h"
-#include "../opencl/segment.h"
-#include "../opencl/geom.h"
-// #include "../karatsuba.h"
-#include "../bigint/BigUnsigned.hh"
-#include "../bigint/BigIntegerUtils.hh"
+#include "./Polylines.h"
+#include "./LinesProgram.h"
+#include "./Octree2.h"
+#include "../Resln.h"
+#include "../Karras.h"
 
-using namespace std;
+// keep track of window size for things like the viewport and the mouse cursor
+int g_gl_width = 500;
+int g_gl_height = 400;
+GLFWwindow* g_window = NULL;
 
-int window_width = 600;
-int window_height = 600;
-GLfloat obj_left = 0;
-GLfloat obj_right = 1;
-GLfloat obj_bottom = 0;
-GLfloat obj_top = 1;
+Polylines* lines;
+LinesProgram* program;
+Octree2* octree;
 
-// float_seg a(make_float2(0.2, 0.2), make_float2(0.8, 0.9));
-// float_seg b(make_float2(0.1, 0.1), make_float2(0.9, 0.4));
+bool mouseDown = false;
+float2 curMouse;
 
-// float_seg a(make_float2(0.5, 0.6), make_float2(0.3, 0.8));
-// float_seg b(make_float2(0.2, 0.5), make_float2(0.8, 0.5));
+GLFWcursor* arrowCursor;
+GLFWcursor* zoomCursor;
+bool zoomMode = false;
 
-// float_seg a(make_float2(0.2, 0.2), make_float2(0.8, 0.8));
-// float_seg b(make_float2(0.2, 0.5), make_float2(0.8, 0.5));
+void fit();
 
-// float_seg a(make_float2(0.2, 0.2), make_float2(0.8, 0.8));
-// float_seg b(make_float2(0.5, 0.2), make_float2(0.5, 0.8));
-
-// float_seg a(make_float2(0.5, 0.6), make_float2(0.3, 0.8));
-// float_seg b(make_float2(0.2, 0.3), make_float2(0.8, 0.5));
-
-// float_seg a(make_float2(0.2, 0.2), make_float2(0.8, 0.8));
-// float_seg b(make_float2(0.3, 0.3), make_float2(0.7, 0.7));
-
-float_seg a(make_float2(17136, 12798), make_float2(17133, 12800));
-float_seg b(make_float2(17136, 12799), make_float2(17135, 12800));
-
-float2 Win2Obj(const int x, const int y) {
-  static GLfloat obj_width = obj_right - obj_left;
-  static GLfloat obj_height = obj_top - obj_bottom;
-  static GLfloat fwindow_width = static_cast<GLfloat>(window_width);
-  static GLfloat fwindow_height = static_cast<GLfloat>(window_height);
-  return make_float2(
-      (x / fwindow_width) * (obj_width) + obj_left,
-      ((window_height-y) / fwindow_height) * (obj_height) + obj_bottom);
-}
-
-int2 Obj2Win(const float x, const float y) {
-  static GLfloat obj_width = obj_right - obj_left;
-  static GLfloat obj_height = obj_top - obj_bottom;
-  static GLfloat fwindow_width = static_cast<GLfloat>(window_width);
-  static GLfloat fwindow_height = static_cast<GLfloat>(window_height);
-  return make_int2(
-      static_cast<int>((fwindow_width * (x - obj_left)) / obj_width),
-      static_cast<int>(fwindow_height * (1.0 - (y - obj_bottom) / obj_height)));
-}
-
-int2 Obj2Win(const float2& v) {
-  return Obj2Win(v.s[0], v.s[1]);
-}
-
-enum Justify { kLeftJustify, kRightJustify,
-               kTopJustify, kBottomJustify,
-               kCenterJustify };
-
-// buf is in window coordinates
-// void BitmapString(const string& s, float objx, float objy, int buf = 1,
-//                   void* font = GLUT_BITMAP_HELVETICA_12) {
-void BitmapString(const string& s, float objx, float objy,
-                  int xoff = 1, int yoff = 1,
-                  void* font = GLUT_BITMAP_8_BY_13) {
-  glDisable(GL_TEXTURE_2D);
-  glColor3f(0.0f, 0.0f, 0.0f);
-  int2 w = Obj2Win(objx, objy);
-  float2 p = Win2Obj(w.s[0]+xoff, w.s[1]-yoff);
-  glRasterPos2f(p.s[0], p.s[1]);
-  for (int i = 0; i < s.size(); ++i) {
-    glutBitmapCharacter(font, s[i]);
+//------------------------------------------------------------
+// refresh
+//------------------------------------------------------------
+void refresh() {
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  if (options.showOctree) {
+    octree->render(program);
   }
+  lines->render(program);
+  glfwSwapBuffers(g_window);
 }
 
-void BitmapString(int value, float objx, float objy,
-                  int xoff = 1, int yoff = 1,
-                  void* font = GLUT_BITMAP_8_BY_13) {
-  stringstream ss;
-  ss << value;
-  BitmapString(ss.str(), objx, objy, xoff, yoff, font);
+void rebuild() {
+  // octree->build(*lines);
+  fit();
+  refresh();
 }
 
-void BitmapString(const string& s, float objx, float objy,
-                  Justify hjustify, Justify vjustify) {
-  glDisable(GL_TEXTURE_2D);
-  glColor3f(0.0f, 0.0f, 0.0f);
-  int2 w = Obj2Win(objx, objy);
-  int xoff = 1, yoff = 1;
-  if (hjustify == kRightJustify) {
-    xoff = - 8 * s.size() - 1;
-  } else if (hjustify == kCenterJustify) {
-    xoff = - 4 * s.size() - 1;
-  }
-  if (vjustify == kTopJustify) {
-    yoff = - 13 - 1;
-  } else if (vjustify == kCenterJustify) {
-    yoff = - 8 - 1;
-  }
-  float2 p = Win2Obj(w.s[0]+xoff, w.s[1]-yoff);
-  glRasterPos2f(p.s[0], p.s[1]);
-  for (int i = 0; i < s.size(); ++i) {
-    glutBitmapCharacter(GLUT_BITMAP_8_BY_13, s[i]);
-  }
-}
+//------------------------------------------------------------
+// key_callback
+//------------------------------------------------------------
+void onKey(GLFWwindow* window, int key, int scancode,
+           int action, int mods) {
+  using namespace std;
 
-void BitmapString(int value, float objx, float objy,
-                  Justify hjustify, Justify vjustify) {
-  stringstream ss;
-  ss << value;
-  BitmapString(ss.str(), objx, objy, hjustify, vjustify);
-}
-
-void BitmapString(const string& s) {
-  glDisable(GL_TEXTURE_2D);
-  glColor3f(0.0f, 0.0f, 0.0f);
-  float2 p = Win2Obj(4, window_height-5);
-  glRasterPos2f(p.s[0], p.s[1]);
-  for (int i = 0; i < s.size(); ++i) {
-    glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, s[i]);
-  }
-}
-
-void Init() {
-  glClearColor(1.0, 1.0, 1.0, 1.0);
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  gluOrtho2D(obj_left, obj_right, obj_bottom, obj_top);
-  glMatrixMode(GL_MODELVIEW);
-}
-
-enum kCircleType { DOTTED, SOLID, FILLED };
-
-void glCircle(const float2& c, const double r, const kCircleType& t) {
-  static const double M_2PI = 2 * M_PI;
-  const double inc = M_2PI / 64;
-  if (t == DOTTED)
-    glBegin(GL_LINES);
-  else if (t == SOLID)
-    glBegin(GL_LINE_STRIP);
-  else {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glBegin(GL_POLYGON);
-  }
-  for (double d = 0; d < M_2PI; d += inc) {
-    glVertex2f(c.s[0] + r*cos(d), c.s[1] + r*sin(d));
-  }
-  glVertex2f(c.s[0] + r, c.s[1]);
-  glEnd();
-}
-
-// ra = inner radius
-// rb = outer radius
-void glAnnulus(const float2& c, const double ra, const double rb) {
-  static const double M_2PI = 2 * M_PI;
-  const double inc = M_2PI / 32;
-
-  glBegin(GL_LINES);
-  for (double d = 0; d < M_2PI; d += inc) {
-    glVertex2f(c.s[0] + ra*cos(d), c.s[1] + ra*sin(d));
-  }
-  glVertex2f(c.s[0] + ra, c.s[1]);
-  glEnd();
-
-  glBegin(GL_LINE_STRIP);
-  for (double d = 0; d < M_2PI; d += inc) {
-    glVertex2f(c.s[0] + rb*cos(d), c.s[1] + rb*sin(d));
-  }
-  glVertex2f(c.s[0] + rb, c.s[1]);
-  glEnd();
-}
-
-void glQuad(const float2& v, float size) {
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-  glBegin(GL_QUADS);
-  glVertex2fv(v.s);
-  glVertex2fv((v + make_float2(size, 0)).s);
-  glVertex2fv((v + make_float2(size, size)).s);
-  glVertex2fv((v + make_float2(0, size)).s);
-  glEnd();
-}
-
-//      \__     2    |    1     __/
-//         \__       |       __/
-//            \__    |    __/
-//       3       \__ | __/       0
-//  ________________\|/________________
-//                __/|\__     
-//       4     __/   |   \__     7
-//          __/      |      \__
-//       __/    5    |    6    \__
-//     _/            |            \_
-int angle_octant(const float2& v) {
-  const float theta = atan2(v.y, v.x);
-  return ((theta / M_PI) * 4);
-}
-
-void DrawSeparator(float_seg A, float_seg B, const float& min_d) {
-  vector<floatn> samples;
-  vector<floatn> origins;
-  vector<float> lengths;
-  if (!multi_intersection(A, B)) {
-    FitBoxes(A, B, min_d, &samples, &origins, &lengths);
-  }
-
-  glColor3f(0, 1, 0);
-  for (int i = 0; i < origins.size(); ++i) {
-    const floatn& o = origins[i];
-    const float& d = lengths[i];
-    glQuad(o, d/2);
-    glQuad(o + make_float2(d/2, 0), d/2);
-    glQuad(o + make_float2(0, d/2), d/2);
-    glQuad(o + make_float2(d/2, d/2), d/2);
-  }
-
-  glColor3f(1, 0, 0);
-  glPointSize(4);
-  glBegin(GL_POINTS);
-  // for (int i = 0; i < origins.size(); ++i) {
-  //   const floatn& o = origins[i];
-  //   const float& d = lengths[i];
-  //   glVertex2fv((o+make_uni_floatn(d/2)).s);
-  // }
-  for (const floatn& sample : samples) {
-    glVertex2fv(sample.s);
-  }
-  glEnd();
-}
-
-void Display() {
-  glClear(GL_COLOR_BUFFER_BIT);
-
-  // draw quadtree
-  glColor3f(0, 0, 0);
-  // glQuad(a.a(), 0.4);
-
-  glBegin(GL_LINES);
-  glVertex2fv(a.a().s);
-  glVertex2fv(a.b().s);
-  glVertex2fv(b.a().s);
-  glVertex2fv(b.b().s);
-  glEnd();
-
-  DrawSeparator(a, b, 0.01);
-
-  glFlush();
-  glutSwapBuffers();
-}
-
-bool mod_a;
-void Mouse(int button, int state, int x, int y) {
-  if (button == GLUT_LEFT_BUTTON) {
-    if (state == GLUT_DOWN) {
-      mod_a = !(glutGetModifiers() & GLUT_ACTIVE_SHIFT);
-      if (mod_a) {
-        a.a() = Win2Obj(x, y);
-      } else {
-        b.a() = Win2Obj(x, y);
-      }
-      glutPostRedisplay();
+  if (action == GLFW_PRESS) {
+    switch (key) {
+      case GLFW_KEY_C:
+        lines->clear();
+        octree->build(*lines);
+        break;
+      case GLFW_KEY_P:
+        options.showObjectVertices = !options.showObjectVertices;
+        break;
+      case GLFW_KEY_O:
+        options.showOctree = !options.showOctree;
+        break;
+      case GLFW_KEY_Z:
+        zoomMode = !zoomMode;
+        if (zoomMode) {
+          glfwSetCursor(g_window, zoomCursor);
+        } else {
+          glfwSetCursor(g_window, arrowCursor);
+        }
+        break;
+      case GLFW_KEY_Q:
+        glfwSetWindowShouldClose(g_window, 1);
+        break;
     }
   }
+
+  refresh();
 }
 
-void MouseMotion(int x, int y) {
-  if (mod_a) {
-    a.b() = Win2Obj(x, y);
-  } else {
-    b.b() = Win2Obj(x, y);
+bool ctrl;
+void onMouse(GLFWwindow* window, int button, int action, int mods) {
+  using namespace std;
+
+  if (action == GLFW_PRESS) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+      mouseDown = true;
+      // lines->newLine(curMouse);
+      ctrl = mods & GLFW_MOD_SHIFT;
+      if (ctrl) {
+        lines->replacePoint(curMouse, 1, 1);
+      } else {
+        lines->replacePoint(curMouse, 0, 1);
+      }
+      rebuild();
+    } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+    }
+  } else if (action == GLFW_RELEASE) {
+      mouseDown = false;
   }
-  glutPostRedisplay();
 }
 
-void Keyboard(unsigned char key, int x, int y) {
-  int i;
-  float da;
-  switch (key) {
-    case 'a':
-      break;
-    case 'q':
-      exit(EXIT_SUCCESS);
-      break;
+void onMouseMove(GLFWwindow* window, double xpos, double ypos) {
+  using namespace std;
+
+  const float x = (xpos / g_gl_width) * 2 - 1;
+  const float y = (ypos / g_gl_height) * 2 - 1;
+  curMouse = make_float2(x, -y);
+
+  if (mouseDown) {
+    if (ctrl) {
+      lines->replacePoint(curMouse, 1, 1);
+    } else {
+      lines->replacePoint(curMouse, 0, 1);
+    }
+    // lines->addPoint(curMouse);
+    rebuild();
   }
-  glutPostRedisplay();
+}
+
+const char *byte_to_binary(int x)
+{
+  static const int size = 16;//sizeof(x) * 8;
+  static char b[size+1];
+  b[0] = '\0';
+
+  for (int z = 1<<(size-1); z > 0; z >>= 1) {
+    strcat(b, (x & z) ? "1" : "0");
+  }
+
+  return b;
+}
+
+int get_position(const float coord, const float split, const float w) {
+  if (coord < split-w) return 0;
+  if (coord < split) return 1;
+  if (coord < split+w) return 2;
+  return 3;
+}
+
+void fit() {
+  options.showOctree = true;
+
+  Resln resln(1<<options.max_level);
+
+
+  BoundingBox<float2> bb;
+  bb(make_float2(-0.5, -0.5));
+  bb(make_float2(0.5, 0.5));
+  // octree->build(*lines, &bb);
+  // octree->build(*lines);
+  // octree->build(points, &bb);
+
+  // The first two points are the first line segment, and the second two points
+  // are the second line segment.
+  vector<float2> fpoints;
+  fpoints.push_back(lines->getPolygons()[0][0]);
+  fpoints.push_back(lines->getPolygons()[0][1]);
+  fpoints.push_back(lines->getPolygons()[1][0]);
+  fpoints.push_back(lines->getPolygons()[1][1]);
+  vector<intn> points = Karras::Quantize(fpoints, resln, &bb);
+
+  // The two lines a and b in parametric form (p = a_p0 + t*a_v).
+  // floatn a_p0 = lines->getPolygons()[0][0];
+  // floatn a_v = lines->getPolygons()[0][1] - a_p0;
+  // floatn b_p0 = lines->getPolygons()[1][0];
+  // floatn b_v = lines->getPolygons()[1][1] - b_p0;
+  intn a_p0 = points[0];
+  intn a_v = points[1] - a_p0;
+  intn b_p0 = points[2];
+  intn b_v = points[3] - b_p0;
+
+  // Given two points where p0.x == p1.x, find the split point between
+  // the two using binary search.
+  //
+  //     ___________________
+  //    |                   |
+  //    |                   |
+  //    |                   |
+  //    |                   |
+  //    |                   |
+  //    |                   |
+  //    |                   |
+  //    |__________x__x_____|
+  //
+  //     ___________________
+  //    |         |         |
+  //    |         |         |
+  //    |         |         |
+  //    |_________|_________|
+  //    |         |         |
+  //    |         |         |
+  //    |         |         |
+  //    |_________|x__x_____|
+  //
+  //     ___________________
+  //    |         |         |
+  //    |         |         |
+  //    |         |         |
+  //    |_________|_________|
+  //    |         |    |    |
+  //    |         |____|____|
+  //    |         |    |    |
+  //    |_________|x__x|____|
+  //
+  //    Split in quadrant 01: splits = 01
+  //     ___________________
+  //    |         |         |
+  //    |         |         |
+  //    |         |         |
+  //    |_________|_________|
+  //    |         |    |    |
+  //    |         |____|____|
+  //    |         |_|__|    |
+  //    |_________|x|_x|____|
+  //
+  //    Split in quadrant 00: splits = 00 01
+  // float s = bb.min().x;
+  int s = 0;
+  // float cur_y = a_p0.y;
+  int cur_y = 0;
+  // float w = bb.size().x;
+  int w = resln.width;
+  vector<OctNode> nodes;
+  int splits = 0;
+  int numSplits = 1;
+  const int LEFT = 0;
+  const int RIGHT = 1;
+  int shift = 0;
+  // Initial split
+  nodes.push_back(OctNode());
+  w >>= 1;
+  s = s + w;
+  int ax = a_p0.x;
+  int bx = b_p0.x;
+  if (ax > bx) {
+    swap(ax, bx);
+  }
+  while (s < ax || s > bx) {
+    w >>= 1;
+    if (s < ax) {
+      s = s + w;
+      splits |= (RIGHT << shift);
+      nodes.back().set_child(1, numSplits);
+    } else {
+      s = s - w;
+      splits |= (LEFT << shift);
+      nodes.back().set_child(0, numSplits);
+    }
+    nodes.push_back(OctNode());
+    shift += 2;
+    numSplits++;
+  }
+
+  cout << " splits = " << byte_to_binary(splits) << endl;
+
+  int a_position = 0;
+  int b_position = 0;
+  cur_y += w;
+  // while (abs(a_position - b_position) < 3 && w < ???) {
+  {
+    // There's potential for a conflict cell if the a and b positions are
+    // not completely separated.
+    // Preconditions:
+    //    * cur_y is at the point to check in this iteration.
+    //    * w is the width of check segments (see below).
+
+    // Check the middle line of the current node and record the position.
+    //
+    //  0    1 | 2    3
+    //     ____|____
+    //         |
+    //       * | *
+    //
+    // So at y = split.y + w, 
+    //      x value      position
+    //    < split.x-w       0
+    //    < split.x         1
+    //    < split.x+w       2
+    //     otherwise        3
+
+    cur_y += w;
+    float a_t = (cur_y - a_p0.y) / a_v.y;
+    float b_t = (cur_y - b_p0.y) / b_v.y;
+    int a_x = (int)((a_p0.x + a_t * a_v.x) + 0.5);
+    int b_x = (int)((b_p0.x + b_t * b_v.x) + 0.5);
+    a_position = get_position(a_x, s, w);
+    b_position = get_position(b_x, s, w);
+    cout << "a = " << a_position << " b = " << b_position << endl;
+
+    cur_y += w;
+    w <<= 1;
+  }
+
+
+  octree->set(nodes, bb);
+
+  // karras_points.clear();
+  // bb = BoundingBox<float2>();
+  // extra_qpoints.clear();
+  // octree.clear();
+
+  // vector<vector<float2>> temp_polygons = lines.getPolygons();
+  // if (temp_polygons.empty()) {
+  //   buildOctVertices();
+  //   return;
+  // }
+
+  // // karras_points.clear();
+  // vector<vector<float2> > all_vertices(temp_polygons.size());
+  // for (int i = 0; i < temp_polygons.size(); ++i) {
+  //   const vector<float2>& polygon = temp_polygons[i];
+  //   all_vertices[i] = polygon;
+  //   for (int j = 0; j < polygon.size()-1; ++j) {
+  //     karras_points.push_back(temp_polygons[i][j]);
+  //   }
+  //   karras_points.push_back(temp_polygons[i].back());
+  // }
+
+  // // Find bounding box of vertices
+  // for (int j = 0; j < all_vertices.size(); ++j) {
+  //   const std::vector<float2>& vertices = all_vertices[j];
+  //   for (int i = 0; i < vertices.size(); ++i) {
+  //     bb(vertices[i]);
+  //   }
+  // }
+  // if (customBB) {
+  //   bb = *customBB;
+  // }
+
+  // // Karras iterations
+  // vector<intn> qpoints = Karras::Quantize(karras_points, resln);
 }
 
 int main(int argc, char** argv) {
-  // if (argc == 3) {
-  //   BigUnsigned i;
-  //   i.multiply(stringToBigUnsigned(argv[1]), stringToBigUnsigned(argv[2]));
-  //   cout << bigUnsignedToString(i) << endl;
-  //   cout << i.getLength() << endl;
-  // }
-  // // test_karatsuba();
-  // exit(0);
+  using namespace std;
 
-  // bool i1, i2;
-  // const floatn i = line_intersection(
-  //     make_floatn(17136, 12798),
-  //     make_floatn(17133, 12800),
-  //     make_floatn(17136, 12799),
-  //     make_floatn(17135, 12800),
-  //     &i1, &i2);
-  // cout << i << " " << i1 << " " << i2 << endl;
-  // for (int j = 17000; j > 0; j-=1) {
-  //   cout << endl;
-  //   const floatn i = line_intersection(
-  //       // make_floatn(17136, 12798),
-  //       // make_floatn(17133, 12800),
-  //       // make_floatn(17136, 12799),
-  //       // make_floatn(17135, 12800),
-  //       make_floatn(j+136, 12798),
-  //       make_floatn(j+133, 12800),
-  //       make_floatn(j+136, 12799),
-  //       make_floatn(j+135, 12800),
-  //       &i1, &i2);
-  //   if (!i2) {
-  //     cout << "j = " << j << ": " << i << " " << i1 << " " << i2 << endl;
-  //     break;
-  //   }
-  // }
-  // exit(0);
+  restart_gl_log();
+  start_gl();
+  print_error("new a");
+  glfwSetWindowTitle(g_window, "Parallel GVD");
 
-  cout << endl;
-  cout << "Key commands:" << endl;
-  cout << "  c - clear" << endl;
-  cout << endl;
+  glfwSetKeyCallback(g_window, onKey);
+  glfwSetMouseButtonCallback(g_window, onMouse);
+  glfwSetCursorPosCallback(g_window, onMouseMove);
 
-  glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-  glutInitWindowSize(window_width, window_height);
-  glutInitWindowPosition(0, 0);
-  glutCreateWindow("fit");
-  glutDisplayFunc(Display);
-  glutKeyboardFunc(Keyboard);
-  glutMouseFunc(Mouse);
-  glutMotionFunc(MouseMotion);
-  Init();
+  GLFWcursor* arrowCursor = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+  GLFWcursor* zoomCursor = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+  glfwSetCursor(g_window, arrowCursor);
+  // glfwSetCursor(g_window, zoomCursor);
 
-  glutMainLoop();
+  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+  glClear (GL_COLOR_BUFFER_BIT);
+
+  octree = new Octree2();
+  octree->processArgs(argc, argv);
+  lines = new Polylines();
+
+  lines->newLine(make_float2(-0.2, -0.5));
+  lines->addPoint(make_float2(-0.24, 0.5));
+  lines->newLine(make_float2(-0.18, -0.5));
+  lines->addPoint(make_float2(-0.01, 0.5));
+  fit();
+
+  program = new LinesProgram();
+	
+  refresh();
+
+  while (!glfwWindowShouldClose(g_window)) {
+    // Refresh here for animation
+    // refresh();
+    
+    glfwPollEvents ();
+  }
+	
+  glfwTerminate();
+  return 0;
 }

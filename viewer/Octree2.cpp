@@ -74,7 +74,43 @@ int Octree2::processArgs(int argc, char** argv) {
   return 0;
 }
 
-void Octree2::build(const Polylines& lines) {
+void Octree2::build(const vector<float2>& points,
+                    const BoundingBox<float2>* customBB) {
+  using namespace std;
+
+  karras_points.clear();
+  bb = BoundingBox<float2>();
+  extra_qpoints.clear();
+  octree.clear();
+
+  karras_points = points;
+
+  // Compute bounding box
+  if (customBB) {
+    bb = *customBB;
+  } else {
+    for (int i = 0; i < karras_points.size(); ++i) {
+      bb(karras_points[i]);
+    }
+  }
+
+  vector<intn> qpoints = Karras::Quantize(karras_points, resln, &bb);
+  if (qpoints.size() > 1) {
+    octree = Karras::BuildOctree(qpoints, resln, true);
+  } else {
+    octree.clear();
+  }
+
+  for (int i = 0; i < qpoints.size(); ++i) {
+    cout << qpoints[i] << endl;
+  }
+
+  // Set up vertices on GPU for rendering
+  buildOctVertices();
+}
+
+void Octree2::build(const Polylines& lines,
+                    const BoundingBox<float2>* customBB) {
   using namespace std;
 
   //------------------
@@ -93,34 +129,31 @@ void Octree2::build(const Polylines& lines) {
   extra_qpoints.clear();
   octree.clear();
 
-  vector<vector<float2>> temp_polygons = lines.getPolygons();
-  if (temp_polygons.empty()) {
+  const vector<vector<float2>>& polygons = lines.getPolygons();
+  if (polygons.empty()) {
     buildOctVertices();
     return;
   }
 
-  // karras_points.clear();
-  vector<vector<float2> > all_vertices(temp_polygons.size());
-  for (int i = 0; i < temp_polygons.size(); ++i) {
-    const vector<float2>& polygon = temp_polygons[i];
-    all_vertices[i] = polygon;
+  // Get all vertices into a 1D array (karras_points).
+  for (int i = 0; i < polygons.size(); ++i) {
+    const vector<float2>& polygon = polygons[i];
     for (int j = 0; j < polygon.size()-1; ++j) {
-      karras_points.push_back(temp_polygons[i][j]);
+      karras_points.push_back(polygon[j]);
     }
-    karras_points.push_back(temp_polygons[i].back());
+    karras_points.push_back(polygon.back());
   }
 
-  // Find bounding box of vertices
-  // bb = BoundingBox<float2>();
-  for (int j = 0; j < all_vertices.size(); ++j) {
-    const std::vector<float2>& vertices = all_vertices[j];
-    for (int i = 0; i < vertices.size(); ++i) {
-      bb(vertices[i]);
+  // Compute bounding box
+  if (customBB) {
+    bb = *customBB;
+  } else {
+    for (int i = 0; i < karras_points.size(); ++i) {
+      bb(karras_points[i]);
     }
   }
 
   // Karras iterations
-  // extra_qpoints.clear();
   vector<intn> qpoints = Karras::Quantize(karras_points, resln);
   int iterations = 0;
   do {
@@ -386,17 +419,13 @@ void Octree2::FindMultiCells(const Polylines& lines) {
   cell_intersections.resize(octree.size(), CellIntersections());
   MCData data(cell_intersections);
 
-  // vector<vector<float2> > temp_polygons(polygons);
-  // if (!verts.empty()) {
-  //   temp_polygons.push_back(verts);
-  // }
-  vector<vector<float2>> temp_polygons = lines.getPolygons();;
+  const vector<vector<float2>>& polygons = lines.getPolygons();;
 
   // For each line segment in each polygon do a cell walk, updating
   // the cell_intersections structure.
   intersections.clear();
-  for (int j = 0; j < temp_polygons.size(); ++j) {
-    const std::vector<float2> polygon = temp_polygons[j];
+  for (int j = 0; j < polygons.size(); ++j) {
+    const std::vector<float2>& polygon = polygons[j];
     data.cur_label = j;
     for (int i = 0; i < polygon.size() - 1; ++i) {
       const floatn a = obj2Oct(polygon[i]);
@@ -553,13 +582,13 @@ void Octree2::drawNode(
       //   // glColor3d(0.5, 0, 0.5);
       //   // glSquare(oct2Obj(o), oct2Obj(length/2));
       // }
-      if (cell_intersections[parent_idx].is_multi(i)) {
-        // glLineWidth(5);
-        // glColor3d(1, 0, 0);
-      } else {
-        // glLineWidth(1);
-        // glColor3dv(octree_color.s);
-      }
+//      if (cell_intersections[parent_idx].is_multi(i)) {
+//        // glLineWidth(5);
+//        // glColor3d(1, 0, 0);
+//      } else {
+//        // glLineWidth(1);
+//        // glColor3dv(octree_color.s);
+//      }
       
       // glSquare(oct2Obj(o), oct2Obj(length/2));
       // if (show_vertex_ids) {

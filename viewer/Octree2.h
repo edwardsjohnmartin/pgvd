@@ -35,8 +35,16 @@ class Octree2 {
   Octree2();
   
   int processArgs(int argc, char** argv);
-  void build(const Polylines& lines);
+  void build(const std::vector<float2>& points,
+             const BoundingBox<float2>* customBB);
+  void build(const Polylines& lines, const BoundingBox<float2>* customBB = 0);
   void render(LinesProgram* program);
+
+  void set(std::vector<OctNode>& octree_, const BoundingBox<float2>& bb_) {
+    octree = octree_;
+    bb = bb_;
+    buildOctVertices();
+  }
 
  private:
   float2 obj2Oct(const float2& v) const;

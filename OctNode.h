@@ -11,12 +11,13 @@ static const int leaf_masks[] = { 1, 2, 4, 8 };
 
 struct OctNode {
  public:
-  OctNode() : children(new int[1<<DIM]), leaf(15) {
+  // OctNode() : children(new int[1<<DIM]), leaf(15) {
+  OctNode() : leaf(15) {
     std::fill(children, children + (1<<DIM), -1);
   }
-  ~OctNode() {
-    delete [] children;
-  }
+  // ~OctNode() {
+  //   delete [] children;
+  // }
   bool is_leaf(const int i) const {
     return leaf & leaf_masks[i];
   }
@@ -34,7 +35,7 @@ struct OctNode {
     children[octant] = data;
   }
   const int& operator[](const int i) const {
-    if (!children) throw std::logic_error("leaf can't get children");
+    // if (!children) throw std::logic_error("leaf can't get children");
     return children[i];
   }
 
@@ -42,7 +43,8 @@ struct OctNode {
   friend std::istream& operator>>(std::istream& in, OctNode& node);
 
  private:
-  int* children;
+  // int* children;
+  int children[1<<DIM];
   unsigned char leaf;
 };
 

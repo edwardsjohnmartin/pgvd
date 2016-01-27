@@ -65,6 +65,19 @@ class Polylines {
     lasts.back() = size;
   }
 
+  // This is a test method
+  void replacePoint(const float2& p, const int lineIdx, const int vertexIdx) {
+    using namespace std;
+    glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
+
+    int i = (lineIdx == 0) ? 1 : 3;
+    points[i] = glm::vec3(p.x, p.y, 0.0);
+
+    glBufferSubData(
+        GL_ARRAY_BUFFER, i*sizeof(glm::vec3),
+        sizeof(glm::vec3), points+i);
+  }
+
   void newLine(const float2& p) {
     lasts.push_back(0);
     addPoint(p);

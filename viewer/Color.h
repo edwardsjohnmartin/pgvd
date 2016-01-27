@@ -14,17 +14,18 @@ inline float3 randomColor() {
   return c;
 }
 
-// Returned color may not be close to avoid
+// Returned color may not be close to avoid. Also avoids black.
 inline float3 randomColor(const float3& avoid) {
-  static const float DIST_THRESH = .1;
+  static const float DIST_THRESH = .8;
+  static const float3 black = make_float3(0, 0, 0);
   float3 c = randomColor();
-  while (length2(avoid - c) < DIST_THRESH) {
+  while (length2(avoid - c) < DIST_THRESH || length2(black - c) < DIST_THRESH) {
     c = randomColor();
   }
   return c;
 }
 
-// Returned color may not be close to avoid
+// Returned color may not be close to avoid. Also avoids black.
 inline float3 randomColor(int seed, const float3& avoid) {
   //srandom not supported in VC++
   srand(seed+1);
