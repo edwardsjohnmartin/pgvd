@@ -142,24 +142,57 @@ int get_position(const float coord, const float split, const float w) {
   return 3;
 }
 
-int find_split(int s, const int ax, const int bx, int& w, int& parent_quad,
-               vector<OctNode>& nodes, vector<int>& nodeIndices,
+// Divides in half until a split value is found that is between ax and bx.
+//  origin - origin of the cell ax and bx are on
+//  ax     - min point
+//  bx     - max point
+//  w      - width of cell
+//  parentQuad - position of the current cell in relation to the parent.
+//           For example, if the current cell is the top-right quadrant
+//           of its parent, then parentQuad == 3.
+//  parentQuadStack - history of where subdivisions occured to get to 
+//           this point. The current cell is NOT in the stack since it has
+//           not yet been subdivided. 
+//  nodes  - description of the quadtree as it is built. In the first phase,
+//           where we're just counting the number of subdivisions we need to
+//           make, this value will be ignored.
+//  nodeIndices - history of indices into nodes array of parents. This will be
+//           ignored in phase I.
+//  widthStack - history of widths.
+int find_split(int origin, const int ax, const int bx, int& w,
+               const int parentQuad, int& parentQuadStack,
+               const int parentIndex, vector<int>& indexStack,
+               vector<OctNode>& nodes, 
+               vector<int>& widthStack,
                const int LEFT, const int RIGHT) {
+  // Initial split
+  if (parentQuad > -1) {
+    parentQuadStack <<= 2;
+    parentQuadStack |= parentQuad;
+    nodes[parentIndex].set_child(parentQuad, nodes.size());
+  }
+  indexStack.push_back(nodes.size());
+  widthStack.push_back(w);
+  nodes.push_back(OctNode());
+  w >>= 1;
+  int s = origin + w;
+
   while (s < ax || s > bx) {
     w >>= 1;
-    const int nodeIndex = nodeIndices.back();
+    const int nodeIndex = indexStack.back();
     if (s < ax) {
       s = s + w;
-      parent_quad <<= 2;
-      parent_quad |= RIGHT;
+      parentQuadStack <<= 2;
+      parentQuadStack |= RIGHT;
       nodes[nodeIndex].set_child(RIGHT, nodes.size());
     } else {
       s = s - w;
-      parent_quad <<= 2;
-      parent_quad |= LEFT;
+      parentQuadStack <<= 2;
+      parentQuadStack |= LEFT;
       nodes[nodeIndex].set_child(LEFT, nodes.size());
     }
-    nodeIndices.push_back(nodes.size());
+    indexStack.push_back(nodes.size());
+    widthStack.push_back(w<<1);
     nodes.push_back(OctNode());
   }
   return s;
@@ -190,25 +223,6 @@ void fit() {
 
   vector<intn> points = Karras::Quantize(fpoints, resln, &bb);
 
-  // vector<intn> points;
-  // vector<CellIntersection> ints = FindIntersections(
-  //     convert_floatn(qpoints[0]), convert_floatn(qpoints[1]),
-  //     make_intn(0, 0), resln.width, resln);
-  // // cout << ints.size() << endl;
-  // // cout << ints[0].p << " " << ints[1].p << endl;
-  // points.push_back(convert_intn(ints[0].p));
-  // points.push_back(convert_intn(ints[1].p));
-  // ints = FindIntersections(
-  //     convert_floatn(qpoints[1]), convert_floatn(qpoints[2]),
-  //     make_intn(0, 0), resln.width, resln);
-  // points.push_back(convert_intn(ints[0].p));
-  // points.push_back(convert_intn(ints[1].p));
-
-  // The two lines a and b in parametric form (p = a_p0 + t*a_v).
-  // floatn a_p0 = lines->getPolygons()[0][0];
-  // floatn a_v = lines->getPolygons()[0][1] - a_p0;
-  // floatn b_p0 = lines->getPolygons()[1][0];
-  // floatn b_v = lines->getPolygons()[1][1] - b_p0;
   intn a_p0 = points[0];
   floatn a_v = convert_floatn(points[1] - a_p0);
   intn b_p0 = points[2];
@@ -237,7 +251,7 @@ void fit() {
   //    |         |         |
   //    |_________|x__x_____|
   //
-  //    parent_quad = xx
+  //    parentQuadStack = xx
   //     ___________________
   //    |         |         |
   //    |         |         |
@@ -248,7 +262,7 @@ void fit() {
   //    |         |    |    |
   //    |_________|x__x|____|
   //
-  //    push split in quadrant 01: parent_quad = 01
+  //    push split in quadrant 01: parentQuadStack = 01
   //     ___________________
   //    |         |         |
   //    |         |         |
@@ -259,39 +273,39 @@ void fit() {
   //    |         |_|__|    |
   //    |_________|x|_x|____|
   //
-  //    push split in quadrant 00: parent_quad = 01 00
+  //    push split in quadrant 00: parentQuadStack = 01 00
   int w = resln.width;
   vector<OctNode> nodes;
-  // This is a stack, similar to parent_quad, which keeps track of
+  // This is a stack, similar to parentQuadStack, which keeps track of
   // indices into the nodes vector (see above).
-  vector<int> nodeIndex;
+  vector<int> indexStack;
+  // This is a stack, similar to parentQuadStack, which keeps track of
+  // widths.
+  vector<int> widthStack;
   // See above for examples.
-  int parent_quad = 0;
+  int parentQuadStack = 0;
   const int LOWER_LEFT  = 0;
   const int LOWER_RIGHT = 1;
   const int UPPER_LEFT  = 2;
   const int UPPER_RIGHT = 3;
-  // Initial split
-  nodeIndex.push_back(nodes.size());
-  nodes.push_back(OctNode());
-  w >>= 1;
-  int s = w;
   int ax = a_p0.x;
   int bx = b_p0.x;
   if (ax > bx) {
     swap(ax, bx);
   }
 
-  s = find_split(s, ax, bx, w, parent_quad, nodes, nodeIndex,
-                 LOWER_LEFT, LOWER_RIGHT);
+  int s = find_split(0, ax, bx, w, -1, parentQuadStack, -1, indexStack,
+                     nodes, widthStack,
+                     LOWER_LEFT, LOWER_RIGHT);
 
-  cout << " parent_quad = " << byte_to_binary(parent_quad) << endl;
+  cout << " parentQuadStack = " << byte_to_binary(parentQuadStack) << endl;
 
   int a_position = 0;
   int b_position = 0;
   intn center = make_intn(s, w);
   vector<int> a_positions, b_positions;
-  while (abs(a_position - b_position) < 3 && w < resln.width) {
+  // while (abs(a_position - b_position) < 3 && w < resln.width) {
+  while (w < resln.width) {
     // There's potential for a conflict cell if the a and b positions are
     // not completely separated.
     // Preconditions:
@@ -322,30 +336,60 @@ void fit() {
     b_positions.push_back(b_position);
 
     cout << endl;
-    cout << "center = " << center << endl;
+    cout << "checking center = " << center << endl;
     cout << "a_x = " << a_x << " (" << (a_p0.x + a_t * a_v.x) << ") "
          << " b_x = " << b_x << endl;
 
-    const int subdivide_pos = (parent_quad & 3);
     // Recurse and find new split
     if (a_position == b_position) {
-      s = find_split(center.x - (w>>1), a_x, b_x, w,
-                     parent_quad, nodes, nodeIndex, LEFT, RIGHT);
+      cout << "conflict at " << a_position << endl;
+      if (a_position == 0 || a_position == 3) {
+        throw logic_error("Unsupported position");
+      }
+      const int origin = center.x + ((a_position == 1) ? -w : 0);
+      const int parentQuad = (a_position == 1) ? 2 : 3;
+      s = find_split(origin, a_x, b_x, w,
+                     parentQuad, parentQuadStack,
+                     indexStack.back(), indexStack,
+                     nodes, widthStack,
+                     LOWER_LEFT, LOWER_RIGHT);
       center = make_intn(s, center.y+w);
     } else {
-    // {
-      // Update center, w and parent_quad for next iteration
-      if (subdivide_pos == LEFT) {
+      int parentQuad = (parentQuadStack & 3);
+
+      while (parentQuad & 2) {
+        if (!(parentQuad & 1)) {
+          // left side
+          center = make_intn(center.x + w, center.y - w);
+        } else if (parentQuad & 1) {
+          // right side
+          center = make_intn(center.x - w, center.y - w);
+        }
+
+        // Back up one center
+        w = widthStack.back();
+        widthStack.pop_back();
+        indexStack.pop_back();
+        parentQuadStack >>= 2;
+        parentQuad = (parentQuadStack & 3);
+      }
+
+      // Update center, w and parentQuadStack for next iteration
+      if (!(parentQuad & 1)) {
+        // left side
         center = make_intn(center.x + w, center.y + w);
-      } else if (subdivide_pos == RIGHT) {
+      } else if (parentQuad & 1) {
+        // right side
         center = make_intn(center.x - w, center.y + w);
       } else {
         throw logic_error("Unexpected subdivision position");
       }
 
-      w <<= 1;
-      parent_quad >>= 2;
-      nodeIndex.pop_back();
+      w = widthStack.back();
+      widthStack.pop_back();
+      indexStack.pop_back();
+      parentQuadStack >>= 2;
+      parentQuad = (parentQuadStack & 3);
     }
   }
 
@@ -424,10 +468,24 @@ int main(int argc, char** argv) {
   octree->processArgs(argc, argv);
   lines = new Polylines();
 
+  // fine
   lines->newLine(make_float2(-0.2, -0.5));
   lines->addPoint(make_float2(-0.24, 0.65));
   lines->newLine(make_float2(-0.18, -0.5));
   lines->addPoint(make_float2(-0.01, 0.65));
+
+  // // medium
+  // lines->newLine(make_float2(-0.1875,      -0.5));
+  // lines->addPoint(make_float2(-0.1875-0.02, 0.65));
+  // lines->newLine(make_float2(-0.0625,      -0.5));
+  // lines->addPoint(make_float2(-0.0625+0.02, 0.65));
+
+  // // coarse
+  // lines->newLine(make_float2(-0.375,      -0.5));
+  // lines->addPoint(make_float2(-0.375-0.02, 0.65));
+  // lines->newLine(make_float2(-0.125,      -0.5));
+  // lines->addPoint(make_float2(-0.125+0.02, 0.65));
+
   fit();
 
   program = new LinesProgram();
