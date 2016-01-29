@@ -69,9 +69,11 @@ OctCell FindNeighbor(
   throw logic_error("Not implemented");
 }
 
+// Find intersections of the line segment ab with an octree cell.
 std::vector<CellIntersection> FindIntersections(
-    const floatn& a, const floatn& b, const OctCell& cell,
-    const std::vector<OctNode>& octree, const Resln& resln) {
+    const floatn& a, const floatn& b, const intn& origin, const int width,
+    const Resln& resln) {
+
   // static const float EPSILON = 1e-6;
   floatn af = a;
   floatn bf = b;
@@ -80,8 +82,6 @@ std::vector<CellIntersection> FindIntersections(
   float len = length(v);
   v = v / len;
 
-  const intn& origin = cell.get_origin();
-  const int width = cell.get_width();
   BoundingBox<floatn> bb;
   bb(convert_floatn(origin));
   bb(convert_floatn(origin) + make_uni_floatn(width));
@@ -163,6 +163,14 @@ std::vector<CellIntersection> FindIntersections(
   }
 
   return ret;
+}
+
+std::vector<CellIntersection> FindIntersections(
+    const floatn& a, const floatn& b, const OctCell& cell,
+    const Resln& resln) {
+  const intn& origin = cell.get_origin();
+  const int width = cell.get_width();
+  return FindIntersections(a, b, origin, width, resln);
 }
 
 } // namespace

@@ -65,12 +65,12 @@ class Polylines {
     lasts.back() = size;
   }
 
-  // This is a test method
+  // This is a test method for the fit program. It is not for general use.
   void replacePoint(const float2& p, const int lineIdx, const int vertexIdx) {
     using namespace std;
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 
-    int i = (lineIdx == 0) ? 1 : 3;
+    int i = (lineIdx == 0) ? vertexIdx + 0 : vertexIdx + 2;
     points[i] = glm::vec3(p.x, p.y, 0.0);
 
     glBufferSubData(

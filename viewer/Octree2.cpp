@@ -274,7 +274,7 @@ void CellWalk(
     v(cell, a, b, octree, resln, data);
 
     const vector<OctreeUtils::CellIntersection> local_intersections =
-        OctreeUtils::FindIntersections(a, b, cell, octree, resln);
+        OctreeUtils::FindIntersections(a, b, cell, /*octree,*/ resln);
     for (const OctreeUtils::CellIntersection& i : local_intersections) {
       if (i.t > cur.t) {
         cur = i;
@@ -367,7 +367,7 @@ void MCCallback(OctCell cell, const floatn& a, const floatn& b,
 
   // Get the intersections between the segment and octree cell.
   const vector<OctreeUtils::CellIntersection> intersections =
-      OctreeUtils::FindIntersections(a, b, cell, octree, resln);
+      OctreeUtils::FindIntersections(a, b, cell, /*octree,*/ resln);
   if (intersections.size() > 2) {
     error_log(cell, a, b, octree, resln);
     cerr << "More than 2 intersections with a cell" << endl;
@@ -503,7 +503,7 @@ void WalkCallback(OctCell cell, const floatn& a, const floatn& b,
       *static_cast<vector<CellIntersection>*>(data);
 
   const vector<CellIntersection> local_intersections =
-      FindIntersections(a, b, cell, octree, resln);
+      FindIntersections(a, b, cell, /*octree,*/ resln);
   for (const CellIntersection& i : local_intersections) {
     // const intn p = i.p;
     all_intersections.push_back(i);

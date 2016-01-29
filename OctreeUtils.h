@@ -29,9 +29,14 @@ struct CellIntersection {
 
 // Find intersections of the line segment ab with an octree cell.
 std::vector<CellIntersection> FindIntersections(
+    const floatn& a, const floatn& b, const intn& origin, const int width,
+    const Resln& resln);
+
+// Find intersections of the line segment ab with an octree cell.
+std::vector<CellIntersection> FindIntersections(
     // const intn& a, const intn& b, const OctCell& cell,
     const floatn& a, const floatn& b, const OctCell& cell,
-    const std::vector<OctNode>& octree, const Resln& resln);
+    const Resln& resln);
 
 } // namespace
 

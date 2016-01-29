@@ -88,7 +88,8 @@ void onKey(GLFWwindow* window, int key, int scancode,
   refresh();
 }
 
-bool ctrl;
+int changeLine;
+int changePoint;
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
   using namespace std;
 
@@ -96,12 +97,9 @@ void onMouse(GLFWwindow* window, int button, int action, int mods) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
       mouseDown = true;
       // lines->newLine(curMouse);
-      ctrl = mods & GLFW_MOD_SHIFT;
-      if (ctrl) {
-        lines->replacePoint(curMouse, 1, 1);
-      } else {
-        lines->replacePoint(curMouse, 0, 1);
-      }
+      changeLine = (mods & GLFW_MOD_SHIFT) ? 1 : 0;
+      changePoint = (mods & GLFW_MOD_CONTROL) ? 0 : 1;
+      lines->replacePoint(curMouse, changeLine, changePoint);
       rebuild();
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
     }
@@ -118,11 +116,7 @@ void onMouseMove(GLFWwindow* window, double xpos, double ypos) {
   curMouse = make_float2(x, -y);
 
   if (mouseDown) {
-    if (ctrl) {
-      lines->replacePoint(curMouse, 1, 1);
-    } else {
-      lines->replacePoint(curMouse, 0, 1);
-    }
+    lines->replacePoint(curMouse, changeLine, changePoint);
     // lines->addPoint(curMouse);
     rebuild();
   }
@@ -148,6 +142,29 @@ int get_position(const float coord, const float split, const float w) {
   return 3;
 }
 
+int find_split(int s, const int ax, const int bx, int& w, int& parent_quad,
+               vector<OctNode>& nodes, vector<int>& nodeIndices,
+               const int LEFT, const int RIGHT) {
+  while (s < ax || s > bx) {
+    w >>= 1;
+    const int nodeIndex = nodeIndices.back();
+    if (s < ax) {
+      s = s + w;
+      parent_quad <<= 2;
+      parent_quad |= RIGHT;
+      nodes[nodeIndex].set_child(RIGHT, nodes.size());
+    } else {
+      s = s - w;
+      parent_quad <<= 2;
+      parent_quad |= LEFT;
+      nodes[nodeIndex].set_child(LEFT, nodes.size());
+    }
+    nodeIndices.push_back(nodes.size());
+    nodes.push_back(OctNode());
+  }
+  return s;
+}
+
 void fit() {
   options.showOctree = true;
 
@@ -168,7 +185,24 @@ void fit() {
   fpoints.push_back(lines->getPolygons()[0][1]);
   fpoints.push_back(lines->getPolygons()[1][0]);
   fpoints.push_back(lines->getPolygons()[1][1]);
+
+  using namespace OctreeUtils;
+
   vector<intn> points = Karras::Quantize(fpoints, resln, &bb);
+
+  // vector<intn> points;
+  // vector<CellIntersection> ints = FindIntersections(
+  //     convert_floatn(qpoints[0]), convert_floatn(qpoints[1]),
+  //     make_intn(0, 0), resln.width, resln);
+  // // cout << ints.size() << endl;
+  // // cout << ints[0].p << " " << ints[1].p << endl;
+  // points.push_back(convert_intn(ints[0].p));
+  // points.push_back(convert_intn(ints[1].p));
+  // ints = FindIntersections(
+  //     convert_floatn(qpoints[1]), convert_floatn(qpoints[2]),
+  //     make_intn(0, 0), resln.width, resln);
+  // points.push_back(convert_intn(ints[0].p));
+  // points.push_back(convert_intn(ints[1].p));
 
   // The two lines a and b in parametric form (p = a_p0 + t*a_v).
   // floatn a_p0 = lines->getPolygons()[0][0];
@@ -176,9 +210,9 @@ void fit() {
   // floatn b_p0 = lines->getPolygons()[1][0];
   // floatn b_v = lines->getPolygons()[1][1] - b_p0;
   intn a_p0 = points[0];
-  intn a_v = points[1] - a_p0;
+  floatn a_v = convert_floatn(points[1] - a_p0);
   intn b_p0 = points[2];
-  intn b_v = points[3] - b_p0;
+  floatn b_v = convert_floatn(points[3] - b_p0);
 
   // Given two points where p0.x == p1.x, find the split point between
   // the two using binary search.
@@ -203,6 +237,7 @@ void fit() {
   //    |         |         |
   //    |_________|x__x_____|
   //
+  //    parent_quad = xx
   //     ___________________
   //    |         |         |
   //    |         |         |
@@ -213,7 +248,7 @@ void fit() {
   //    |         |    |    |
   //    |_________|x__x|____|
   //
-  //    Split in quadrant 01: splits = 01
+  //    push split in quadrant 01: parent_quad = 01
   //     ___________________
   //    |         |         |
   //    |         |         |
@@ -224,55 +259,43 @@ void fit() {
   //    |         |_|__|    |
   //    |_________|x|_x|____|
   //
-  //    Split in quadrant 00: splits = 00 01
-  // float s = bb.min().x;
-  int s = 0;
-  // float cur_y = a_p0.y;
-  int cur_y = 0;
-  // float w = bb.size().x;
+  //    push split in quadrant 00: parent_quad = 01 00
   int w = resln.width;
   vector<OctNode> nodes;
-  int splits = 0;
-  int numSplits = 1;
-  const int LEFT = 0;
-  const int RIGHT = 1;
-  int shift = 0;
+  // This is a stack, similar to parent_quad, which keeps track of
+  // indices into the nodes vector (see above).
+  vector<int> nodeIndex;
+  // See above for examples.
+  int parent_quad = 0;
+  const int LOWER_LEFT  = 0;
+  const int LOWER_RIGHT = 1;
+  const int UPPER_LEFT  = 2;
+  const int UPPER_RIGHT = 3;
   // Initial split
+  nodeIndex.push_back(nodes.size());
   nodes.push_back(OctNode());
   w >>= 1;
-  s = s + w;
+  int s = w;
   int ax = a_p0.x;
   int bx = b_p0.x;
   if (ax > bx) {
     swap(ax, bx);
   }
-  while (s < ax || s > bx) {
-    w >>= 1;
-    if (s < ax) {
-      s = s + w;
-      splits |= (RIGHT << shift);
-      nodes.back().set_child(1, numSplits);
-    } else {
-      s = s - w;
-      splits |= (LEFT << shift);
-      nodes.back().set_child(0, numSplits);
-    }
-    nodes.push_back(OctNode());
-    shift += 2;
-    numSplits++;
-  }
 
-  cout << " splits = " << byte_to_binary(splits) << endl;
+  s = find_split(s, ax, bx, w, parent_quad, nodes, nodeIndex,
+                 LOWER_LEFT, LOWER_RIGHT);
+
+  cout << " parent_quad = " << byte_to_binary(parent_quad) << endl;
 
   int a_position = 0;
   int b_position = 0;
-  cur_y += w;
-  // while (abs(a_position - b_position) < 3 && w < ???) {
-  {
+  intn center = make_intn(s, w);
+  vector<int> a_positions, b_positions;
+  while (abs(a_position - b_position) < 3 && w < resln.width) {
     // There's potential for a conflict cell if the a and b positions are
     // not completely separated.
     // Preconditions:
-    //    * cur_y is at the point to check in this iteration.
+    //    * center is the center point of the "plus" to check (see below)
     //    * w is the width of check segments (see below).
 
     // Check the middle line of the current node and record the position.
@@ -289,19 +312,54 @@ void fit() {
     //    < split.x+w       2
     //     otherwise        3
 
-    cur_y += w;
-    float a_t = (cur_y - a_p0.y) / a_v.y;
-    float b_t = (cur_y - b_p0.y) / b_v.y;
+    float a_t = (center.y - a_p0.y) / a_v.y;
+    float b_t = (center.y - b_p0.y) / b_v.y;
     int a_x = (int)((a_p0.x + a_t * a_v.x) + 0.5);
     int b_x = (int)((b_p0.x + b_t * b_v.x) + 0.5);
-    a_position = get_position(a_x, s, w);
-    b_position = get_position(b_x, s, w);
-    cout << "a = " << a_position << " b = " << b_position << endl;
+    a_position = get_position(a_x, center.x, w);
+    b_position = get_position(b_x, center.x, w);
+    a_positions.push_back(a_position);
+    b_positions.push_back(b_position);
 
-    cur_y += w;
-    w <<= 1;
+    cout << endl;
+    cout << "center = " << center << endl;
+    cout << "a_x = " << a_x << " (" << (a_p0.x + a_t * a_v.x) << ") "
+         << " b_x = " << b_x << endl;
+
+    const int subdivide_pos = (parent_quad & 3);
+    // Recurse and find new split
+    if (a_position == b_position) {
+      s = find_split(center.x - (w>>1), a_x, b_x, w,
+                     parent_quad, nodes, nodeIndex, LEFT, RIGHT);
+      center = make_intn(s, center.y+w);
+    } else {
+    // {
+      // Update center, w and parent_quad for next iteration
+      if (subdivide_pos == LEFT) {
+        center = make_intn(center.x + w, center.y + w);
+      } else if (subdivide_pos == RIGHT) {
+        center = make_intn(center.x - w, center.y + w);
+      } else {
+        throw logic_error("Unexpected subdivision position");
+      }
+
+      w <<= 1;
+      parent_quad >>= 2;
+      nodeIndex.pop_back();
+    }
   }
 
+  cout << endl;
+  cout << "a = ";
+  for (int pos : a_positions) {
+    cout << pos << " ";
+  }
+  cout << endl;
+  cout << "b = ";
+  for (int pos : b_positions) {
+    cout << pos << " ";
+  }
+  cout << endl;
 
   octree->set(nodes, bb);
 
@@ -367,9 +425,9 @@ int main(int argc, char** argv) {
   lines = new Polylines();
 
   lines->newLine(make_float2(-0.2, -0.5));
-  lines->addPoint(make_float2(-0.24, 0.5));
+  lines->addPoint(make_float2(-0.24, 0.65));
   lines->newLine(make_float2(-0.18, -0.5));
-  lines->addPoint(make_float2(-0.01, 0.5));
+  lines->addPoint(make_float2(-0.01, 0.65));
   fit();
 
   program = new LinesProgram();
