@@ -19,11 +19,11 @@ intn z2xyz(const Morton z, const Resln& r);
 //   float dwidth = bb.max_size();
 intn Quantize(
     const floatn& p, const Resln& resln,
-    const BoundingBox<floatn>& bb, const float dwidth);
+    const BoundingBox<floatn>& bb, const float dwidth, const bool clamped);
 
 std::vector<intn> Quantize(
     const std::vector<floatn>& points, const Resln& r,
-    const BoundingBox<floatn>* customBB = 0);
+    const BoundingBox<floatn>* customBB = 0, const bool clamped = false);
 
 std::vector<OctNode> BuildOctree(
     const std::vector<intn>& opoints, const Resln& r, const bool verbose=false);

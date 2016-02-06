@@ -47,6 +47,8 @@ struct Options {
   int verts_alloc_factor;
   int karras_iterations;
   int test;
+  int test_num;
+  int test_axis;
   bool help;
   std::map<std::string, std::string> key2value;
 
@@ -59,7 +61,7 @@ struct Options {
       : max_level(kMaxLevel),
       tri_threshold(1), simple_dist(true), timings(true),
         ambiguous_max_level(0), test(-1), showObjectVertices(false),
-        showOctree(false) {
+        showOctree(false), test_num(2), test_axis(0) {
     ReadOptionsFile();
   }
 
@@ -76,7 +78,7 @@ struct Options {
     bb_scale(1), center(-1),
     restricted_surface(false),
     verts_alloc_factor(3), karras_iterations(1), test(-1),
-    help(false) {
+    help(false), test_num(2), test_axis(0) {
     ReadOptionsFile();
   }
 

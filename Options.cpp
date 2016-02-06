@@ -51,6 +51,19 @@ bool Options::ProcessArg(int& i, char** argv) {
     ++i;
     o.ambiguous_max_level = atoi(argv[i]);
     ++i;
+  } else if (strcmp(argv[i], "-x") == 0) {
+    ++i;
+    o.test_axis = 0;
+  } else if (strcmp(argv[i], "-y") == 0) {
+    ++i;
+    o.test_axis = 1;
+  } else if (strcmp(argv[i], "-z") == 0) {
+    ++i;
+    o.test_axis = 2;
+  } else if (strcmp(argv[i], "--tl") == 0) {
+    ++i;
+    o.test_num = atoi(argv[i]);
+    ++i;
   } else if (strcmp(argv[i], "--no-buffer") == 0) {
     o.make_buffer = false;
     ++i;

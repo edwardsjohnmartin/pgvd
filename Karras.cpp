@@ -135,11 +135,17 @@ struct BrtNode {
 //   float dwidth = bb.max_size();
 intn Quantize(
     const floatn& p, const Resln& resln,
-    const BoundingBox<floatn>& bb, const float dwidth) {
+    const BoundingBox<floatn>& bb, const float dwidth, const bool clamped) {
   intn q = make_intn(0);
+  int effectiveWidth = resln.width-1;
+  if (clamped) {
+    effectiveWidth = resln.width;
+  }
   for (int k = 0; k < DIM; ++k) {
+    // const double d =
+    //     (resln.width-1) * ((p.s[k] - bb.min().s[k]) / dwidth);
     const double d =
-        (resln.width-1) * ((p.s[k] - bb.min().s[k]) / dwidth);
+        effectiveWidth * ((p.s[k] - bb.min().s[k]) / dwidth);
     const int v = static_cast<int>(d+0.5);
     if (v < 0) {
       cerr << "Coordinate in dimension " << k << " is less than zero.  d = "
@@ -156,7 +162,7 @@ intn Quantize(
 
 vector<intn> Quantize(
     const vector<floatn>& points, const Resln& resln,
-    const BoundingBox<floatn>* customBB) {
+    const BoundingBox<floatn>* customBB, const bool clamped) {
   if (points.empty())
     return vector<intn>();
 
@@ -179,7 +185,7 @@ vector<intn> Quantize(
   vector<intn> qpoints(points.size());
   for (int i = 0; i < points.size(); ++i) {
     const floatn& p = points[i];
-    const intn q = Quantize(p, resln, bb, dwidth);
+    const intn q = Quantize(p, resln, bb, dwidth, clamped);
     qpoints[i] = q;
   }
   

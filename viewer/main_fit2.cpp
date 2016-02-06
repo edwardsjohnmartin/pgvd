@@ -33,6 +33,7 @@ GLFWcursor* zoomCursor;
 bool zoomMode = false;
 
 void fit();
+void fit(const int axis);
 
 //------------------------------------------------------------
 // refresh
@@ -88,6 +89,8 @@ void onKey(GLFWwindow* window, int key, int scancode,
   refresh();
 }
 
+void updatePoints();
+
 int changeLine;
 int changePoint;
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
@@ -100,6 +103,7 @@ void onMouse(GLFWwindow* window, int button, int action, int mods) {
       changeLine = (mods & GLFW_MOD_SHIFT) ? 1 : 0;
       changePoint = (mods & GLFW_MOD_CONTROL) ? 0 : 1;
       lines->replacePoint(curMouse, changeLine, changePoint);
+      updatePoints();
       rebuild();
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
     }
@@ -117,8 +121,41 @@ void onMouseMove(GLFWwindow* window, double xpos, double ypos) {
 
   if (mouseDown) {
     lines->replacePoint(curMouse, changeLine, changePoint);
+    updatePoints();
     // lines->addPoint(curMouse);
     rebuild();
+  }
+}
+
+void updatePoints() {
+  for (int i = 0; i < 2; ++i) {
+    floatn p0 = lines->getPolygons()[i][0];
+    floatn v = lines->getPolygons()[i][1] - p0;
+
+    float pt = (-0.5 - p0.y) / v.y;
+    floatn p = p0 + v * pt;
+    float qt = (0.5 - p0.y) / v.y;
+    floatn q = p0 + v * qt;
+    
+    bool doSwap = (p.x > q.x);
+    if (doSwap) {
+      swap(p, q);
+    }
+
+    if (p.x < -0.5) {
+      pt = (-0.5 - p0.x) / v.x;
+      p = p0 + v * pt;
+    }
+    if (q.x > 0.5) {
+      qt = (0.5 - p0.x) / v.x;
+      q = p0 + v * qt;
+    }
+
+    if (doSwap) {
+      swap(p, q);
+    }
+    lines->replacePoint(p, i, 0);
+    lines->replacePoint(q, i, 1);
   }
 }
 
@@ -135,22 +172,92 @@ const char *byte_to_binary(int x)
   return b;
 }
 
-int get_position(const float coord, const float split, const float w) {
+//------------------------------------------------------------
+// WalkState struct
+// Represents a position in the octree.
+//     _______________________
+//    |           |           |
+//    |           |           |
+//    |           |           |
+//    |___________|___________|
+//    |           |     |     |
+//    |           |_____|_____|
+//    |           *__|__*     |
+//    |___________*__|__*_____|
+//
+//                |_____|
+//            cell of interest
+//
+// For the cell of interest above, the WalkState struct would
+// be the following:
+//   positionStack = 01 00
+//------------------------------------------------------------
+struct WalkState {
+  intn origin;
+  int w;
+  // Represents our current location in the quadtree. See above for examples.
+  int positionStack;
+
+  //--------------------------------------------------
+  // The following variables relate to construction
+  // of the octree and require an a priori count
+  // of how many splits we'll be making.
+  //--------------------------------------------------
+  // The octree
+  vector<OctNode> nodes;
+  // This is a stack, similar to positionStack, which keeps track of
+  // indices into the nodes vector (see above).
+  vector<int> indexStack;
+};
+
+WalkState createWalkState(const int w) {
+  WalkState state;
+  state.origin = make_intn(0, 0);
+  state.w = w;
+  state.positionStack = 0;
+  return state;
+}
+
+intn getCenter(const WalkState* state) {
+  intn center = state->origin;
+  const int w2 = state->w>>1;
+  for (int i = 0; i < DIM; ++i) {
+    center[i] += w2;
+  }
+  return center;
+}
+
+int getPosition(const WalkState* state) {
+  return state->positionStack & 3;
+}
+
+// Check the middle line of the current node and return the region coord
+// is in.
+//
+//  0    1   2    3    <-- region
+//         |
+//     ____|____
+//         |    
+//       * | *  
+//                
+//         |----|
+//           w
+int get_region(const float coord, const float split, const float w) {
   if (coord < split-w) return 0;
   if (coord < split) return 1;
   if (coord < split+w) return 2;
   return 3;
 }
 
-// Divides in half until a split value is found that is between ax and bx.
-//  origin - origin of the cell ax and bx are on
-//  ax     - min point
-//  bx     - max point
+// Divides in half until a split value is found that is between a and b.
+//  origin - origin of the cell a and b are on
+//  a     - min point
+//  b     - max point
 //  w      - width of cell
-//  parentQuad - position of the current cell in relation to the parent.
+//  position - position of the current cell in relation to the parent.
 //           For example, if the current cell is the top-right quadrant
-//           of its parent, then parentQuad == 3.
-//  parentQuadStack - history of where subdivisions occured to get to 
+//           of its parent, then position == 3.
+//  positionStack - history of where subdivisions occured to get to 
 //           this point. The current cell is NOT in the stack since it has
 //           not yet been subdivided. 
 //  nodes  - description of the quadtree as it is built. In the first phase,
@@ -158,75 +265,80 @@ int get_position(const float coord, const float split, const float w) {
 //           make, this value will be ignored.
 //  nodeIndices - history of indices into nodes array of parents. This will be
 //           ignored in phase I.
-//  widthStack - history of widths.
-int find_split(int origin, const int ax, const int bx, int& w,
-               const int parentQuad, int& parentQuadStack,
-               const int parentIndex, vector<int>& indexStack,
-               vector<OctNode>& nodes, 
-               vector<int>& widthStack,
-               const int LEFT, const int RIGHT) {
+int find_split(int origin, const int a, const int b, /*int& w,*/
+               const int position,
+               // int& positionStack,
+               WalkState* state,
+               const int parentIndex,
+               const int left, const int right) {
   // Initial split
-  if (parentQuad > -1) {
-    parentQuadStack <<= 2;
-    parentQuadStack |= parentQuad;
-    nodes[parentIndex].set_child(parentQuad, nodes.size());
+  if (position > -1) {
+    state->positionStack <<= 2;
+    state->positionStack |= position;
+    state->nodes[parentIndex].set_child(position, state->nodes.size());
   }
-  indexStack.push_back(nodes.size());
-  widthStack.push_back(w);
-  nodes.push_back(OctNode());
-  w >>= 1;
-  int s = origin + w;
+  state->indexStack.push_back(state->nodes.size());
+  state->nodes.push_back(OctNode());
+  state->w >>= 1;
+  int s = origin + state->w;
 
-  while (s < ax || s > bx) {
-    w >>= 1;
-    const int nodeIndex = indexStack.back();
-    if (s < ax) {
-      s = s + w;
-      parentQuadStack <<= 2;
-      parentQuadStack |= RIGHT;
-      nodes[nodeIndex].set_child(RIGHT, nodes.size());
+  while ((s < a || s > b) && state->w > 1) {
+    state->w >>= 1;
+    const int nodeIndex = state->indexStack.back();
+    if (s < a) {
+      s = s + state->w;
+      state->positionStack <<= 2;
+      state->positionStack |= right;
+      state->nodes[nodeIndex].set_child(right, state->nodes.size());
     } else {
-      s = s - w;
-      parentQuadStack <<= 2;
-      parentQuadStack |= LEFT;
-      nodes[nodeIndex].set_child(LEFT, nodes.size());
+      s = s - state->w;
+      state->positionStack <<= 2;
+      state->positionStack |= left;
+      state->nodes[nodeIndex].set_child(left, state->nodes.size());
     }
-    indexStack.push_back(nodes.size());
-    widthStack.push_back(w<<1);
-    nodes.push_back(OctNode());
+    state->indexStack.push_back(state->nodes.size());
+    state->nodes.push_back(OctNode());
   }
   return s;
 }
 
-void fit() {
-  options.showOctree = true;
+// Computes the center of the parent cell given the child's center,
+// half the child's width (w) and the child's position in the parent
+// cell (position).
+intn parentCenter(const intn& center, const int w, const int position,
+                  const intn dir) {
+  switch (position) {
+    case 0:
+      return make_intn(center.x + dir[0]*w, center.y + dir[1]*w);
+    case 1:
+      return make_intn(center.x - dir[0]*w, center.y + dir[1]*w);
+    case 2:
+      return make_intn(center.x + dir[0]*w, center.y - dir[1]*w);
+    case 3:
+      return make_intn(center.x - dir[0]*w, center.y - dir[1]*w);
+    default:
+      throw logic_error("Unknown position in parentCenter()");
+  }
+}
 
+void popLevel(intn* center, /*int* w,*/ int* position,
+              WalkState* state,
+              /*vector<int>* indexStack,
+                int* positionStack,*/ const intn dir) {
+  *center = parentCenter(*center, state->w, *position, dir);
+
+  // Back out one level
+  state->w <<= 1;
+  state->indexStack.pop_back();
+  (state->positionStack) >>= 2;
+  *position = ((state->positionStack) & 3);
+}
+
+// non-const for swap
+vector<OctNode> fit(intn a_p0, floatn a_v,
+                    intn b_p0, floatn b_v,
+                    int w_) {
   Resln resln(1<<options.max_level);
-
-
-  BoundingBox<float2> bb;
-  bb(make_float2(-0.5, -0.5));
-  bb(make_float2(0.5, 0.5));
-  // octree->build(*lines, &bb);
-  // octree->build(*lines);
-  // octree->build(points, &bb);
-
-  // The first two points are the first line segment, and the second two points
-  // are the second line segment.
-  vector<float2> fpoints;
-  fpoints.push_back(lines->getPolygons()[0][0]);
-  fpoints.push_back(lines->getPolygons()[0][1]);
-  fpoints.push_back(lines->getPolygons()[1][0]);
-  fpoints.push_back(lines->getPolygons()[1][1]);
-
-  using namespace OctreeUtils;
-
-  vector<intn> points = Karras::Quantize(fpoints, resln, &bb);
-
-  intn a_p0 = points[0];
-  floatn a_v = convert_floatn(points[1] - a_p0);
-  intn b_p0 = points[2];
-  floatn b_v = convert_floatn(points[3] - b_p0);
 
   // Given two points where p0.x == p1.x, find the split point between
   // the two using binary search.
@@ -251,7 +363,7 @@ void fit() {
   //    |         |         |
   //    |_________|x__x_____|
   //
-  //    parentQuadStack = xx
+  //    positionStack = xx
   //     ___________________
   //    |         |         |
   //    |         |         |
@@ -262,7 +374,7 @@ void fit() {
   //    |         |    |    |
   //    |_________|x__x|____|
   //
-  //    push split in quadrant 01: parentQuadStack = 01
+  //    push split in quadrant 01: positionStack = 01
   //     ___________________
   //    |         |         |
   //    |         |         |
@@ -273,139 +385,138 @@ void fit() {
   //    |         |_|__|    |
   //    |_________|x|_x|____|
   //
-  //    push split in quadrant 00: parentQuadStack = 01 00
-  int w = resln.width;
-  vector<OctNode> nodes;
-  // This is a stack, similar to parentQuadStack, which keeps track of
-  // indices into the nodes vector (see above).
-  vector<int> indexStack;
-  // This is a stack, similar to parentQuadStack, which keeps track of
-  // widths.
-  vector<int> widthStack;
-  // See above for examples.
-  int parentQuadStack = 0;
-  const int LOWER_LEFT  = 0;
-  const int LOWER_RIGHT = 1;
-  const int UPPER_LEFT  = 2;
-  const int UPPER_RIGHT = 3;
+  //    push split in quadrant 00: positionStack = 01 00
+
+  WalkState state = createWalkState(w_);
+
   int ax = a_p0.x;
   int bx = b_p0.x;
-  if (ax > bx) {
-    swap(ax, bx);
+  int ay = a_p0.y;
+  int by = b_p0.y;
+  int a, b, axis;
+  // The split axis is the axis we search for a split point. So if axis
+  // is zero, then we search in x for the split point s, and the split
+  // plane becomes the axis-aligned plane at x = s.
+  if (abs(ax-bx) > abs(ay-by)) {
+    axis = 0;
+    a = ax;
+    b = bx;
+  } else {
+    axis = 1;
+    a = ay;
+    b = by;
+  }
+  int oaxis = 1-axis;
+  // Make sure a < b.
+  if (a > b) {
+    swap(a, b);
+    swap(a_p0, b_p0);
+    swap(a_v, b_v);
   }
 
-  int s = find_split(0, ax, bx, w, -1, parentQuadStack, -1, indexStack,
-                     nodes, widthStack,
-                     LOWER_LEFT, LOWER_RIGHT);
+  intn dir = make_intn(1, 1);
+  const bool negativeDir = (a_v[oaxis] < 0);
+  dir[oaxis] = negativeDir ? -1 : 1;
+  cout << "dir = " << dir << endl;
+  const int dirBit = (dir[oaxis] == -1) ? (1<<oaxis) : 0;
+  const int popQuadBit = (1<<oaxis);
 
-  cout << " parentQuadStack = " << byte_to_binary(parentQuadStack) << endl;
+  int s = find_split(0, a, b, /*w,*/ -1, &state, -1,
+                     0 | dirBit, (1<<axis) | dirBit);
 
-  int a_position = 0;
-  int b_position = 0;
-  intn center = make_intn(s, w);
-  vector<int> a_positions, b_positions;
-  // while (abs(a_position - b_position) < 3 && w < resln.width) {
-  while (w < resln.width) {
-    // There's potential for a conflict cell if the a and b positions are
-    // not completely separated.
-    // Preconditions:
-    //    * center is the center point of the "plus" to check (see below)
-    //    * w is the width of check segments (see below).
+  cout << endl;
+  cout << "Found initial split. a = " << a << " b = " << b
+       << " axis = " << axis << " s = " << s << endl;
+  cout << "positionStack = " << byte_to_binary(state.positionStack) << endl;
 
-    // Check the middle line of the current node and record the position.
-    //
-    //  0    1 | 2    3
-    //     ____|____
-    //         |
-    //       * | *
-    //
-    // So at y = split.y + w, 
-    //      x value      position
-    //    < split.x-w       0
-    //    < split.x         1
-    //    < split.x+w       2
-    //     otherwise        3
+  // int a_region = 0;
+  // int b_region = 0;
+  intn center;
+  center[axis] = s;
+  center[oaxis] = a_p0[oaxis] + state.w * dir[oaxis];
+  // intn center = make_intn(s, w) * dir;
+  // if (axis == 1) {
+  //   center = make_intn(w, s) * dir;
+  // }
+  vector<int> a_regions, b_regions;
 
-    float a_t = (center.y - a_p0.y) / a_v.y;
-    float b_t = (center.y - b_p0.y) / b_v.y;
-    int a_x = (int)((a_p0.x + a_t * a_v.x) + 0.5);
-    int b_x = (int)((b_p0.x + b_t * b_v.x) + 0.5);
-    a_position = get_position(a_x, center.x, w);
-    b_position = get_position(b_x, center.x, w);
-    a_positions.push_back(a_position);
-    b_positions.push_back(b_position);
+  // Walk along the lines. If they ever both cross the same quadtree edge then
+  // separate by subdividing. Call the edge a conflict edge. Two lines
+  // crossing a conflict edge will then enter a conflict cell.
+  while (state.w < resln.width) {
+    // Find the region a and b cross at.
+    const float a_t = (center[oaxis] - a_p0[oaxis]) / a_v[oaxis];
+    const float b_t = (center[oaxis] - b_p0[oaxis]) / b_v[oaxis];
+    a = (int)((a_p0[axis] + a_t * a_v[axis]) + 0.5);
+    b = (int)((b_p0[axis] + b_t * b_v[axis]) + 0.5);
+    const int a_region = get_region(a, center[axis], state.w);
+    const int b_region = get_region(b, center[axis], state.w);
+    a_regions.push_back(a_region);
+    b_regions.push_back(b_region);
 
     cout << endl;
     cout << "checking center = " << center << endl;
-    cout << "a_x = " << a_x << " (" << (a_p0.x + a_t * a_v.x) << ") "
-         << " b_x = " << b_x << endl;
+    cout << "a = " << a << " (" << (a_p0[axis] + a_t * a_v[axis]) << ") "
+         << " b = " << b << endl;
 
-    // Recurse and find new split
-    if (a_position == b_position) {
-      cout << "conflict at " << a_position << endl;
-      if (a_position == 0 || a_position == 3) {
-        throw logic_error("Unsupported position");
+    if (a_region == b_region) {
+      // The region is the same -- this is a conflict edge.
+      // Subdivide the cell bordered by the conflict edge.
+      cout << "conflict at " << a_region << endl;
+      if (a_region == 0 || a_region == 3) {
+        cout << "Unsupported region" << endl;
+        return state.nodes;
       }
-      const int origin = center.x + ((a_position == 1) ? -w : 0);
-      const int parentQuad = (a_position == 1) ? 2 : 3;
-      s = find_split(origin, a_x, b_x, w,
-                     parentQuad, parentQuadStack,
-                     indexStack.back(), indexStack,
-                     nodes, widthStack,
-                     LOWER_LEFT, LOWER_RIGHT);
-      center = make_intn(s, center.y+w);
+      // Origin coordinate for the stationary axis of the cell we're
+      // about to subdivide.
+      const int origin = center[axis] + ((a_region == 1) ? -state.w : 0);
+      // Which quadrant the cell to subdivide is in.
+      int position = (a_region == 1) ? (1<<oaxis) : 3;
+      if (negativeDir) {
+        position = (a_region == 1) ? 0 : (1<<axis);
+      }
+      s = find_split(origin, a, b, /*w,*/
+                     position, &state,
+                     state.indexStack.back(),
+                     0 | dirBit, (1<<axis) | dirBit);
+
+      center[axis] = s;
+      // center[oaxis] += w;
+      center[oaxis] += negativeDir ? -state.w : state.w;
     } else {
-      int parentQuad = (parentQuadStack & 3);
-
-      while (parentQuad & 2) {
-        if (!(parentQuad & 1)) {
-          // left side
-          center = make_intn(center.x + w, center.y - w);
-        } else if (parentQuad & 1) {
-          // right side
-          center = make_intn(center.x - w, center.y - w);
-        }
-
-        // Back up one center
-        w = widthStack.back();
-        widthStack.pop_back();
-        indexStack.pop_back();
-        parentQuadStack >>= 2;
-        parentQuad = (parentQuadStack & 3);
+      // int position = (state.positionStack & 3);
+      int position = getPosition(&state);
+      // Loop until the cell is on the bottom (if axis = x) or cell is
+      // on the left (if axis = y).
+      while ((negativeDir?~position:position) & (1<<oaxis)) {
+      // while (position & (1<<oaxis)) {
+        popLevel(&center, /*&w,*/ &position, &state,
+                 /*&state.indexStack,
+                   &state.positionStack,*/ dir);
       }
 
-      // Update center, w and parentQuadStack for next iteration
-      if (!(parentQuad & 1)) {
-        // left side
-        center = make_intn(center.x + w, center.y + w);
-      } else if (parentQuad & 1) {
-        // right side
-        center = make_intn(center.x - w, center.y + w);
-      } else {
-        throw logic_error("Unexpected subdivision position");
-      }
+      popLevel(&center, /*&w,*/ &position, &state,
+               /*&state.indexStack,
+                 &state.positionStack,*/ dir);
 
-      w = widthStack.back();
-      widthStack.pop_back();
-      indexStack.pop_back();
-      parentQuadStack >>= 2;
-      parentQuad = (parentQuadStack & 3);
     }
+    cout << "Iteration w = " << state.w << endl;
   }
 
   cout << endl;
   cout << "a = ";
-  for (int pos : a_positions) {
+  for (int pos : a_regions) {
     cout << pos << " ";
   }
   cout << endl;
   cout << "b = ";
-  for (int pos : b_positions) {
+  for (int pos : b_regions) {
     cout << pos << " ";
   }
   cout << endl;
 
-  octree->set(nodes, bb);
+  // octree->set(nodes, bb);
+  return state.nodes;
 
   // karras_points.clear();
   // bb = BoundingBox<float2>();
@@ -444,6 +555,51 @@ void fit() {
   // vector<intn> qpoints = Karras::Quantize(karras_points, resln);
 }
 
+void fit() {
+  options.showOctree = true;
+
+  Resln resln(1<<options.max_level);
+
+  BoundingBox<float2> bb;
+  bb(make_float2(-0.5, -0.5));
+  bb(make_float2(0.5, 0.5));
+  // octree->build(*lines, &bb);
+  // octree->build(*lines);
+  // octree->build(points, &bb);
+
+  // The first two points are the first line segment, and the second two points
+  // are the second line segment.
+  vector<float2> fpoints;
+  fpoints.push_back(lines->getPolygons()[0][0]);
+  fpoints.push_back(lines->getPolygons()[0][1]);
+  fpoints.push_back(lines->getPolygons()[1][0]);
+  fpoints.push_back(lines->getPolygons()[1][1]);
+
+  // Order the points such that fpoints[0] is closest to fpoints[2]
+  if (length(fpoints[3]-fpoints[0]) < length(fpoints[2]-fpoints[0])) {
+    swap(fpoints[2], fpoints[3]);
+  }
+  if (length(fpoints[3]-fpoints[1]) < length(fpoints[2]-fpoints[0])) {
+    swap(fpoints[0], fpoints[1]);
+    swap(fpoints[2], fpoints[3]);
+  }
+
+  using namespace OctreeUtils;
+
+  vector<intn> points = Karras::Quantize(fpoints, resln, &bb, true);
+
+  intn a_p0 = points[0];
+  floatn a_v = convert_floatn(points[1] - a_p0);
+  intn b_p0 = points[2];
+  floatn b_v = convert_floatn(points[3] - b_p0);
+
+  cout << "a_p0 = " << a_p0 << " " << " b_p0 = " << b_p0 << endl;
+
+  int w = resln.width;
+  vector<OctNode> nodes = fit(a_p0, a_v, b_p0, b_v, w);
+  octree->set(nodes, bb);
+}
+
 int main(int argc, char** argv) {
   using namespace std;
 
@@ -468,23 +624,50 @@ int main(int argc, char** argv) {
   octree->processArgs(argc, argv);
   lines = new Polylines();
 
-  // fine
-  lines->newLine(make_float2(-0.2, -0.5));
-  lines->addPoint(make_float2(-0.24, 0.65));
-  lines->newLine(make_float2(-0.18, -0.5));
-  lines->addPoint(make_float2(-0.01, 0.65));
+  if (options.test_axis == 0) {
+    if (options.test_num == 2) {
+      // fine
+      lines->newLine(make_float2(-0.2, -0.5));
+      lines->addPoint(make_float2(-0.24, 0.65));
+      lines->newLine(make_float2(-0.01, 0.65));
+      lines->addPoint(make_float2(-0.18, -0.5));
+    } else if (options.test_num == 1) {
+      // medium
+      lines->newLine(make_float2(-0.1875,      -0.5));
+      lines->addPoint(make_float2(-0.1875-0.02, 0.65));
+      lines->newLine(make_float2(-0.0625,      -0.5));
+      lines->addPoint(make_float2(-0.0625+0.02, 0.65));
+    } else if (options.test_num == 0) {
+      // coarse
+      lines->newLine(make_float2(-0.375,      -0.5));
+      lines->addPoint(make_float2(-0.375-0.02, 0.65));
+      // lines->addPoint(make_float2(-0.375+0.01, 0.65));
+      lines->newLine(make_float2(-0.125,      -0.5));
+      lines->addPoint(make_float2(-0.125+0.02, 0.65));
+    }
+  } else if (options.test_axis == 1) {
+    if (options.test_num == 2) {
+      // fine y
+      lines->newLine(make_float2(-0.5, -0.2));
+      lines->addPoint(make_float2(0.65, -0.24));
+      lines->newLine(make_float2(0.65, -0.01));
+      lines->addPoint(make_float2(-0.5, -0.18));
+    } else if (options.test_num == 1) {
+      // medium y
+      lines->newLine(make_float2(-0.5, -0.1875));
+      lines->addPoint(make_float2(0.65, -0.1875-0.02));
+      lines->newLine(make_float2(-0.5, -0.0625));
+      lines->addPoint(make_float2(0.65, -0.0625+0.02));
+    } else if (options.test_num == 0) {
+      // coarse y
+      lines->newLine(make_float2(-0.5, -0.375));
+      lines->addPoint(make_float2(0.65, -0.375-0.02));
+      lines->newLine(make_float2(-0.5, -0.125));
+      lines->addPoint(make_float2(0.65, -0.125+0.02));
+    }
+  }
 
-  // // medium
-  // lines->newLine(make_float2(-0.1875,      -0.5));
-  // lines->addPoint(make_float2(-0.1875-0.02, 0.65));
-  // lines->newLine(make_float2(-0.0625,      -0.5));
-  // lines->addPoint(make_float2(-0.0625+0.02, 0.65));
-
-  // // coarse
-  // lines->newLine(make_float2(-0.375,      -0.5));
-  // lines->addPoint(make_float2(-0.375-0.02, 0.65));
-  // lines->newLine(make_float2(-0.125,      -0.5));
-  // lines->addPoint(make_float2(-0.125+0.02, 0.65));
+  updatePoints();
 
   fit();
 
