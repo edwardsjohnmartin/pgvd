@@ -194,6 +194,7 @@ const char *byte_to_binary(int x)
 //------------------------------------------------------------
 struct WalkState {
   intn origin;
+  intn center;
   int w;
   // Represents our current location in the quadtree. See above for examples.
   int positionStack;
@@ -213,18 +214,58 @@ struct WalkState {
 WalkState createWalkState(const int w) {
   WalkState state;
   state.origin = make_intn(0, 0);
+  state.center = make_intn(w>>1, w>>1);
   state.w = w;
   state.positionStack = 0;
   return state;
 }
 
-intn getCenter(const WalkState* state) {
-  intn center = state->origin;
-  const int w2 = state->w>>1;
-  for (int i = 0; i < DIM; ++i) {
-    center[i] += w2;
+// Should get rid of parentIndex
+void split(WalkState* state, const int position) {
+  if (state->nodes.empty() && position != -1) {
+    throw logic_error("If the state is uninitialized then position must be -1");
   }
-  return center;
+
+  if (!state->nodes.empty()) {
+    switch (position) {
+      case 0:
+        // Origin remains the same
+        break;
+      case 1:
+        state->origin[0] += (state->w >> 1);
+        break;
+      case 2:
+        state->origin[1] += (state->w >> 1);
+        break;
+      case 3:
+        state->origin[0] += (state->w >> 1);
+        state->origin[1] += (state->w >> 1);
+        break;
+    }
+    state->positionStack <<= 2;
+    state->positionStack |= position;
+    // state->nodes[parentIndex].set_child(position, state->nodes.size());
+    const int parentIndex = state->indexStack.back();
+    state->nodes[parentIndex].set_child(
+        position, state->nodes.size());
+  }
+
+  state->indexStack.push_back(state->nodes.size());
+  state->nodes.push_back(OctNode());
+
+  state->w >>= 1;
+  // state->center = make_intn(state->origin[0] + (state->w>>1),
+  //                           state->origin[1] + (state->w>>1));
+}
+
+intn getCenter(const WalkState* state) {
+  return state->center;
+  // intn center = state->origin;
+  // const int w2 = state->w>>1;
+  // for (int i = 0; i < DIM; ++i) {
+  //   center[i] += w2;
+  // }
+  // return center;
 }
 
 int getPosition(const WalkState* state) {
@@ -257,47 +298,20 @@ int get_region(const float coord, const float split, const float w) {
 //  position - position of the current cell in relation to the parent.
 //           For example, if the current cell is the top-right quadrant
 //           of its parent, then position == 3.
-//  positionStack - history of where subdivisions occured to get to 
-//           this point. The current cell is NOT in the stack since it has
-//           not yet been subdivided. 
-//  nodes  - description of the quadtree as it is built. In the first phase,
-//           where we're just counting the number of subdivisions we need to
-//           make, this value will be ignored.
-//  nodeIndices - history of indices into nodes array of parents. This will be
-//           ignored in phase I.
-int find_split(int origin, const int a, const int b, /*int& w,*/
-               const int position,
-               // int& positionStack,
+int find_split(const int origin, const int a, const int b,
                WalkState* state,
-               const int parentIndex,
                const int left, const int right) {
-  // Initial split
-  if (position > -1) {
-    state->positionStack <<= 2;
-    state->positionStack |= position;
-    state->nodes[parentIndex].set_child(position, state->nodes.size());
-  }
-  state->indexStack.push_back(state->nodes.size());
-  state->nodes.push_back(OctNode());
-  state->w >>= 1;
   int s = origin + state->w;
-
   while ((s < a || s > b) && state->w > 1) {
-    state->w >>= 1;
-    const int nodeIndex = state->indexStack.back();
+    int position;
     if (s < a) {
-      s = s + state->w;
-      state->positionStack <<= 2;
-      state->positionStack |= right;
-      state->nodes[nodeIndex].set_child(right, state->nodes.size());
+      s = s + (state->w>>1);
+      position = right;
     } else {
-      s = s - state->w;
-      state->positionStack <<= 2;
-      state->positionStack |= left;
-      state->nodes[nodeIndex].set_child(left, state->nodes.size());
+      s = s - (state->w>>1);
+      position = left;
     }
-    state->indexStack.push_back(state->nodes.size());
-    state->nodes.push_back(OctNode());
+    split(state, position);
   }
   return s;
 }
@@ -321,17 +335,19 @@ intn parentCenter(const intn& center, const int w, const int position,
   }
 }
 
-void popLevel(intn* center, /*int* w,*/ int* position,
+void popLevel(/*intn* center,*/ /*int* w,*//* int* position,*/
               WalkState* state,
               /*vector<int>* indexStack,
                 int* positionStack,*/ const intn dir) {
-  *center = parentCenter(*center, state->w, *position, dir);
+  // *center = parentCenter(*center, state->w, getPosition(state)/**position*/, dir);
+  state->center = parentCenter(state->center, state->w,
+                               getPosition(state)/**position*/, dir);
 
   // Back out one level
   state->w <<= 1;
   state->indexStack.pop_back();
   (state->positionStack) >>= 2;
-  *position = ((state->positionStack) & 3);
+  // *position = ((state->positionStack) & 3);
 }
 
 // non-const for swap
@@ -421,7 +437,9 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
   const int dirBit = (dir[oaxis] == -1) ? (1<<oaxis) : 0;
   const int popQuadBit = (1<<oaxis);
 
-  int s = find_split(0, a, b, /*w,*/ -1, &state, -1,
+  // Do the initial split.
+  split(&state, -1);
+  int s = find_split(0, a, b, &state,
                      0 | dirBit, (1<<axis) | dirBit);
 
   cout << endl;
@@ -429,11 +447,9 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
        << " axis = " << axis << " s = " << s << endl;
   cout << "positionStack = " << byte_to_binary(state.positionStack) << endl;
 
-  // int a_region = 0;
-  // int b_region = 0;
-  intn center;
-  center[axis] = s;
-  center[oaxis] = a_p0[oaxis] + state.w * dir[oaxis];
+  // intn center;
+  state.center[axis] = s;
+  state.center[oaxis] = a_p0[oaxis] + state.w * dir[oaxis];
   // intn center = make_intn(s, w) * dir;
   // if (axis == 1) {
   //   center = make_intn(w, s) * dir;
@@ -445,17 +461,17 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
   // crossing a conflict edge will then enter a conflict cell.
   while (state.w < resln.width) {
     // Find the region a and b cross at.
-    const float a_t = (center[oaxis] - a_p0[oaxis]) / a_v[oaxis];
-    const float b_t = (center[oaxis] - b_p0[oaxis]) / b_v[oaxis];
+    const float a_t = (state.center[oaxis] - a_p0[oaxis]) / a_v[oaxis];
+    const float b_t = (state.center[oaxis] - b_p0[oaxis]) / b_v[oaxis];
     a = (int)((a_p0[axis] + a_t * a_v[axis]) + 0.5);
     b = (int)((b_p0[axis] + b_t * b_v[axis]) + 0.5);
-    const int a_region = get_region(a, center[axis], state.w);
-    const int b_region = get_region(b, center[axis], state.w);
+    const int a_region = get_region(a, state.center[axis], state.w);
+    const int b_region = get_region(b, state.center[axis], state.w);
     a_regions.push_back(a_region);
     b_regions.push_back(b_region);
 
     cout << endl;
-    cout << "checking center = " << center << endl;
+    cout << "checking center = " << state.center << endl;
     cout << "a = " << a << " (" << (a_p0[axis] + a_t * a_v[axis]) << ") "
          << " b = " << b << endl;
 
@@ -469,20 +485,21 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       }
       // Origin coordinate for the stationary axis of the cell we're
       // about to subdivide.
-      const int origin = center[axis] + ((a_region == 1) ? -state.w : 0);
+      const int origin = state.center[axis] + ((a_region == 1) ? -state.w : 0);
       // Which quadrant the cell to subdivide is in.
       int position = (a_region == 1) ? (1<<oaxis) : 3;
       if (negativeDir) {
         position = (a_region == 1) ? 0 : (1<<axis);
       }
-      s = find_split(origin, a, b, /*w,*/
-                     position, &state,
-                     state.indexStack.back(),
+      // Do the initial split.
+      split(&state, position);
+      s = find_split(origin, a, b,
+                     &state,
                      0 | dirBit, (1<<axis) | dirBit);
 
-      center[axis] = s;
+      state.center[axis] = s;
       // center[oaxis] += w;
-      center[oaxis] += negativeDir ? -state.w : state.w;
+      state.center[oaxis] += negativeDir ? -state.w : state.w;
     } else {
       // int position = (state.positionStack & 3);
       int position = getPosition(&state);
@@ -490,14 +507,14 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       // on the left (if axis = y).
       while ((negativeDir?~position:position) & (1<<oaxis)) {
       // while (position & (1<<oaxis)) {
-        popLevel(&center, /*&w,*/ &position, &state,
-                 /*&state.indexStack,
-                   &state.positionStack,*/ dir);
+        // popLevel(&center, &state, dir);
+        popLevel(&state, dir);
+        position = getPosition(&state);
       }
 
-      popLevel(&center, /*&w,*/ &position, &state,
-               /*&state.indexStack,
-                 &state.positionStack,*/ dir);
+      // popLevel(&center, &state, dir);
+      popLevel(&state, dir);
+      position = getPosition(&state);
 
     }
     cout << "Iteration w = " << state.w << endl;
