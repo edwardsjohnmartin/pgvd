@@ -1,3 +1,4 @@
+#include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -81,6 +82,13 @@ void onKey(GLFWwindow* window, int key, int scancode,
         }
         break;
       case GLFW_KEY_Q:
+        ofstream cache("cache.dat");
+        cache << lines->getPolygons()[0][0] << endl;
+        cache << lines->getPolygons()[0][1] << endl;
+        cache << lines->getPolygons()[1][0] << endl;
+        cache << lines->getPolygons()[1][1] << endl;
+        cache.close();
+
         glfwSetWindowShouldClose(g_window, 1);
         break;
     }
@@ -297,7 +305,7 @@ int get_region(const float coord, const float split, const float w) {
 //          a and b.
 //  right - quadrant to split if the current split point s is less than
 //          a and b.
-void/*intn*/ find_split(intn a_, intn b_, WalkState* state) {
+void find_split(intn a_, intn b_, WalkState* state) {
   int ax = a_.x;
   int bx = b_.x;
   int ay = a_.y;
@@ -313,7 +321,6 @@ void/*intn*/ find_split(intn a_, intn b_, WalkState* state) {
   } else {
     axis = 1;
   }
-  // int axis = (abs(ax-bx) > abs(ay-by)) ? 0 : 1;
   
   const int oaxis = 1-axis;
   if (a_[axis] > b_[axis]) {
@@ -360,58 +367,7 @@ void/*intn*/ find_split(intn a_, intn b_, WalkState* state) {
 
   cout << "Split found between a = " << a << " and b = " << b
        << ": s = " << s << endl;
-
-  // // return s;
-  // intn ret;
-  // ret[axis] = s;
-  // ret[oaxis] = origin ? state->origin[oaxis] : state->origin[oaxis] + state->w;
-  // return ret;
 }
-
-// // Divides in half until a split value is found that is between a and b,
-// // i.e. uses binary search.
-// //  a     - min point
-// //  b     - max point
-// //  left  - quadrant to split if the current split point s is greater than
-// //          a and b.
-// //  right - quadrant to split if the current split point s is less than
-// //          a and b.
-// int find_split(const int axis, const int a, const int b,
-//                WalkState* state,
-//                const int left, const int right) {
-//   int s = state->origin[axis] + (state->w>>1);
-//   while ((s < a || s > b) && (state->w>>1) > 1) {
-//     int position;
-//     if (s < a) {
-//       s = s + (state->w>>2);
-//       position = right;
-//     } else {
-//       s = s - (state->w>>2);
-//       position = left;
-//     }
-//     split(state, position);
-//   }
-//   return s;
-// }
-
-// Computes the center of the parent cell given the child's center,
-// half the child's width (w) and the child's position in the parent
-// cell (position).
-// intn parentCenter(const intn& center, const int w, const int position,
-//                   const intn dir) {
-//   switch (position) {
-//     case 0:
-//       return make_intn(center.x + dir[0]*w, center.y + dir[1]*w);
-//     case 1:
-//       return make_intn(center.x - dir[0]*w, center.y + dir[1]*w);
-//     case 2:
-//       return make_intn(center.x + dir[0]*w, center.y - dir[1]*w);
-//     case 3:
-//       return make_intn(center.x - dir[0]*w, center.y - dir[1]*w);
-//     default:
-//       throw logic_error("Unknown position in parentCenter()");
-//   }
-// }
 
 void popLevel(WalkState* state) {
   const int position = getPosition(state);
@@ -472,7 +428,7 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
 
   // Do the initial split.
   split(&state, -1);
-  /*int s = */find_split(a_p0, b_p0, &state);
+  find_split(a_p0, b_p0, &state);
 
   vector<int> a_regions, b_regions;
 
@@ -512,15 +468,13 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       }
       // Do the initial split.
       split(&state, position);
-      /*s = */find_split(a_p, b_p, &state);
+      find_split(a_p, b_p, &state);
     } else {
-      // int position = (state.positionStack & 3);
       int position = getPosition(&state);
       // Loop until the cell is on the bottom (if axis = x) or cell is
       // on the left (if axis = y).
       while (state.w<resln.width &&
              (negativeDir?~position:position) & (1<<oaxis)) {
-      // while (position & (1<<oaxis)) {
         popLevel(&state);
         position = getPosition(&state);
       }
@@ -652,46 +606,59 @@ int main(int argc, char** argv) {
   octree->processArgs(argc, argv);
   lines = new Polylines();
 
-  if (options.test_axis == 0) {
-    if (options.test_num == 2) {
-      // fine
-      lines->newLine(make_float2(-0.2, -0.5));
-      lines->addPoint(make_float2(-0.24, 0.65));
-      lines->newLine(make_float2(-0.01, 0.65));
-      lines->addPoint(make_float2(-0.18, -0.5));
-    } else if (options.test_num == 1) {
-      // medium
-      lines->newLine(make_float2(-0.1875,      -0.5));
-      lines->addPoint(make_float2(-0.1875-0.02, 0.65));
-      lines->newLine(make_float2(-0.0625,      -0.5));
-      lines->addPoint(make_float2(-0.0625+0.02, 0.65));
-    } else if (options.test_num == 0) {
-      // coarse
-      lines->newLine(make_float2(-0.375,      -0.5));
-      lines->addPoint(make_float2(-0.375-0.02, 0.65));
-      // lines->addPoint(make_float2(-0.375+0.01, 0.65));
-      lines->newLine(make_float2(-0.125,      -0.5));
-      lines->addPoint(make_float2(-0.125+0.02, 0.65));
-    }
-  } else if (options.test_axis == 1) {
-    if (options.test_num == 2) {
-      // fine y
-      lines->newLine(make_float2(-0.5, -0.2));
-      lines->addPoint(make_float2(0.65, -0.24));
-      lines->newLine(make_float2(0.65, -0.01));
-      lines->addPoint(make_float2(-0.5, -0.18));
-    } else if (options.test_num == 1) {
-      // medium y
-      lines->newLine(make_float2(-0.5, -0.1875));
-      lines->addPoint(make_float2(0.65, -0.1875-0.02));
-      lines->newLine(make_float2(-0.5, -0.0625));
-      lines->addPoint(make_float2(0.65, -0.0625+0.02));
-    } else if (options.test_num == 0) {
-      // coarse y
-      lines->newLine(make_float2(-0.5, -0.375));
-      lines->addPoint(make_float2(0.65, -0.375-0.02));
-      lines->newLine(make_float2(-0.5, -0.125));
-      lines->addPoint(make_float2(0.65, -0.125+0.02));
+  ifstream cache("cache.dat");
+  if (cache) {
+    floatn p;
+    cache >> p;
+    lines->newLine(p);
+    cache >> p;
+    lines->addPoint(p);
+    cache >> p;
+    lines->newLine(p);
+    cache >> p;
+    lines->addPoint(p);
+  } else {
+    if (options.test_axis == 0) {
+      if (options.test_num == 2) {
+        // fine
+        lines->newLine(make_float2(-0.2, -0.5));
+        lines->addPoint(make_float2(-0.24, 0.65));
+        lines->newLine(make_float2(-0.01, 0.65));
+        lines->addPoint(make_float2(-0.18, -0.5));
+      } else if (options.test_num == 1) {
+        // medium
+        lines->newLine(make_float2(-0.1875,      -0.5));
+        lines->addPoint(make_float2(-0.1875-0.02, 0.65));
+        lines->newLine(make_float2(-0.0625,      -0.5));
+        lines->addPoint(make_float2(-0.0625+0.02, 0.65));
+      } else if (options.test_num == 0) {
+        // coarse
+        lines->newLine(make_float2(-0.375,      -0.5));
+        lines->addPoint(make_float2(-0.375-0.02, 0.65));
+        // lines->addPoint(make_float2(-0.375+0.01, 0.65));
+        lines->newLine(make_float2(-0.125,      -0.5));
+        lines->addPoint(make_float2(-0.125+0.02, 0.65));
+      }
+    } else if (options.test_axis == 1) {
+      if (options.test_num == 2) {
+        // fine y
+        lines->newLine(make_float2(-0.5, -0.2));
+        lines->addPoint(make_float2(0.65, -0.24));
+        lines->newLine(make_float2(0.65, -0.01));
+        lines->addPoint(make_float2(-0.5, -0.18));
+      } else if (options.test_num == 1) {
+        // medium y
+        lines->newLine(make_float2(-0.5, -0.1875));
+        lines->addPoint(make_float2(0.65, -0.1875-0.02));
+        lines->newLine(make_float2(-0.5, -0.0625));
+        lines->addPoint(make_float2(0.65, -0.0625+0.02));
+      } else if (options.test_num == 0) {
+        // coarse y
+        lines->newLine(make_float2(-0.5, -0.375));
+        lines->addPoint(make_float2(0.65, -0.375-0.02));
+        lines->newLine(make_float2(-0.5, -0.125));
+        lines->addPoint(make_float2(0.65, -0.125+0.02));
+      }
     }
   }
 
