@@ -298,10 +298,10 @@ int get_region(const float coord, const float split, const float w) {
 //          a and b.
 //  right - quadrant to split if the current split point s is less than
 //          a and b.
-int find_split(const int origin, const int a, const int b,
+int find_split(const int axis, const int a, const int b,
                WalkState* state,
                const int left, const int right) {
-  int s = origin + (state->w>>1);
+  int s = state->origin[axis] + (state->w>>1);
   while ((s < a || s > b) && (state->w>>1) > 1) {
     int position;
     if (s < a) {
@@ -389,7 +389,7 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
 
   // Do the initial split.
   split(&state, -1);
-  int s = find_split(0, a, b, &state,
+  int s = find_split(axis, a, b, &state,
                      0 | dirBit, (1<<axis) | dirBit);
 
   cout << endl;
@@ -415,8 +415,6 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
 
     cout << endl;
     cout << "checking center = " << state.center << endl;
-    // cout << "a = " << a << " (" << (a_p0[axis] + a_t * a_v[axis]) << ") "
-    //      << " b = " << b << endl;
     cout << "a = " << a
          << " b = " << b << endl;
 
@@ -428,11 +426,6 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
         cout << "Unsupported region" << endl;
         return state.nodes;
       }
-      // Origin coordinate for the stationary axis of the cell we're
-      // about to subdivide.
-      const int origin = state.center[axis] + ((a_region == 1) ? -(state.w>>1) : 0);
-      // const int origin = state.center[axis] + ((a_region == 1) ? 0 : (state.w>>1));
-      // const int origin = state.origin[axis];
       // Which quadrant the cell to subdivide is in.
       int position = (a_region == 1) ? (1<<oaxis) : 3;
       if (negativeDir) {
@@ -440,7 +433,7 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       }
       // Do the initial split.
       split(&state, position);
-      s = find_split(origin, a, b,
+      s = find_split(axis, a, b,
                      &state,
                      0 | dirBit, (1<<axis) | dirBit);
 
