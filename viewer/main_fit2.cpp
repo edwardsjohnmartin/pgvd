@@ -244,18 +244,17 @@ void split(WalkState* state, const int position) {
     }
     state->positionStack <<= 2;
     state->positionStack |= position;
-    // state->nodes[parentIndex].set_child(position, state->nodes.size());
     const int parentIndex = state->indexStack.back();
-    state->nodes[parentIndex].set_child(
-        position, state->nodes.size());
+    state->nodes[parentIndex].set_child(position, state->nodes.size());
+
+    state->w >>= 1;
   }
 
   state->indexStack.push_back(state->nodes.size());
   state->nodes.push_back(OctNode());
 
-  state->w >>= 1;
-  // state->center = make_intn(state->origin[0] + (state->w>>1),
-  //                           state->origin[1] + (state->w>>1));
+  state->center = make_intn(state->origin[0] + (state->w>>1),
+                            state->origin[1] + (state->w>>1));
 }
 
 intn getCenter(const WalkState* state) {
@@ -290,25 +289,26 @@ int get_region(const float coord, const float split, const float w) {
   return 3;
 }
 
-// Divides in half until a split value is found that is between a and b.
+// Divides in half until a split value is found that is between a and b,
+// i.e. uses binary search.
 //  origin - origin of the cell a and b are on
 //  a     - min point
 //  b     - max point
-//  w      - width of cell
-//  position - position of the current cell in relation to the parent.
-//           For example, if the current cell is the top-right quadrant
-//           of its parent, then position == 3.
+//  left  - quadrant to split if the current split point s is greater than
+//          a and b.
+//  right - quadrant to split if the current split point s is less than
+//          a and b.
 int find_split(const int origin, const int a, const int b,
                WalkState* state,
                const int left, const int right) {
-  int s = origin + state->w;
-  while ((s < a || s > b) && state->w > 1) {
+  int s = origin + (state->w>>1);
+  while ((s < a || s > b) && (state->w>>1) > 1) {
     int position;
     if (s < a) {
-      s = s + (state->w>>1);
+      s = s + (state->w>>2);
       position = right;
     } else {
-      s = s - (state->w>>1);
+      s = s - (state->w>>2);
       position = left;
     }
     split(state, position);
@@ -335,19 +335,16 @@ intn parentCenter(const intn& center, const int w, const int position,
   }
 }
 
-void popLevel(/*intn* center,*/ /*int* w,*//* int* position,*/
-              WalkState* state,
-              /*vector<int>* indexStack,
-                int* positionStack,*/ const intn dir) {
-  // *center = parentCenter(*center, state->w, getPosition(state)/**position*/, dir);
-  state->center = parentCenter(state->center, state->w,
-                               getPosition(state)/**position*/, dir);
+void popLevel(WalkState* state, const intn dir) {
+  state->center = parentCenter(
+      state->center, (state->w>>1), getPosition(state), dir);
 
   // Back out one level
   state->w <<= 1;
   state->indexStack.pop_back();
   (state->positionStack) >>= 2;
-  // *position = ((state->positionStack) & 3);
+  state->origin = make_intn(state->center[0] - (state->w>>1),
+                            state->center[1] - (state->w>>1));
 }
 
 // non-const for swap
@@ -355,53 +352,6 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
                     intn b_p0, floatn b_v,
                     int w_) {
   Resln resln(1<<options.max_level);
-
-  // Given two points where p0.x == p1.x, find the split point between
-  // the two using binary search.
-  //
-  //     ___________________
-  //    |                   |
-  //    |                   |
-  //    |                   |
-  //    |                   |
-  //    |                   |
-  //    |                   |
-  //    |                   |
-  //    |__________x__x_____|
-  //
-  //     ___________________
-  //    |         |         |
-  //    |         |         |
-  //    |         |         |
-  //    |_________|_________|
-  //    |         |         |
-  //    |         |         |
-  //    |         |         |
-  //    |_________|x__x_____|
-  //
-  //    positionStack = xx
-  //     ___________________
-  //    |         |         |
-  //    |         |         |
-  //    |         |         |
-  //    |_________|_________|
-  //    |         |    |    |
-  //    |         |____|____|
-  //    |         |    |    |
-  //    |_________|x__x|____|
-  //
-  //    push split in quadrant 01: positionStack = 01
-  //     ___________________
-  //    |         |         |
-  //    |         |         |
-  //    |         |         |
-  //    |_________|_________|
-  //    |         |    |    |
-  //    |         |____|____|
-  //    |         |_|__|    |
-  //    |_________|x|_x|____|
-  //
-  //    push split in quadrant 00: positionStack = 01 00
 
   WalkState state = createWalkState(w_);
 
@@ -447,32 +397,27 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
        << " axis = " << axis << " s = " << s << endl;
   cout << "positionStack = " << byte_to_binary(state.positionStack) << endl;
 
-  // intn center;
-  state.center[axis] = s;
-  state.center[oaxis] = a_p0[oaxis] + state.w * dir[oaxis];
-  // intn center = make_intn(s, w) * dir;
-  // if (axis == 1) {
-  //   center = make_intn(w, s) * dir;
-  // }
   vector<int> a_regions, b_regions;
 
   // Walk along the lines. If they ever both cross the same quadtree edge then
   // separate by subdividing. Call the edge a conflict edge. Two lines
   // crossing a conflict edge will then enter a conflict cell.
-  while (state.w < resln.width) {
+  while ((state.w>>1) < resln.width) {
     // Find the region a and b cross at.
     const float a_t = (state.center[oaxis] - a_p0[oaxis]) / a_v[oaxis];
     const float b_t = (state.center[oaxis] - b_p0[oaxis]) / b_v[oaxis];
     a = (int)((a_p0[axis] + a_t * a_v[axis]) + 0.5);
     b = (int)((b_p0[axis] + b_t * b_v[axis]) + 0.5);
-    const int a_region = get_region(a, state.center[axis], state.w);
-    const int b_region = get_region(b, state.center[axis], state.w);
+    const int a_region = get_region(a, state.center[axis], (state.w>>1));
+    const int b_region = get_region(b, state.center[axis], (state.w>>1));
     a_regions.push_back(a_region);
     b_regions.push_back(b_region);
 
     cout << endl;
     cout << "checking center = " << state.center << endl;
-    cout << "a = " << a << " (" << (a_p0[axis] + a_t * a_v[axis]) << ") "
+    // cout << "a = " << a << " (" << (a_p0[axis] + a_t * a_v[axis]) << ") "
+    //      << " b = " << b << endl;
+    cout << "a = " << a
          << " b = " << b << endl;
 
     if (a_region == b_region) {
@@ -485,7 +430,9 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       }
       // Origin coordinate for the stationary axis of the cell we're
       // about to subdivide.
-      const int origin = state.center[axis] + ((a_region == 1) ? -state.w : 0);
+      const int origin = state.center[axis] + ((a_region == 1) ? -(state.w>>1) : 0);
+      // const int origin = state.center[axis] + ((a_region == 1) ? 0 : (state.w>>1));
+      // const int origin = state.origin[axis];
       // Which quadrant the cell to subdivide is in.
       int position = (a_region == 1) ? (1<<oaxis) : 3;
       if (negativeDir) {
@@ -497,9 +444,6 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
                      &state,
                      0 | dirBit, (1<<axis) | dirBit);
 
-      state.center[axis] = s;
-      // center[oaxis] += w;
-      state.center[oaxis] += negativeDir ? -state.w : state.w;
     } else {
       // int position = (state.positionStack & 3);
       int position = getPosition(&state);
@@ -507,17 +451,14 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       // on the left (if axis = y).
       while ((negativeDir?~position:position) & (1<<oaxis)) {
       // while (position & (1<<oaxis)) {
-        // popLevel(&center, &state, dir);
         popLevel(&state, dir);
         position = getPosition(&state);
       }
 
-      // popLevel(&center, &state, dir);
       popLevel(&state, dir);
       position = getPosition(&state);
 
     }
-    cout << "Iteration w = " << state.w << endl;
   }
 
   cout << endl;
