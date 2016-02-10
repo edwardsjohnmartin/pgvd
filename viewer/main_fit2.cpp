@@ -297,12 +297,24 @@ int get_region(const float coord, const float split, const float w) {
 //          a and b.
 //  right - quadrant to split if the current split point s is less than
 //          a and b.
-int find_split(intn a_, intn b_, WalkState* state) {
+void/*intn*/ find_split(intn a_, intn b_, WalkState* state) {
   int ax = a_.x;
   int bx = b_.x;
   int ay = a_.y;
   int by = b_.y;
-  const int axis = (abs(ax-bx) > abs(ay-by)) ? 0 : 1;
+  // The split search axis is based on the proximity of the points
+  int axis;
+  if (abs(ax-bx) > abs(ay-by)) {
+    axis = 0;
+  } else if (abs(ax-bx) > abs(ay-by)) {
+    axis = 1;
+  } else if (ay == state->origin.y || ay == state->origin.y + state->w) {
+    axis = 0;
+  } else {
+    axis = 1;
+  }
+  // int axis = (abs(ax-bx) > abs(ay-by)) ? 0 : 1;
+  
   const int oaxis = 1-axis;
   if (a_[axis] > b_[axis]) {
     swap(a_, b_);
@@ -310,12 +322,14 @@ int find_split(intn a_, intn b_, WalkState* state) {
   const int a = a_[axis];
   const int b = b_[axis];
 
+  bool origin = true;
   int left, right;
   if (axis == 0) {
     if (min(a_[oaxis], b_[oaxis]) == state->origin[oaxis]) {
       left = 0;
       right = 1;
     } else {
+      origin = false;
       left = 2;
       right = 3;
     }
@@ -324,6 +338,7 @@ int find_split(intn a_, intn b_, WalkState* state) {
       left = 0;
       right = 2;
     } else {
+      origin = false;
       left = 1;
       right = 3;
     }
@@ -331,9 +346,9 @@ int find_split(intn a_, intn b_, WalkState* state) {
 
   // The current cell is already subdivided once.
   int s = state->origin[axis] + (state->w>>1);
-  while ((s < a || s > b) && (state->w>>1) > 1) {
+  while ((s <= a || s >= b) && (state->w>>1) > 1) {
     int position;
-    if (s < a) {
+    if (s <= a) {
       s = s + (state->w>>2);
       position = right;
     } else {
@@ -342,7 +357,15 @@ int find_split(intn a_, intn b_, WalkState* state) {
     }
     split(state, position);
   }
-  return s;
+
+  cout << "Split found between a = " << a << " and b = " << b
+       << ": s = " << s << endl;
+
+  // // return s;
+  // intn ret;
+  // ret[axis] = s;
+  // ret[oaxis] = origin ? state->origin[oaxis] : state->origin[oaxis] + state->w;
+  // return ret;
 }
 
 // // Divides in half until a split value is found that is between a and b,
@@ -390,7 +413,7 @@ int find_split(intn a_, intn b_, WalkState* state) {
 //   }
 // }
 
-void popLevel(WalkState* state, const intn dir) {
+void popLevel(WalkState* state) {
   const int position = getPosition(state);
   switch (position) {
     case 0:
@@ -405,23 +428,14 @@ void popLevel(WalkState* state, const intn dir) {
       break;
     case 3:
       state->origin =
-          make_intn(state->origin[0] - state->w,
-                    state->origin[1] - state->w);
+          make_intn(state->origin[0] - state->w, state->origin[1] - state->w);
       break;
   }
   
-
-  // state->center = parentCenter(
-  //     state->center, (state->w>>1), getPosition(state), dir);
-
   // Back out one level
   state->w <<= 1;
   state->indexStack.pop_back();
   (state->positionStack) >>= 2;
-  // cout << "old = " << state->origin;
-  // state->origin = make_intn(state->center[0] - (state->w>>1),
-  //                           state->center[1] - (state->w>>1));
-  // cout << " new = " << state->origin << endl;
   state->center = make_intn(state->origin[0] + (state->w>>1),
                             state->origin[1] + (state->w>>1));
 }
@@ -430,52 +444,35 @@ void popLevel(WalkState* state, const intn dir) {
 vector<OctNode> fit(intn a_p0, floatn a_v,
                     intn b_p0, floatn b_v,
                     int w_) {
+  cout << "--------------------------------------------------" << endl;
+  cout << "fit" << endl;
+  cout << "--------------------------------------------------" << endl;
+
   Resln resln(1<<options.max_level);
 
   WalkState state = createWalkState(w_);
 
-  int ax = a_p0.x;
-  int bx = b_p0.x;
-  int ay = a_p0.y;
-  int by = b_p0.y;
-  int a, b, axis;
-  // The split axis is the axis we search for a split point. So if axis
-  // is zero, then we search in x for the split point s, and the split
-  // plane becomes the axis-aligned plane at x = s.
-  if (abs(ax-bx) > abs(ay-by)) {
-    axis = 0;
-    // a = ax;
-    // b = bx;
-  } else {
-    axis = 1;
-    // a = ay;
-    // b = by;
-  }
-  a = a_p0[axis];
-  b = b_p0[axis];
-  int oaxis = 1-axis;
+  // int ax = a_p0.x;
+  // int bx = b_p0.x;
+  // int ay = a_p0.y;
+  // int by = b_p0.y;
+  // const int axis = (abs(ax-bx) > abs(ay-by)) ? 0 : 1;
+  const int axis = (abs(a_v[0]) < abs(a_v[1])) ? 0 : 1;
+  // oaxis is the walk axis
+  const int oaxis = 1-axis;
+  const int a_ = a_p0[axis];
+  const int b_ = b_p0[axis];
   // Make sure a < b.
-  if (a > b) {
-    swap(a, b);
+  if (a_ > b_) {
     swap(a_p0, b_p0);
     swap(a_v, b_v);
   }
 
-  intn dir = make_intn(1, 1);
   const bool negativeDir = (a_v[oaxis] < 0);
-  dir[oaxis] = negativeDir ? -1 : 1;
-  cout << "dir = " << dir << endl;
-  const int dirBit = (dir[oaxis] == -1) ? (1<<oaxis) : 0;
-  const int popQuadBit = (1<<oaxis);
 
   // Do the initial split.
   split(&state, -1);
-  int s = find_split(a_p0, b_p0, &state);
-
-  cout << endl;
-  cout << "Found initial split. a = " << a << " b = " << b
-       << " axis = " << axis << " s = " << s << endl;
-  cout << "positionStack = " << byte_to_binary(state.positionStack) << endl;
+  /*int s = */find_split(a_p0, b_p0, &state);
 
   vector<int> a_regions, b_regions;
 
@@ -488,8 +485,8 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
     const float b_t = (state.center[oaxis] - b_p0[oaxis]) / b_v[oaxis];
     const intn a_p = a_p0 + convert_intn(a_v * a_t);
     const intn b_p = b_p0 + convert_intn(b_v * b_t);
-    a = (int)((a_p0[axis] + a_t * a_v[axis]) + 0.5);
-    b = (int)((b_p0[axis] + b_t * b_v[axis]) + 0.5);
+    const int a = (int)((a_p0[axis] + a_t * a_v[axis]) + 0.5);
+    const int b = (int)((b_p0[axis] + b_t * b_v[axis]) + 0.5);
     const int a_region = get_region(a, state.center[axis], (state.w>>1));
     const int b_region = get_region(b, state.center[axis], (state.w>>1));
     a_regions.push_back(a_region);
@@ -500,7 +497,7 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
     cout << "a = " << a
          << " b = " << b << endl;
 
-    if (a_region == b_region) {
+    if (a_region == b_region && state.w > 1) {
       // The region is the same -- this is a conflict edge.
       // Subdivide the cell bordered by the conflict edge.
       cout << "conflict at " << a_region << endl;
@@ -515,19 +512,20 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       }
       // Do the initial split.
       split(&state, position);
-      s = find_split(a_p, b_p, &state);
+      /*s = */find_split(a_p, b_p, &state);
     } else {
       // int position = (state.positionStack & 3);
       int position = getPosition(&state);
       // Loop until the cell is on the bottom (if axis = x) or cell is
       // on the left (if axis = y).
-      while ((negativeDir?~position:position) & (1<<oaxis)) {
+      while (state.w<resln.width &&
+             (negativeDir?~position:position) & (1<<oaxis)) {
       // while (position & (1<<oaxis)) {
-        popLevel(&state, dir);
+        popLevel(&state);
         position = getPosition(&state);
       }
 
-      popLevel(&state, dir);
+      popLevel(&state);
       position = getPosition(&state);
 
     }
