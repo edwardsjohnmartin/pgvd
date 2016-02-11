@@ -305,78 +305,6 @@ int get_region(const float coord, const float split, const float w) {
   return 3;
 }
 
-// // Divides in half until a split value is found that is between a and b,
-// // i.e. uses binary search.
-// //  a     - min point
-// //  b     - max point
-// //  left  - quadrant to split if the current split point s is greater than
-// //          a and b.
-// //  right - quadrant to split if the current split point s is less than
-// //          a and b.
-// void find_split(intn a_, intn b_, WalkState* state) {
-//   int ax = a_.x;
-//   int bx = b_.x;
-//   int ay = a_.y;
-//   int by = b_.y;
-//   // The split search axis is based on the proximity of the points
-//   int axis;
-//   if (abs(ax-bx) > abs(ay-by)) {
-//     axis = 0;
-//   } else if (abs(ax-bx) > abs(ay-by)) {
-//     axis = 1;
-//   } else if (ay == state->origin.y || ay == state->origin.y + state->w) {
-//     axis = 0;
-//   } else {
-//     axis = 1;
-//   }
-  
-//   const int oaxis = 1-axis;
-//   if (a_[axis] > b_[axis]) {
-//     swap(a_, b_);
-//   }
-//   const int a = a_[axis];
-//   const int b = b_[axis];
-
-//   bool origin = true;
-//   int left, right;
-//   if (axis == 0) {
-//     if (min(a_[oaxis], b_[oaxis]) == state->origin[oaxis]) {
-//       left = 0;
-//       right = 1;
-//     } else {
-//       origin = false;
-//       left = 2;
-//       right = 3;
-//     }
-//   } else {
-//     if (min(a_[oaxis], b_[oaxis]) == state->origin[oaxis]) {
-//       left = 0;
-//       right = 2;
-//     } else {
-//       origin = false;
-//       left = 1;
-//       right = 3;
-//     }
-//   }
-
-//   // The current cell is already subdivided once.
-//   int s = state->origin[axis] + (state->w>>1);
-//   while ((s <= a || s >= b) && (state->w>>1) > 1) {
-//     int position;
-//     if (s <= a) {
-//       s = s + (state->w>>2);
-//       position = right;
-//     } else {
-//       s = s - (state->w>>2);
-//       position = left;
-//     }
-//     split(state, position);
-//   }
-
-//   cout << "Split found between a = " << a << " and b = " << b
-//        << ": s = " << s << endl;
-// }
-
 void popLevel(WalkState* state) {
   const int position = getPosition(state);
   switch (position) {
@@ -459,40 +387,6 @@ void addSubdivision(ToSubdivide* ret, const int quadrant) {
   ret->total++;
 }
 
-// int getIntersectedQuadrants(const CellIntercepts* intercepts) {
-//   int ret = 0;
-//   // ybottom
-//   if (intercepts->ybottom.region == 1) {
-//     ret |= (1 << 0);
-//   } else if (intercepts->ybottom.region == 2) {
-//     ret |= (1 << 1);
-//   }
-//   // ycenter
-//   if (intercepts->ycenter.region == 1) {
-//     ret |= (1 << 0);
-//     ret |= (1 << 2);
-//   } else if (intercepts->ycenter.region == 2) {
-//     ret |= (1 << 1);
-//     ret |= (1 << 3);
-//   }
-//   // ytop
-//   if (intercepts->ytop.region == 1) {
-//     ret |= (1 << 2);
-//   } else if (intercepts->ytop.region == 2) {
-//     ret |= (1 << 3);
-//   }
-//   // xcenter
-//   if (intercepts->xcenter.region == 1) {
-//     ret |= (1 << 0);
-//     ret |= (1 << 1);
-//   } else if (intercepts->xcenter.region == 2) {
-//     ret |= (1 << 2);
-//     ret |= (1 << 3);
-//   }
-
-//   return ret;
-// }
-
 int getIntersectedQuadrants(const CellIntercepts* intercepts) {
   int ret = 0;
   // ybottom
@@ -539,7 +433,7 @@ ToSubdivide createToSubdivide(
   const int conflicts = a_quads & b_quads;
   for (int i = 0; i < NUM_CELLS; ++i) {
     if (conflicts & (1 << i)) {
-      addSubdivision(&ret, i);//, &a->ybottom.p, &b->ybottom.p);
+      addSubdivision(&ret, i);
     }
   }
   return ret;
@@ -568,12 +462,8 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
 
   WalkState state = createWalkState(w_);
 
-  // int ax = a_p0.x;
-  // int bx = b_p0.x;
-  // int ay = a_p0.y;
-  // int by = b_p0.y;
-  // const int axis = (abs(ax-bx) > abs(ay-by)) ? 0 : 1;
-  const int axis = 0;//(abs(a_v[0]) < abs(a_v[1])) ? 0 : 1;
+  // TODO: fix so that we walk along the y axis if that makes more sense.
+  const int axis = 0;
   // oaxis is the walk axis
   const int oaxis = 1-axis;
   const int a_ = a_p0[axis];
@@ -588,166 +478,35 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
 
   // Do the initial split.
   split(&state, -1);
-  // find_split(a_p0, b_p0, &state);
-
-  vector<int> a_regions, b_regions;
 
   vector<ToSubdivide> toSubdivideStack;
 
   ToSubdivide toSubdivide = createToSubdivide(&state, oaxis,
                                               a_p0, a_v, b_p0, b_v);
   toSubdivideStack.push_back(toSubdivide);
-  // Walk along the lines. If they ever both cross the same quadtree edge then
-  // separate by subdividing. Call the edge a conflict edge. Two lines
-  // crossing a conflict edge will then enter a conflict cell.
-  // while ((state.w>>1) < resln.width) {
   while (!toSubdivideStack.empty()) {
-    // CellIntercepts a_intercepts, b_intercepts;
-    // getIntercepts(&state, oaxis, a_p0, a_v, &a_intercepts);
-    // const int a_region = a_intercepts.ycenter.region;
-    // const intn a_p = a_intercepts.ycenter.p;
-    // getIntercepts(&state, oaxis, b_p0, b_v, &b_intercepts);
-    // // const int b_region = intercepts[1].regions[1];
-    // // const intn b_p = intercepts[1].y[1];
-    // const int b_region = b_intercepts.ycenter.region;
-    // const intn b_p = b_intercepts.ycenter.p;
-
-    // a_regions.push_back(a_region);
-    // b_regions.push_back(b_region);
-
-    // ToSubdivide toSubdivide = createToSubdivide(
-    //     &state, &a_intercepts, &b_intercepts);
     toSubdivide = toSubdivideStack.back();
     toSubdivideStack.pop_back();
+
     if (toSubdivide.i < toSubdivide.total) {
+      // There's a subdivision at this level to do
       const int i = toSubdivide.i++;
       toSubdivideStack.push_back(toSubdivide);
       const int quadrant = toSubdivide.quadrants[i];
       if (!isSplit(&state, quadrant)) {
         split(&state, quadrant);
-        // find_split(toSubdivide.a_points[i],
-        //            toSubdivide.b_points[i],
-        //            &state);
       }
 
-      toSubdivide = createToSubdivide(&state, oaxis,
-                                      a_p0, a_v, b_p0, b_v);
+      toSubdivide =
+          createToSubdivide(&state, oaxis, a_p0, a_v, b_p0, b_v);
       toSubdivideStack.push_back(toSubdivide);
     } else {
-      // while (state.w < resln.width) {
-      //   popLevel(&state);
-      // }
-      // // break;
+      // Back out one state
       popLevel(&state);
     }
-
-    // cout << endl;
-    // cout << "checking center = " << state.center << endl;
-    // // cout << "a = " << a
-    // //      << " b = " << b << endl;
-
-    // if (a_region == b_region && state.w > 1) {
-    //   // The region is the same -- this is a conflict edge.
-    //   // Subdivide the cell bordered by the conflict edge.
-    //   cout << "conflict at " << a_region << endl;
-    //   if (a_region == 0 || a_region == 3) {
-    //     cout << "Unsupported region" << endl;
-    //     return state.nodes;
-    //   }
-
-    //   if (a_region == 1 && !isSplit(&state, 0)) {
-    //     split(&state, 0);
-    //   } else if (a_region == 2 && !isSplit(&state, 1)) {
-    //     split(&state, 1);
-    //   } else {
-    //     // Which quadrant the cell to subdivide is in.
-    //     int position = (a_region == 1) ? (1<<oaxis) : 3;
-    //     if (negativeDir) {
-    //       position = (a_region == 1) ? 0 : (1<<axis);
-    //     }
-    //     // Do the initial split.
-    //     split(&state, position);
-    //     find_split(a_p, b_p, &state);
-    //   }
-    // } else if (a_region > 1 && b_region > 1 && !isSplit(&state, 1) && state.w > 1) {
-    //   // Which quadrant the cell to subdivide is in.
-    //   // int position = (a_region == 1) ? (1<<oaxis) : 3;
-    //   // if (negativeDir) {
-    //   //   position = (a_region == 1) ? 0 : (1<<axis);
-    //   // }
-    //   int position = 1;
-
-    //   // const intn a_p = getIntercept(state.center[axis], axis, a_p0, a_v);
-    //   // Do the initial split.
-    //   split(&state, position);
-    //   // find_split(a_p, b_p, &state);
-    // } else {
-    //   int position = getPosition(&state);
-    //   // Loop until the cell is on the bottom (if axis = x) or cell is
-    //   // on the left (if axis = y).
-    //   // while (state.w<resln.width &&
-    //   //        (negativeDir?~position:position) & (1<<oaxis)) {
-    //   while (state.w<resln.width) {
-    //     popLevel(&state);
-    //     position = getPosition(&state);
-    //   }
-
-    //   popLevel(&state);
-    //   position = getPosition(&state);
-
-    // }
   }
 
-  cout << endl;
-  cout << "a = ";
-  for (int pos : a_regions) {
-    cout << pos << " ";
-  }
-  cout << endl;
-  cout << "b = ";
-  for (int pos : b_regions) {
-    cout << pos << " ";
-  }
-  cout << endl;
-
-  // octree->set(nodes, bb);
   return state.nodes;
-
-  // karras_points.clear();
-  // bb = BoundingBox<float2>();
-  // extra_qpoints.clear();
-  // octree.clear();
-
-  // vector<vector<float2>> temp_polygons = lines.getPolygons();
-  // if (temp_polygons.empty()) {
-  //   buildOctVertices();
-  //   return;
-  // }
-
-  // // karras_points.clear();
-  // vector<vector<float2> > all_vertices(temp_polygons.size());
-  // for (int i = 0; i < temp_polygons.size(); ++i) {
-  //   const vector<float2>& polygon = temp_polygons[i];
-  //   all_vertices[i] = polygon;
-  //   for (int j = 0; j < polygon.size()-1; ++j) {
-  //     karras_points.push_back(temp_polygons[i][j]);
-  //   }
-  //   karras_points.push_back(temp_polygons[i].back());
-  // }
-
-  // // Find bounding box of vertices
-  // for (int j = 0; j < all_vertices.size(); ++j) {
-  //   const std::vector<float2>& vertices = all_vertices[j];
-  //   for (int i = 0; i < vertices.size(); ++i) {
-  //     bb(vertices[i]);
-  //   }
-  // }
-  // if (customBB) {
-  //   bb = *customBB;
-  // }
-
-  // // Karras iterations
-  // vector<intn> qpoints = Karras::Quantize(karras_points, resln);
 }
 
 void fit() {
