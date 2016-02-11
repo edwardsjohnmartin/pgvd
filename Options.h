@@ -61,7 +61,7 @@ struct Options {
       : max_level(kMaxLevel),
       tri_threshold(1), simple_dist(true), timings(true),
         ambiguous_max_level(0), test(-1), showObjectVertices(false),
-        showOctree(false), test_num(2), test_axis(0) {
+        showOctree(false), test_num(0), test_axis(0) {
     ReadOptionsFile();
   }
 

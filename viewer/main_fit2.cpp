@@ -236,7 +236,6 @@ bool isSplit(WalkState* state, const int position) {
   return !state->nodes[parentIndex].is_leaf(position);
 }
 
-// Should get rid of parentIndex
 void split(WalkState* state, const int position) {
   if (state->nodes.empty() && position != -1) {
     throw logic_error("If the state is uninitialized then position must be -1");
@@ -298,7 +297,7 @@ int getPosition(const WalkState* state) {
 //                
 //         |----|
 //           w
-int get_region(const float coord, const float split, const float w) {
+int getRegion(const float coord, const float split, const float w) {
   if (coord < split-w) return 0;
   if (coord < split) return 1;
   if (coord < split+w) return 2;
@@ -337,9 +336,8 @@ int getInterceptRegion(const WalkState* state,
   const int x_axis = 1 - y_axis;
   const float t = (y_value - p0[y_axis]) / v[y_axis];
   const int x =  p0[x_axis] + int(v[x_axis] * t);
-  const int region = get_region(x,
-                          state->center[x_axis],
-                          (state->w>>1));
+  const int region =
+      getRegion(x, state->center[x_axis], (state->w>>1));
   return region;
 }
 
@@ -351,13 +349,15 @@ struct CellIntercepts {
   int xcenter;
 };
 
+// Intuit as walking along the y axis. However, it works if walking
+// along the x axis as well.
 void getIntercepts(
     const WalkState* state,
-    const int axis, const intn p0, const floatn v,
+    const int waxis, const intn p0, const floatn v,
     CellIntercepts* intercepts) {
   
-  const int x_axis = 1-axis;
-  const int y_axis = axis;
+  const int x_axis = 1-waxis;
+  const int y_axis = waxis;
 
   intercepts->ybottom = getInterceptRegion(
       state, state->origin[y_axis], y_axis, p0, v);
@@ -422,7 +422,7 @@ int getIntersectedQuadrants(const CellIntercepts* intercepts) {
 }
 
 ToSubdivide createToSubdivide(
-    const WalkState* state,
+    const WalkState* state, const int waxis,
     CellIntercepts* a, CellIntercepts* b) {
   ToSubdivide ret;
   ret.w = state->w;
@@ -430,7 +430,21 @@ ToSubdivide createToSubdivide(
   ret.i = 0;
   const int a_quads = getIntersectedQuadrants(a);
   const int b_quads = getIntersectedQuadrants(b);
-  const int conflicts = a_quads & b_quads;
+  int conflicts = a_quads & b_quads;
+
+  // If waxis is the x axis, then we need to swap quadrants 1 and 2.
+  if (waxis == 0) {
+    const int temp = conflicts;
+    conflicts &= ~(1<<1);
+    conflicts &= ~(1<<2);
+    if (temp & (1<<1)) {
+      conflicts |= (1<<2);
+    }
+    if (temp & (1<<2)) {
+      conflicts |= (1<<1);
+    }
+  }
+
   for (int i = 0; i < NUM_CELLS; ++i) {
     if (conflicts & (1 << i)) {
       addSubdivision(&ret, i);
@@ -440,50 +454,36 @@ ToSubdivide createToSubdivide(
 }
 
 ToSubdivide createToSubdivide(
-    const WalkState* state, const int oaxis,
+    const WalkState* state, const int waxis,
     const intn a_p0, const floatn a_v,
     const intn b_p0, const floatn b_v) {
   CellIntercepts a_intercepts, b_intercepts;
-  getIntercepts(state, oaxis, a_p0, a_v, &a_intercepts);
-  getIntercepts(state, oaxis, b_p0, b_v, &b_intercepts);
+  getIntercepts(state, waxis, a_p0, a_v, &a_intercepts);
+  getIntercepts(state, waxis, b_p0, b_v, &b_intercepts);
   return createToSubdivide(
-      state, &a_intercepts, &b_intercepts);
+      state, waxis, &a_intercepts, &b_intercepts);
 }
 
 // non-const for swap
 vector<OctNode> fit(intn a_p0, floatn a_v,
                     intn b_p0, floatn b_v,
                     int w_) {
-  cout << "--------------------------------------------------" << endl;
-  cout << "fit" << endl;
-  cout << "--------------------------------------------------" << endl;
-
   Resln resln(1<<options.max_level);
-
   WalkState state = createWalkState(w_);
 
-  // TODO: fix so that we walk along the y axis if that makes more sense.
-  const int axis = 0;
-  // oaxis is the walk axis
-  const int oaxis = 1-axis;
-  const int a_ = a_p0[axis];
-  const int b_ = b_p0[axis];
-  // Make sure a < b.
-  if (a_ > b_) {
-    swap(a_p0, b_p0);
-    swap(a_v, b_v);
-  }
-
-  const bool negativeDir = (a_v[oaxis] < 0);
+  // waxis is the walk axis
+  const int waxis = (a_v.x < a_v.y) ? 1 : 0;
+  const int axis = 1-waxis;
 
   // Do the initial split.
   split(&state, -1);
 
   vector<ToSubdivide> toSubdivideStack;
 
-  ToSubdivide toSubdivide = createToSubdivide(&state, oaxis,
-                                              a_p0, a_v, b_p0, b_v);
+  ToSubdivide toSubdivide =
+      createToSubdivide(&state, waxis, a_p0, a_v, b_p0, b_v);
   toSubdivideStack.push_back(toSubdivide);
+
   while (!toSubdivideStack.empty()) {
     toSubdivide = toSubdivideStack.back();
     toSubdivideStack.pop_back();
@@ -498,7 +498,7 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       }
 
       toSubdivide =
-          createToSubdivide(&state, oaxis, a_p0, a_v, b_p0, b_v);
+          createToSubdivide(&state, waxis, a_p0, a_v, b_p0, b_v);
       toSubdivideStack.push_back(toSubdivide);
     } else {
       // Back out one state
@@ -550,8 +550,6 @@ void fit() {
   floatn a_v = convert_floatn(points[1] - a_p0);
   intn b_p0 = points[2];
   floatn b_v = convert_floatn(points[3] - b_p0);
-
-  cout << "a_p0 = " << a_p0 << " " << " b_p0 = " << b_p0 << endl;
 
   int w = resln.width;
   vector<OctNode> nodes = fit(a_p0, a_v, b_p0, b_v, w);
