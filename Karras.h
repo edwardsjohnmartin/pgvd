@@ -8,6 +8,7 @@
 #include "./opencl/vec.h"
 #include "./Resln.h"
 #include "./OctNode.h"
+#include "./BoundingBox.h"
 
 namespace Karras {
 

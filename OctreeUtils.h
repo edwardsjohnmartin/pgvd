@@ -6,6 +6,7 @@
 #include "./opencl/defs.h"
 #include "./opencl/vec.h"
 #include "./OctNode.h"
+#include "./OctCell.h"
 #include "./Resln.h"
 
 namespace OctreeUtils {

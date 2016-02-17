@@ -183,6 +183,45 @@ const char *byte_to_binary(int x)
 }
 
 //------------------------------------------------------------
+// Stack sizes are currently limited to 32 elements. This
+// should be tied to the max depth of the octree.
+//------------------------------------------------------------
+const int STACK_SIZE = 32;
+
+struct IntStack {
+  int values[STACK_SIZE];
+  // Points to the top of the stack
+  int position;
+};
+void push(IntStack* stack, const int value) {
+  stack->values[++stack->position] = value;
+}
+int pop(IntStack* stack) {
+  return stack->values[stack->position--];
+}
+int top(IntStack* stack) {
+  return stack->values[stack->position];
+}
+
+struct OctNodes {
+  OctNode* array;
+  int count;
+};
+void addOctNode(OctNodes* nodes, const OctNode node) {
+  if (nodes->array) {
+    nodes->array[nodes->count++] = node;
+  } else {
+    nodes->count++;
+  }
+}
+void setChild(OctNodes* nodes, const int parentIndex, const int position) {
+  if (nodes->array) {
+    nodes->array[parentIndex].set_child(position, nodes->count);
+  }
+}
+
+
+//------------------------------------------------------------
 // WalkState struct
 // Represents a position in the octree.
 //     _______________________
@@ -204,44 +243,36 @@ const char *byte_to_binary(int x)
 //------------------------------------------------------------
 struct WalkState {
   intn origin;
-  intn center;
   int w;
   // Represents our current location in the quadtree. See above for examples.
   int positionStack;
 
   //--------------------------------------------------
   // The following variables relate to construction
-  // of the octree and require an a priori count
-  // of how many splits we'll be making.
+  // of the octree. The nodes data member 
   //--------------------------------------------------
-  // The octree
-  vector<OctNode> nodes;
+  // The octree. Requires an a priori count of how many
+  // splits we'll be making.
+  OctNodes* nodes;
   // This is a stack, similar to positionStack, which keeps track of
   // indices into the nodes vector (see above).
-  vector<int> indexStack;
+  IntStack indexStack;
 };
 
-WalkState createWalkState(const int w) {
+WalkState createWalkState(const int w, OctNodes* nodes) {
   WalkState state;
   state.origin = make_intn(0, 0);
-  state.center = make_intn(w>>1, w>>1);
   state.w = w;
   state.positionStack = 0;
+  state.indexStack = {
+    .position = 0
+  };
+  state.nodes = nodes;
   return state;
 }
 
-// Should get rid of parentIndex
-bool isSplit(WalkState* state, const int position) {
-  const int parentIndex = state->indexStack.back();
-  return !state->nodes[parentIndex].is_leaf(position);
-}
-
 void split(WalkState* state, const int position) {
-  if (state->nodes.empty() && position != -1) {
-    throw logic_error("If the state is uninitialized then position must be -1");
-  }
-
-  if (!state->nodes.empty()) {
+  if (position > -1) {
     switch (position) {
       case 0:
         // Origin remains the same
@@ -259,27 +290,14 @@ void split(WalkState* state, const int position) {
     }
     state->positionStack <<= 2;
     state->positionStack |= position;
-    const int parentIndex = state->indexStack.back();
-    state->nodes[parentIndex].set_child(position, state->nodes.size());
+    const int parentIndex = top(&state->indexStack);
+    setChild(state->nodes, parentIndex, position);
 
     state->w >>= 1;
   }
 
-  state->indexStack.push_back(state->nodes.size());
-  state->nodes.push_back(OctNode());
-
-  state->center = make_intn(state->origin[0] + (state->w>>1),
-                            state->origin[1] + (state->w>>1));
-}
-
-intn getCenter(const WalkState* state) {
-  return state->center;
-  // intn center = state->origin;
-  // const int w2 = state->w>>1;
-  // for (int i = 0; i < DIM; ++i) {
-  //   center[i] += w2;
-  // }
-  // return center;
+  push(&state->indexStack, state->nodes->count);
+  addOctNode(state->nodes, OctNode());
 }
 
 int getPosition(const WalkState* state) {
@@ -325,10 +343,9 @@ void popLevel(WalkState* state) {
   
   // Back out one level
   state->w <<= 1;
-  state->indexStack.pop_back();
+  // state->indexStack.pop_back();
+  pop(&state->indexStack);
   (state->positionStack) >>= 2;
-  state->center = make_intn(state->origin[0] + (state->w>>1),
-                            state->origin[1] + (state->w>>1));
 }
 
 int getInterceptRegion(const WalkState* state,
@@ -336,8 +353,9 @@ int getInterceptRegion(const WalkState* state,
   const int x_axis = 1 - y_axis;
   const float t = (y_value - p0[y_axis]) / v[y_axis];
   const int x =  p0[x_axis] + int(v[x_axis] * t);
+  const int x_center = state->origin[x_axis] + (state->w >> 1);
   const int region =
-      getRegion(x, state->center[x_axis], (state->w>>1));
+      getRegion(x, x_center, (state->w>>1));
   return region;
 }
 
@@ -350,7 +368,8 @@ struct CellIntercepts {
 };
 
 // Intuit as walking along the y axis. However, it works if walking
-// along the x axis as well.
+// along the x axis as well. If wxaxis=0 then we're walking along the
+// x, otherwise y.
 void getIntercepts(
     const WalkState* state,
     const int waxis, const intn p0, const floatn v,
@@ -371,17 +390,15 @@ void getIntercepts(
 
 // Contains subdivide tasks for between 0 and 2^DIM subdivisions
 struct ToSubdivide {
-  int w;
   // The number of subdivisions to do. Must be no greater than 2^DIM.
   int total;
-  // The number of subdivisions complete.
+  // The number of subdivisions completed.
   int i;
   // The subdivision quadrants.
   int quadrants[1<<DIM];
 };
 
 void addSubdivision(ToSubdivide* ret, const int quadrant) {
-                    // const intn* a, const intn* b) {
   const int i = ret->total;
   ret->quadrants[i] = quadrant;
   ret->total++;
@@ -425,7 +442,6 @@ ToSubdivide createToSubdivide(
     const WalkState* state, const int waxis,
     CellIntercepts* a, CellIntercepts* b) {
   ToSubdivide ret;
-  ret.w = state->w;
   ret.total = 0;
   ret.i = 0;
   const int a_quads = getIntersectedQuadrants(a);
@@ -464,12 +480,11 @@ ToSubdivide createToSubdivide(
       state, waxis, &a_intercepts, &b_intercepts);
 }
 
-// non-const for swap
-vector<OctNode> fit(intn a_p0, floatn a_v,
+void fit(intn a_p0, floatn a_v,
                     intn b_p0, floatn b_v,
-                    int w_) {
+             int w_, OctNodes* nodes) {
   Resln resln(1<<options.max_level);
-  WalkState state = createWalkState(w_);
+  WalkState state = createWalkState(w_, nodes);
 
   // waxis is the walk axis
   const int waxis = (a_v.x < a_v.y) ? 1 : 0;
@@ -493,9 +508,7 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       const int i = toSubdivide.i++;
       toSubdivideStack.push_back(toSubdivide);
       const int quadrant = toSubdivide.quadrants[i];
-      if (!isSplit(&state, quadrant)) {
-        split(&state, quadrant);
-      }
+      split(&state, quadrant);
 
       toSubdivide =
           createToSubdivide(&state, waxis, a_p0, a_v, b_p0, b_v);
@@ -505,8 +518,6 @@ vector<OctNode> fit(intn a_p0, floatn a_v,
       popLevel(&state);
     }
   }
-
-  return state.nodes;
 }
 
 void fit() {
@@ -552,8 +563,22 @@ void fit() {
   floatn b_v = convert_floatn(points[3] - b_p0);
 
   int w = resln.width;
-  vector<OctNode> nodes = fit(a_p0, a_v, b_p0, b_v, w);
-  octree->set(nodes, bb);
+
+  // First call. Get the number of octree nodes.
+  OctNodes nodes;
+  nodes.array = 0;
+  nodes.count = 0;
+  fit(a_p0, a_v, b_p0, b_v, w, &nodes);
+
+  // Second call. Populate the nodes array.
+  nodes.array = new OctNode[nodes.count];
+  nodes.count = 0;
+  fit(a_p0, a_v, b_p0, b_v, w, &nodes);
+
+  // Put in a vector and create the octree object.
+  vector<OctNode> vnodes(nodes.array, nodes.array+nodes.count);
+  delete [] nodes.array;
+  octree->set(vnodes, bb);
 }
 
 int main(int argc, char** argv) {
