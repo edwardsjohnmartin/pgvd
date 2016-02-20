@@ -264,9 +264,10 @@ WalkState createWalkState(const int w, OctNodes* nodes) {
   state.origin = make_intn(0, 0);
   state.w = w;
   state.positionStack = 0;
-  state.indexStack = {
-    .position = 0
-  };
+  // state.indexStack = {
+  //   .position = 0
+  // };
+  state.indexStack.position = 0;
   state.nodes = nodes;
   return state;
 }
