@@ -182,6 +182,8 @@ vector<OctNode> BuildOctree(
   if (points.empty())
     throw logic_error("Zero points not supported");
   
+  cout << "Morton = " << sizeof(Morton) << endl;
+
   int n = points.size();
   vector<Morton> mpoints_vec(n);
   Morton* mpoints = mpoints_vec.data();

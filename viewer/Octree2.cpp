@@ -176,7 +176,7 @@ void Octree2::build(const Polylines& lines,
     }
     extra_qpoints.clear();
     if (qpoints.size() > 1) {
-      octree = Karras::BuildOctree(qpoints, resln, false);
+      octree = Karras::BuildOctree(qpoints, resln, true);
     } else {
       octree.clear();
     }
