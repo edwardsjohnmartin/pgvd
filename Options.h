@@ -54,13 +54,17 @@ struct Options {
 
   // Render settings
   bool showObjectVertices;
+  bool showObjects;
   bool showOctree;
+
+  bool jitter;
 
  public:
   Options()
       : max_level(kMaxLevel),
       tri_threshold(1), simple_dist(true), timings(true),
         ambiguous_max_level(0), test(-1), showObjectVertices(false),
+        showObjects(true), jitter(false),
         showOctree(false), test_num(0), test_axis(0) {
     ReadOptionsFile();
   }

@@ -20,9 +20,9 @@ using std::shared_ptr;
 
 namespace Karras {
 
-Morton xyz2z(intn p, const Resln& resln) {
+Morton xyz2z(intn p, const Resln* resln) {
   Morton ret = 0;
-  for (int i = 0; i < resln.bits; ++i) {
+  for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
       if (p.s[j] & (1<<i))
         ret |= Morton(1) << (i*DIM+j);
@@ -31,9 +31,9 @@ Morton xyz2z(intn p, const Resln& resln) {
   return ret;
 }
 
-intn z2xyz(const Morton z, const Resln& resln) {
+intn z2xyz(const Morton z, const Resln* resln) {
   intn p = make_intn(0);
-  for (int i = 0; i < resln.bits; ++i) {
+  for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
       if ((z & (Morton(1) << (i*DIM+j))) > 0)
         p.s[j] |= (1<<i);
@@ -59,43 +59,35 @@ int sign(const int i) {
 // Now shift, and lcp is
 //      ___
 // 00000011
-Morton compute_lcp(const Morton value, const int length, const Resln& resln) {
+Morton compute_lcp(const Morton value, const int length, const Resln* resln) {
   Morton mask(0);
   for (int i = 0; i < length; ++i) {
-    mask |= (Morton(1) << (resln.mbits - 1 - i));
+    mask |= (Morton(1) << (resln->mbits - 1 - i));
   }
-  const Morton lcp = (value & mask) >> (resln.mbits - length);
+  const Morton lcp = (value & mask) >> (resln->mbits - length);
   return lcp;
 }
 
 // Longest common prefix, denoted \delta in karras2014
-int compute_lcp_length(const Morton a, const Morton b, const Resln& resln) {
-  for (int i = resln.mbits-1; i >= 0; --i) {
+int compute_lcp_length(const Morton a, const Morton b, const Resln* resln) {
+  for (int i = resln->mbits-1; i >= 0; --i) {
     const Morton mask = Morton(1) << i;
     if ((a & mask) != (b & mask)) {
-      return resln.mbits - i - 1;
+      return resln->mbits - i - 1;
     }
   }
-  return resln.mbits;
+  return resln->mbits;
 }
 
-class LcpLength {
- public:
-  LcpLength(const vector<Morton>& mpoints, const Resln& resln)
-      : _mpoints(mpoints), _resln(resln) {}
-
-  int operator()(const int i, const int j) const {
-    if (i < 0 || i >= _mpoints.size() || 
-        j < 0 || j >= _mpoints.size()) {
-      throw logic_error("Illegal indices into lcp_length");
-    }
-    return compute_lcp_length(_mpoints[i], _mpoints[j], _resln);
-  }
-
- private:
-  const vector<Morton>& _mpoints;
-  const Resln& _resln;
-};
+int compute_lcp_length(const int i, const int j,
+                       // const vector<Morton>& _mpoints, const Resln* _resln) {
+                       const Morton* _mpoints, const Resln* _resln) {
+  // if (i < 0 || i >= _mpoints.size() || 
+  //     j < 0 || j >= _mpoints.size()) {
+  //   throw logic_error("Illegal indices into lcp_length");
+  // }
+  return compute_lcp_length(_mpoints[i], _mpoints[j], _resln);
+}
 
 struct BrtNode {
   // If lcp is 10011 and DIM == 2 then the last bit is dropped
@@ -197,25 +189,41 @@ vector<OctNode> BuildOctree(
   if (points.empty())
     throw logic_error("Zero points not supported");
   
-  vector<Morton> mpoints(points.size());
+  int n = points.size();
+  // vector<Morton> mpoints_vec(n);
+  // Morton* mpoints = mpoints_vec.data();
+  Morton* mpoints = new Morton[n];
   for (int i = 0; i < points.size(); ++i) {
-    mpoints[i] = xyz2z(points[i], resln);
+    mpoints[i] = xyz2z(points[i], &resln);
   }
 
-  sort(mpoints.begin(), mpoints.end());
+  // sort(mpoints.begin(), mpoints.end());
+  sort(mpoints, mpoints + n);
 
   if (verbose) {
     cout << "mpoints: ";
-    for (int i = 0; i < mpoints.size(); ++i) {
+    for (int i = 0; i < n; ++i) {
       cout << mpoints[i] << " ";
     }
     cout << endl;
   }
 
   // Make sure points are unique
-  std::vector<Morton>::iterator it;
-  it = std::unique(mpoints.begin(), mpoints.end());
-  mpoints.resize(std::distance(mpoints.begin(),it));
+  // std::vector<Morton>::iterator it;
+  // it = std::unique(mpoints.begin(), mpoints.end());
+  // mpoints.resize(std::distance(mpoints.begin(),it));
+
+  Morton* unique_points = new Morton[n];
+  unique_points[0] = mpoints[0];
+  int idx = 1;
+  for (int i = 1; i < n; ++i) {
+    if (mpoints[i] != mpoints[i-1]) {
+      unique_points[idx++] = mpoints[i];
+    }
+  }
+  delete [] mpoints;
+  mpoints = unique_points;
+  n = idx;
 
   // // Send mpoints to gpu
   // if (o.gpu) {
@@ -223,22 +231,34 @@ vector<OctNode> BuildOctree(
   //   gpu.CreateMPoints(mpoints.size());
   // }
 
-  const int n = mpoints.size();
-  const LcpLength lcp_length(mpoints, resln);
+  // const int n = mpoints.size();
+  // const LcpLength lcp_length(mpoints, resln);
   vector<BrtNode> I(n-1);
   vector<BrtNode> L(n);
   for (int i = 0; i < n-1; ++i) {
     // Determine direction of the range (+1 or -1)
-    const int d = (i==0) ? 1 : sign(lcp_length(i, i+1) - lcp_length(i, i-1));
+    // const int l_pos = lcp_length(i, i+1);
+    // const int l_neg = lcp_length(i, i-1);
+    // const int d = (i==0) ? 1 : sign(l_pos - l_neg);
+    int d;
+    if (i == 0) {
+      d = 1;
+    } else {
+      const int l_pos = compute_lcp_length(i, i+1, mpoints, &resln);
+      const int l_neg = compute_lcp_length(i, i-1, mpoints, &resln);
+      d = sign(l_pos - l_neg);
+    }
     // Compute upper bound for the length of the range
     int l;
     if (i == 0) {
       l = n-1;
     } else {
-      const int lcp_min = lcp_length(i, i-d);
+      // const int lcp_min = lcp_length(i, i-d);
+      const int lcp_min = compute_lcp_length(i, i-d, mpoints, &resln);
       int l_max = 2;
       while (i+l_max*d >= 0 && i+l_max*d <= n-1 &&
-             lcp_length(i, i+l_max*d) > lcp_min) {
+             // lcp_length(i, i+l_max*d) > lcp_min) {
+             compute_lcp_length(i, i+l_max*d, mpoints, &resln) > lcp_min) {
         l_max = l_max << 1;
       }
       // Find the other end using binary search.
@@ -249,7 +269,8 @@ vector<OctNode> BuildOctree(
       l = 0;
       for (int t = l_max / 2; t >= 1; t /= 2) {
         if (l + t <= l_cutoff) {
-          if (lcp_length(i, i+(l+t)*d) > lcp_min) {
+          // if (lcp_length(i, i+(l+t)*d) > lcp_min) {
+          if (compute_lcp_length(i, i+(l+t)*d, mpoints, &resln) > lcp_min) {
             l = l + t;
           }
         }
@@ -260,14 +281,16 @@ vector<OctNode> BuildOctree(
     // range = [i, j] or range = [j, i].
     const int j = i + l * d;
     // Find the split position using binary search
-    const int lcp_node = lcp_length(i, j);
+    // const int lcp_node = lcp_length(i, j);
+    const int lcp_node = compute_lcp_length(i, j, mpoints, &resln);
 
     const int s_cutoff = (d==-1) ? i - 1 : n - i - 2;
     int s = 0;
     for (int den = 2; den < 2*l; den *= 2) {
       const int t = static_cast<int>(ceil(l/(float)den));
       if (s + t <= s_cutoff) {
-        if (lcp_length(i, i+(s+t)*d) > lcp_node) {
+        // if (lcp_length(i, i+(s+t)*d) > lcp_node) {
+        if (compute_lcp_length(i, i+(s+t)*d, mpoints, &resln) > lcp_node) {
           s = s + t;
         }
       }
@@ -277,7 +300,7 @@ vector<OctNode> BuildOctree(
     I[i].left = split;
     I[i].left_leaf = (min(i, j) == split);
     I[i].right_leaf = (max(i, j) == split+1);
-    I[i].lcp = compute_lcp(mpoints[i], lcp_node, resln);
+    I[i].lcp = compute_lcp(mpoints[i], lcp_node, &resln);
     I[i].lcp_length = lcp_node;
   }
 
@@ -411,6 +434,8 @@ vector<OctNode> BuildOctree(
     }
     OutputOctree(octree);
   }
+
+  delete [] mpoints;
 
   return octree;
 }

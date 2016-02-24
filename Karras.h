@@ -12,8 +12,8 @@
 
 namespace Karras {
 
-Morton xyz2z(intn p, const Resln& r);
-intn z2xyz(const Morton z, const Resln& r);
+Morton xyz2z(intn p, const Resln* r);
+intn z2xyz(const Morton z, const Resln* r);
 
 // Quantize a single point.
 // dwidth is passed in for performance reasons. It is equal to

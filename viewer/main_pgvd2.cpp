@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
+#include <fstream>
 #define GL_LOG_FILE "gl.log"
 
 #include "gl_utils.h"
@@ -138,6 +139,30 @@ int main(int argc, char** argv) {
 
   program = new LinesProgram();
 	
+  for (const string& f : options.filenames) {
+    ifstream in(f.c_str());
+    bool first = true;
+    while (!in.eof()) {
+      double x, y;
+      in >> x >> y;
+      if (options.jitter) {
+        double s = 100;
+        x += rand() / (RAND_MAX*s) - 1/(s*2);
+        y += rand() / (RAND_MAX*s) - 1/(s*2);
+      }
+      if (!in.eof()) {
+        if (first) {
+          lines->newLine(make_float2(x, y));
+          first = false;
+        } else {
+          lines->addPoint(make_float2(x, y));
+        }
+      }
+    }
+    in.close();
+  }
+  rebuild();
+
   refresh();
 
   while (!glfwWindowShouldClose(g_window)) {

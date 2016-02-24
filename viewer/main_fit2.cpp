@@ -484,7 +484,8 @@ ToSubdivide createToSubdivide(
 void fit(intn a_p0, floatn a_v,
                     intn b_p0, floatn b_v,
              int w_, OctNodes* nodes) {
-  Resln resln(1<<options.max_level);
+  // Resln resln(1<<options.max_level);
+  Resln resln = make_resln(1<<options.max_level);
   WalkState state = createWalkState(w_, nodes);
 
   // waxis is the walk axis
@@ -524,7 +525,8 @@ void fit(intn a_p0, floatn a_v,
 void fit() {
   options.showOctree = true;
 
-  Resln resln(1<<options.max_level);
+  // Resln resln(1<<options.max_level);
+  Resln resln = make_resln(1<<options.max_level);
 
   BoundingBox<float2> bb;
   bb(make_float2(-0.5, -0.5));

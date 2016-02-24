@@ -109,6 +109,12 @@ bool Options::ProcessArg(int& i, char** argv) {
   } else if (strcmp(argv[i], "--showObjectVertices") == 0) {
     ++i;
     o.showObjectVertices = true;
+  } else if (strcmp(argv[i], "--hideObjects") == 0) {
+    ++i;
+    o.showObjects = false;
+  } else if (strcmp(argv[i], "--jitter") == 0) {
+    ++i;
+    o.jitter = true;
   } else if (strcmp(argv[i], "--showOctree") == 0) {
     ++i;
     o.showOctree = true;
