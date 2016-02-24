@@ -75,9 +75,23 @@ SET(OCT2_SRCS
 ADD_DEFINITIONS(-DANSI_DECLARATORS -DTRILIBRARY)
 ADD_DEFINITIONS(-U__STRICT_ANSI__)
 
+
+#NH find_path and find_libary mods for glew...
+find_path(GLEW_INCLUDE_DIR GL/glew.h PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/include)
+find_library(GLEW_LIBRARY NAMES GLEW glew32 glew glew32s PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/lib/Release/Win32 PATH_SUFFIXES lib64 Win32 Release)
+
+message(STATUS "GLEW_INCLUDE_DIR: ${GLEW_INCLUDE_DIR}")
+message(STATUS "GLEW_LIBRARY: ${GLEW_LIBRARY}")
+
+
+
+
 FIND_PACKAGE(OpenGL)
 FIND_PACKAGE(GLEW)
 include_directories(${GLEW_INCLUDE_DIRS})
+
+
+
 
 IF(APPLE)
   ADD_DEFINITIONS(-D__MAC__ -DAPPLE)
