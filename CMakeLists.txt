@@ -72,8 +72,16 @@ SET(PGVD2_SRCS
 SET(OCT2_SRCS
 )
 
+#------------------------------------------------------------
+# Maximum octree depth. Used for creating the Morton code
+# integer.
+#------------------------------------------------------------
+SET(MAX_OCTREE_DEPTH 15)
+
+
 ADD_DEFINITIONS(-DANSI_DECLARATORS -DTRILIBRARY)
 ADD_DEFINITIONS(-U__STRICT_ANSI__)
+ADD_DEFINITIONS(-DMAX_OCTREE_DEPTH=${MAX_OCTREE_DEPTH})
 
 FIND_PACKAGE(OpenGL)
 FIND_PACKAGE(GLEW)

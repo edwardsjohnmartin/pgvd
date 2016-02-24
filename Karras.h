@@ -30,7 +30,8 @@ std::vector<OctNode> BuildOctree(
     const std::vector<intn>& opoints, const Resln& r, const bool verbose=false);
 
 // Debug output
-void OutputOctree(const std::vector<OctNode>& octree);
+// void OutputOctree(const std::vector<OctNode>& octree);
+void OutputOctree(const OctNode* octree, const int n);
 
 } // namespace
 
