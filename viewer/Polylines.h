@@ -128,7 +128,9 @@ class Polylines {
       if (options.showObjectVertices) {
         glDrawArrays(GL_POINTS, first, len);
       }
-      glDrawArrays(GL_LINE_STRIP, first, len);
+      if (options.showObjects) {
+        glDrawArrays(GL_LINE_STRIP, first, len);
+      }
       first = lasts[i];
     }
     print_error("Polylines");

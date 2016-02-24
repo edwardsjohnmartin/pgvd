@@ -43,7 +43,8 @@ int Octree2::processArgs(int argc, char** argv) {
   //   exit(0);
   // }
 
-  resln = Resln(1<<options.max_level);
+  // resln = Resln(1<<options.max_level);
+  resln = make_resln(1<<options.max_level);
 
   // if (options.test > -1)
   //   test(options.test);
@@ -58,8 +59,20 @@ int Octree2::processArgs(int argc, char** argv) {
   //   throw logic_error("No filenames");
   // }
 
+  // Moved to main_pgvd
   // for (const string& f : options.filenames) {
-  //   ReadMesh(f);
+  //   // ReadMesh(f);
+  //   ifstream in(f.c_str());
+  //   bool first = true;
+  //   while (!in.eof()) {
+  //     double x, y;
+  //     in >> x >> y;
+  //     if (!in.eof()) {
+  //       if (first) {
+  //       }
+  //     }
+  //   }
+  //   in.close();
   // }
 
   // int num_edges = 0;

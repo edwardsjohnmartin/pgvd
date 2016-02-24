@@ -12,8 +12,8 @@
 
 namespace Karras {
 
-Morton xyz2z(intn p, const Resln& r);
-intn z2xyz(const Morton z, const Resln& r);
+Morton xyz2z(intn p, const Resln* r);
+intn z2xyz(const Morton z, const Resln* r);
 
 // Quantize a single point.
 // dwidth is passed in for performance reasons. It is equal to
@@ -30,7 +30,8 @@ std::vector<OctNode> BuildOctree(
     const std::vector<intn>& opoints, const Resln& r, const bool verbose=false);
 
 // Debug output
-void OutputOctree(const std::vector<OctNode>& octree);
+// void OutputOctree(const std::vector<OctNode>& octree);
+void OutputOctree(const OctNode* octree, const int n);
 
 } // namespace
 

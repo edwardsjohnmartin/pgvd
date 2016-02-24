@@ -12,29 +12,28 @@ typedef unsigned long Morton;
 
 // Stores resolution and octree height values
 struct Resln {
- public:
-  Resln()
-      : width(8), volume(64), bits(3), mbits(3*DIM) {}
-  Resln(const int width_)
-      : width(width_) {
-    if (width == 0) {
-      throw std::logic_error("No support for width of 0");
-    }
-    volume = width;
-    for (int i = 1; i < DIM; ++i) {
-      volume *= width;
-    }
-    bits = 0;
-    int w = width;
-    while (!(w & 1)) {
-      ++bits;
-      w = w >> 1;
-    }
-    mbits = bits * DIM;
-  }
+  // Resln()
+  //     : width(8), volume(64), bits(3), mbits(3*DIM) {}
+  // Resln(const int width_)
+  //     : width(width_) {
+  //   if (width == 0) {
+  //     throw std::logic_error("No support for width of 0");
+  //   }
+  //   volume = width;
+  //   for (int i = 1; i < DIM; ++i) {
+  //     volume *= width;
+  //   }
+  //   bits = 0;
+  //   int w = width;
+  //   while (!(w & 1)) {
+  //     ++bits;
+  //     w = w >> 1;
+  //   }
+  //   mbits = bits * DIM;
+  // }
 
-  friend std::ostream& operator<<(std::ostream& out, const Resln& resln);
-  friend std::istream& operator>>(std::istream& in, Resln& resln);
+  // friend std::ostream& operator<<(std::ostream& out, const Resln& resln);
+  // friend std::istream& operator>>(std::istream& in, Resln& resln);
 
   // width is the quantized width in one dimension.
   int width;
@@ -45,15 +44,36 @@ struct Resln {
   int mbits;
 };
 
+inline Resln make_resln(const int width_) {
+  Resln resln;
+  resln.width = width_;
+  if (resln.width == 0) {
+    throw std::logic_error("No support for width of 0");
+  }
+  resln.volume = resln.width;
+  for (int i = 1; i < DIM; ++i) {
+    resln.volume *= resln.width;
+  }
+  resln.bits = 0;
+  int w = resln.width;
+  while (!(w & 1)) {
+    ++resln.bits;
+    w = w >> 1;
+  }
+  resln.mbits = resln.bits * DIM;
+  return resln;
+}
+
+#ifdef __cplusplus
 inline std::ostream& operator<<(std::ostream& out, const Resln& resln) {
   out << resln.width << " " << resln.volume << " "
       << resln.bits << " " << resln.mbits;
   return out;
 }
-
 inline std::istream& operator>>(std::istream& in, Resln& resln) {
   in >> resln.width >> resln.volume >> resln.bits >> resln.mbits;
   return in;
 }
+#endif // __cplusplus
 
 #endif
