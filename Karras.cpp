@@ -80,36 +80,11 @@ int compute_lcp_length(const Morton a, const Morton b, const Resln* resln) {
 }
 
 int compute_lcp_length(const int i, const int j,
-                       // const vector<Morton>& _mpoints, const Resln* _resln) {
                        const Morton* _mpoints, const Resln* _resln) {
-  // if (i < 0 || i >= _mpoints.size() || 
-  //     j < 0 || j >= _mpoints.size()) {
-  //   throw logic_error("Illegal indices into lcp_length");
-  // }
   return compute_lcp_length(_mpoints[i], _mpoints[j], _resln);
 }
 
 struct BrtNode {
-  // // If lcp is 10011 and DIM == 2 then the last bit is dropped
-  // // and return is [10, 01] = [2, 1] where the two values
-  // // correspond to 10011 and 10011.
-  // //               ^^          ^^
-  // vector<int> oct_nodes() const {
-  //   static const int mask = (DIM == 2) ? 3 : 7;
-  //   if (DIM > 3)
-  //     throw logic_error("BrtNode::oct_nodes not yet supported for D>3");
-  //   const int bias = lcp_length % DIM;
-  //   const int n = lcp_length / DIM;
-  //   vector<int> ret(n);
-  //   for (int i = 0; i < n; ++i) {
-  //     const int offset = DIM * (n-i-1) + bias;
-  //     // TODO: could be a bug here
-  //     // ret[i] = (lcp >> offset).getBlock(0) & mask;
-  //     ret[i] = (lcp >> offset) & mask;
-  //   }
-  //   return ret;
-  // }
-
   // left child (right child = left+1)
   int left;
   // Whether the left (resp. right) child is a leaf or not
@@ -123,33 +98,22 @@ struct BrtNode {
   int parent;
 };
 
-// If lcp is 10011 and DIM == 2 then the last bit is dropped
-// and return is [10, 01] = [2, 1] where the two values
-// correspond to 10011 and 10011.
-//               ^^          ^^
-// n is the number of splits to do
-// vector<int> oct_nodes(const BrtNode* brt_node, const int n_) {
-// vector<int> lcp2quads(const BrtNode* brt_node, const int n_, int* quadrants) {
-void lcp2quads(const BrtNode* brt_node, const int n_, int* quadrants) {
+// Given a lcp, returns the i'th quadrant starting from the most local.
+// Suppose node.lcp is 1010011 and DIM == 2. The
+// quadrantInLcp(node, 0) returns 01 (1010011)
+//                                        ^^
+// quadrantInLcp(node, 1) returns 10 (1010011)
+//                                      ^^
+// quadrantInLcp(node, 2) returns 10 (1010011)
+//                                    ^^
+int quadrantInLcp(const BrtNode* brt_node, const int i) {
   static const int mask = (DIM == 2) ? 3 : 7;
   if (DIM > 3)
     throw logic_error("BrtNode::oct_nodes not yet supported for D>3");
-  const int bias = brt_node->lcp_length % DIM;
-  const int n = n_;//brt_node->lcp_length / DIM;
-  // vector<int> ret(n);
-  // Start by shifting by, in the above example, 3. Then shift by 1.
-  const int start = bias + (n-1) * DIM;
-  // for (int i = 0; i < n; ++i) {
-  //   const int rshift = DIM * (n-i-1) + bias;
-  //   const int idx = i;
-  int idx = 0;
-  for (int rshift = start; rshift >= 0; rshift -= DIM, idx++) {
-    // ret[idx] = (brt_node->lcp >> rshift) & mask;
-    quadrants[idx] = (brt_node->lcp >> rshift) & mask;
-  }
-  // return ret;
+  const int rem = brt_node->lcp_length % DIM;
+  const int rshift = i * DIM + rem;
+  return (brt_node->lcp >> rshift) & mask;
 }
-
 
 
 // dwidth is passed in for performance reasons. It is equal to
@@ -221,12 +185,10 @@ vector<OctNode> BuildOctree(
   int n = points.size();
   vector<Morton> mpoints_vec(n);
   Morton* mpoints = mpoints_vec.data();
-  // Morton* mpoints = new Morton[n];
   for (int i = 0; i < points.size(); ++i) {
     mpoints[i] = xyz2z(points[i], &resln);
   }
 
-  // sort(mpoints.begin(), mpoints.end());
   sort(mpoints, mpoints + n);
 
   if (verbose) {
@@ -238,11 +200,6 @@ vector<OctNode> BuildOctree(
   }
 
   // Make sure points are unique
-  // std::vector<Morton>::iterator it;
-  // it = std::unique(mpoints.begin(), mpoints.end());
-  // mpoints.resize(std::distance(mpoints.begin(),it));
-
-  // Morton* unique_points = new Morton[n];
   vector<Morton> unique_points_vec(n);
   unique_points_vec[0] = mpoints[0];
   int idx = 1;
@@ -251,7 +208,6 @@ vector<OctNode> BuildOctree(
       unique_points_vec[idx++] = mpoints[i];
     }
   }
-  // delete [] mpoints;
   mpoints = unique_points_vec.data();
   n = idx;
 
@@ -261,19 +217,14 @@ vector<OctNode> BuildOctree(
   //   gpu.CreateMPoints(mpoints.size());
   // }
 
-  // const int n = mpoints.size();
-  // const LcpLength lcp_length(mpoints, resln);
-  // vector<BrtNode> I(n-1);
-  // vector<BrtNode> L(n);
+  // Internal nodes
   vector<BrtNode> I_vec(n-1);
+  // Leaf nodes
   vector<BrtNode> L_vec(n);
   BrtNode* I = I_vec.data();
   BrtNode* L = L_vec.data();
   for (int i = 0; i < n-1; ++i) {
     // Determine direction of the range (+1 or -1)
-    // const int l_pos = lcp_length(i, i+1);
-    // const int l_neg = lcp_length(i, i-1);
-    // const int d = (i==0) ? 1 : sign(l_pos - l_neg);
     int d;
     if (i == 0) {
       d = 1;
@@ -287,11 +238,9 @@ vector<OctNode> BuildOctree(
     if (i == 0) {
       l = n-1;
     } else {
-      // const int lcp_min = lcp_length(i, i-d);
       const int lcp_min = compute_lcp_length(i, i-d, mpoints, &resln);
       int l_max = 2;
       while (i+l_max*d >= 0 && i+l_max*d <= n-1 &&
-             // lcp_length(i, i+l_max*d) > lcp_min) {
              compute_lcp_length(i, i+l_max*d, mpoints, &resln) > lcp_min) {
         l_max = l_max << 1;
       }
@@ -303,7 +252,6 @@ vector<OctNode> BuildOctree(
       l = 0;
       for (int t = l_max / 2; t >= 1; t /= 2) {
         if (l + t <= l_cutoff) {
-          // if (lcp_length(i, i+(l+t)*d) > lcp_min) {
           if (compute_lcp_length(i, i+(l+t)*d, mpoints, &resln) > lcp_min) {
             l = l + t;
           }
@@ -315,7 +263,6 @@ vector<OctNode> BuildOctree(
     // range = [i, j] or range = [j, i].
     const int j = i + l * d;
     // Find the split position using binary search
-    // const int lcp_node = lcp_length(i, j);
     const int lcp_node = compute_lcp_length(i, j, mpoints, &resln);
 
     const int s_cutoff = (d==-1) ? i - 1 : n - i - 2;
@@ -323,7 +270,6 @@ vector<OctNode> BuildOctree(
     for (int den = 2; den < 2*l; den *= 2) {
       const int t = static_cast<int>(ceil(l/(float)den));
       if (s + t <= s_cutoff) {
-        // if (lcp_length(i, i+(s+t)*d) > lcp_node) {
         if (compute_lcp_length(i, i+(s+t)*d, mpoints, &resln) > lcp_node) {
           s = s + t;
         }
@@ -352,6 +298,10 @@ vector<OctNode> BuildOctree(
     }
   }
 
+  // local_splits stores how many times the octree needs to be
+  // split from a parent to a child. For example, in 2D if a child
+  // has an lcp_length of 8 and the parent has lcp_length of 4, then
+  // the child represents two octree splits.
   vector<int> local_splits_vec(n-1, 0); // be sure to initialize to zero
   int* local_splits = local_splits_vec.data();
 
@@ -363,15 +313,9 @@ vector<OctNode> BuildOctree(
            << " right = " << I[i].left+1 << (I[i].right_leaf ? "L" : "I")
            << " lcp = " << I[i].lcp
            << " oct nodes: (";
-      // vector<int> onodes = I[i].oct_nodes();
-      // vector<int> onodes = oct_nodes(&I[i], local_splits[i]);
-      int quadrants[MAX_OCTREE_DEPTH];
-      // vector<int> onodes = lcp2quads(&I[i], local_splits[i], quadrants);
-      lcp2quads(&I[i], local_splits[i], quadrants);
-      // for (const int onode : onodes) {
-        // cout << onode << " ";
+      const BrtNode* brt_node = &I[i];
       for (int j = 0; j < local_splits[i]; ++j) {
-        cout << quadrants[j] << " ";
+        cout << quadrantInLcp(brt_node, j) << " ";
       }
       cout << ") lcp_length = " << I[i].lcp_length
            << " parent = " << I[i].parent
@@ -381,12 +325,6 @@ vector<OctNode> BuildOctree(
 
   // Determine number of octree nodes necessary
   // First pass - initialize temporary array
-  // local_splits stores how many times the octree needs to be
-  // split from a parent to a child. For example, in 2D if a child
-  // has an lcp_length of 8 and the parent has lcp_length of 4, then
-  // the child represents two octree splits.
-  // vector<int> local_splits_vec(n-1, 0); // be sure to initialize to zero
-  // int* local_splits = local_splits_vec.data();
   if (n > 0)
     local_splits[0] = 1 + I[0].lcp_length / DIM;
   for (int i = 0; i < n-1; ++i) {
@@ -401,37 +339,29 @@ vector<OctNode> BuildOctree(
     }
   }
   // Second pass - calculate prefix sums
-  // vector<int> prefix_sums(local_splits.size()+1);
-  // vector<int> prefix_sums(n);
   vector<int> prefix_sums_vec(n);
   int* prefix_sums = prefix_sums_vec.data();
-  // std::copy(local_splits.begin(), local_splits.end(), prefix_sums.begin()+1);
   prefix_sums[0] = 0;
   for (int i = 1; i < n; ++i) {
     prefix_sums[i] = local_splits[i-1];
   }
-  // prefix_sums[0] = 0;
-  // for (int i = 1; i < prefix_sums.size(); ++i) {
   for (int i = 1; i < n; ++i) {
     prefix_sums[i] = prefix_sums[i-1] + prefix_sums[i];
   }
 
   if (verbose) {
     cout << "Local splits: ";
-    // for (int i = 0; i < local_splits.size(); ++i) {
     for (int i = 0; i < n-1; ++i) {
       cout << local_splits[i] << " ";
     }
     cout << endl;
     cout << "Prefix sums: ";
-    // for (int i = 0; i < prefix_sums.size(); ++i) {
     for (int i = 0; i < n; ++i) {
       cout << prefix_sums[i] << " ";
     }
     cout << endl;
   }
 
-  // const int splits = prefix_sums.back();
   const int splits = prefix_sums[n-1];
   if (verbose) {
     cout << "# octree splits = " << splits << endl;
@@ -440,26 +370,16 @@ vector<OctNode> BuildOctree(
   // Set parent for each octree node
   vector<OctNode> octree_vec(splits);
   OctNode* octree = octree_vec.data();
-  int quadrants[MAX_OCTREE_DEPTH];
   for (int brt_i = 1; brt_i < n-1; ++brt_i) {
     if (local_splits[brt_i] > 0) {
       // m = number of local splits
       const int m = local_splits[brt_i];
-      // Given an lcp, lcp2quads() computes the indices
-      // of the octree nodes that are created by the split
-      // of this internal node. For example, if the lcp is
-      // 1011, then there are two octree node splits (in 2D).
-      // One child, 10, and one grandchild, 10|11 are created.
-      // In this case, onodes = [10, 11].
-      // const vector<int> quadrants_ = lcp2quads(&I[brt_i], m, quadrants);
-      lcp2quads(&I[brt_i], m, quadrants);
+      const BrtNode* brt_node = &I[brt_i];
       // Current octree node index
       int oct_i = prefix_sums[brt_i];
       for (int j = 0; j < m-1; ++j) {
         const int oct_parent = oct_i+1;
-        // const int onode = quadrants[quadrants.size() - j - 1];
-        // const int onode = quadrants[quadrants.size() - j - 1];
-        const int onode = quadrants[m - j - 1];
+        const int onode = quadrantInLcp(brt_node, j);
         octree[oct_parent].set_child(onode, oct_i);
         oct_i = oct_parent;
       }
@@ -468,16 +388,13 @@ vector<OctNode> BuildOctree(
         brt_parent = I[brt_parent].parent;
       }
       const int oct_parent = prefix_sums[brt_parent];
-      // if (brt_parent < 0 || brt_parent >= prefix_sums.size()) {
       if (brt_parent < 0 || brt_parent >= n) {
         throw logic_error("error 0");
       }
-      // if (oct_parent < 0 || oct_parent >= octree.size()) {
       if (oct_parent < 0 || oct_parent >= splits) {
         throw logic_error("error 1");
       }
-      // octree[oct_parent].set_child(quadrants[quadrants.size() - m], oct_i);
-      octree[oct_parent].set_child(quadrants[0], oct_i);
+      octree[oct_parent].set_child(quadrantInLcp(brt_node, m-1), oct_i);
     }
   }
 
@@ -491,8 +408,6 @@ vector<OctNode> BuildOctree(
     }
     OutputOctree(octree, splits);
   }
-
-  // delete [] mpoints;
 
   return octree_vec;
 }
