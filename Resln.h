@@ -4,16 +4,19 @@
 #include "./bigint/BigUnsigned.hh"
 #include "./bigint/BigIntegerUtils.hh"
 
-#ifdef __APPLE__
-#include "OpenCL/opencl.h"
-#else
-#include "CL/cl.h"
-#endif
+#include <stdint.h>
+
+// #ifdef __APPLE__
+// #include "OpenCL/opencl.h"
+// #else
+// #include "CL/cl.h"
+// #endif
 #include "./opencl/defs.h"
 
 // typedef unsigned int Morton;
 // typedef unsigned long Morton;
-typedef cl_ulong Morton;
+// typedef cl_ulong Morton;
+typedef int64_t Morton;
 // typedef BigUnsigned Morton;
 
 // Stores resolution and octree height values
