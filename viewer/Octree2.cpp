@@ -109,7 +109,7 @@ void Octree2::build(const vector<float2>& points,
 
   vector<intn> qpoints = Karras::Quantize(karras_points, resln, &bb);
   if (qpoints.size() > 1) {
-    octree = Karras::BuildOctree(qpoints, resln, true);
+    octree = Karras::BuildOctree(qpoints, resln, false);
   } else {
     octree.clear();
   }
@@ -176,7 +176,7 @@ void Octree2::build(const Polylines& lines,
     }
     extra_qpoints.clear();
     if (qpoints.size() > 1) {
-      octree = Karras::BuildOctree(qpoints, resln, true);
+      octree = Karras::BuildOctree(qpoints, resln, false);
     } else {
       octree.clear();
     }
