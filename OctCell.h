@@ -20,7 +20,7 @@ struct OctCell {
   int get_parent_idx() const { return parent_idx; }
   OctNode const* get_parent() const { return parent; }
   int get_octant() const { return octant; }
-  bool is_leaf() const { return parent->is_leaf(octant); }
+  bool is_leaf() const { return ::is_leaf(parent, octant); }
   OctNode const* get_node() const {
     if (is_leaf()) {
       throw std::logic_error("Cannot get node from a non-leaf cell");

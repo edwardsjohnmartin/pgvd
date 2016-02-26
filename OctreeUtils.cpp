@@ -39,7 +39,7 @@ OctCell FindLeaf(
     if (octant / 2 == 1)
       origin += make_intn(0, width);
 
-    if (node->is_leaf(octant)) {
+    if (is_leaf(node, octant)) {
       // Empty leaf node
       return OctCell(origin, width, idx, node, octant, 0,
                      (*node)[octant]);

@@ -587,7 +587,7 @@ void Octree2::drawNode(
       o += make_intn(length/2, 0, 0);
     if (i / 2 == 1)
       o += make_intn(0, length/2, 0);
-    if (!parent.is_leaf(i)) {
+    if (!::is_leaf(&parent, i)) {
       drawNode(octree[parent[i]], parent[i], o, length/2);
     } else {
       // if (&parent == fnode.get_parent() && i == fnode.get_octant()) {

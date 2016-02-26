@@ -24,7 +24,10 @@
 
 #include <stdlib.h>
 #include <assert.h>
+
+#ifdef __cplusplus
 #include <iostream>
+#endif // __cplusplus
 
 #ifdef __OPEN_CL_SUPPORT__
 #ifdef __APPLE__
@@ -40,6 +43,10 @@ typedef cl_uchar uchar;
 #else
 typedef unsigned char uchar;
 #endif
+
+#ifndef __cplusplus
+typedef unsigned char bool;
+#endif // __cplusplus
 
 inline int convert_int(const float f) {
   return (int)(f+0.5);
@@ -60,6 +67,7 @@ static __CONST__ int kSubAdded = 5;
 static __CONST__ int kSubAdded = 19;
 #endif
 
+#ifdef __cplusplus
 template <typename T, typename P>
 void CompareAndExit(const T& a, const T& b, const P p,
                     const std::string prefix) {
@@ -79,6 +87,7 @@ void CompareAndExit(const T& a, const T& b,
     exit(0);
   }
 }
+#endif // __cplusplus
 
 #endif
 
@@ -208,9 +217,9 @@ static __CONST__ level_t kMaxLevel = 24;
 // Width in each dimension
 static __CONST__ index_t kWidth = 0x1 << 25; // 2^{kMaxLevel+1}
 
-inline index_t Level2CellWidth(const level_t level) {
-  return kWidth >> level;
-}
+// inline index_t Level2CellWidth(const level_t level) {
+//   return kWidth >> level;
+// }
 
 // NAMESPACE_OCT_END
 

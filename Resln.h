@@ -1,9 +1,6 @@
 #ifndef __RESLN_H__
 #define __RESLN_H__
 
-#include "./bigint/BigUnsigned.hh"
-#include "./bigint/BigIntegerUtils.hh"
-
 #include <stdint.h>
 
 // #ifdef __APPLE__
@@ -17,6 +14,9 @@
 // typedef unsigned long Morton;
 // typedef cl_ulong Morton;
 typedef int64_t Morton;
+
+// #include "./bigint/BigUnsigned.hh"
+// #include "./bigint/BigIntegerUtils.hh"
 // typedef BigUnsigned Morton;
 
 // Stores resolution and octree height values
@@ -53,6 +53,7 @@ struct Resln {
   int mbits;
 };
 
+#ifdef __cplusplus
 inline Resln make_resln(const int width_) {
   Resln resln;
   resln.width = width_;
@@ -73,7 +74,6 @@ inline Resln make_resln(const int width_) {
   return resln;
 }
 
-#ifdef __cplusplus
 inline std::ostream& operator<<(std::ostream& out, const Resln& resln) {
   out << resln.width << " " << resln.volume << " "
       << resln.bits << " " << resln.mbits;

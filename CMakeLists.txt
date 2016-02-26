@@ -57,6 +57,7 @@ SET(SRCS
    ./viewer/Octree2.cpp
    ./Karras.cpp
    ./OctreeUtils.cpp
+   ./C/BuildOctree.c
    ./opencl/Geom.cpp
    ./bigint/BigInteger.cc
    ./bigint/BigUnsigned.cc

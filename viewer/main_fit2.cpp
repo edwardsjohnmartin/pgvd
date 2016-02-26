@@ -216,7 +216,8 @@ void addOctNode(OctNodes* nodes, const OctNode node) {
 }
 void setChild(OctNodes* nodes, const int parentIndex, const int position) {
   if (nodes->array) {
-    nodes->array[parentIndex].set_child(position, nodes->count);
+    // nodes->array[parentIndex].set_child(position, nodes->count);
+    set_child(&nodes->array[parentIndex], position, nodes->count);
   }
 }
 

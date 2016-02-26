@@ -6,38 +6,48 @@
 
 static const int leaf_masks[] = { 1, 2, 4, 8 };
 
+// You must call init_OctNode()!
 struct OctNode {
- public:
-  OctNode() : leaf(15) {
-    std::fill(children, children + (1<<DIM), -1);
-  }
-  bool is_leaf(const int i) const {
-    return leaf & leaf_masks[i];
-  }
-  void set_child(const int octant, const int child) {
-    children[octant] = child;
-    if (child > -1) {
-      leaf &= ~leaf_masks[octant];
-    } else {
-      leaf |= leaf_masks[octant];
-    }
-  }
-  void set_data(const int octant, const int data) {
-    if (!is_leaf(octant))
-      throw std::logic_error("Trying to set data on a non-leaf cell");
-    children[octant] = data;
-  }
+
+#ifdef __cplusplus
   const int& operator[](const int i) const {
     return children[i];
   }
+#endif // __cplusplus
 
-  friend std::ostream& operator<<(std::ostream& out, const OctNode& node);
-  friend std::istream& operator>>(std::istream& in, OctNode& node);
-
- private:
   int children[1<<DIM];
   unsigned char leaf;
 };
+
+static inline void init_OctNode(struct OctNode* node) {
+  node->leaf = 15;
+  for (int i = 0; i < (1<<DIM); ++i) {
+    node->children[i] = -1;
+  }
+  // std::fill(children, children + (1<<DIM), -1);
+}
+
+static inline void set_child(struct OctNode* node, const int octant, const int child) {
+  node->children[octant] = child;
+  if (child > -1) {
+    node->leaf &= ~leaf_masks[octant];
+  } else {
+    node->leaf |= leaf_masks[octant];
+  }
+}
+
+static inline bool is_leaf(const struct OctNode* node, const int i) {
+  return node->leaf & leaf_masks[i];
+}
+
+static inline void set_data(struct OctNode* node, const int octant, const int data) {
+  assert(is_leaf(node, octant));
+  // if (!is_leaf(node, octant))
+  //   throw std::logic_error("Trying to set data on a non-leaf cell");
+  node->children[octant] = data;
+}
+
+#ifdef __cplusplus
 
 inline std::ostream& operator<<(std::ostream& out, const OctNode& node) {
   for (int i = 0; i < 1<<DIM; ++i) {
@@ -77,5 +87,6 @@ inline std::istream& operator>>(
   return in;
 }
 
+#endif // __cplusplus
 
 #endif
