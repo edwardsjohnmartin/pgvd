@@ -1,8 +1,4 @@
 #include "BigUnsigned.h"
-#define BIG_INTEGER_SIZE 54
-
-  typedef int Index; // Type for the index of a block in the array
-	typedef unsigned long long Blk;  // Type for the blocks 
 #ifndef __cplusplus
 
 #if __STDC_VERSION__ < 199901L
@@ -41,17 +37,18 @@
       return -1;
     result->isNULL = x->isNULL;
     result->len = x->len;
-    result->cap = x->cap;
+    //result->cap = x->cap;
     for (Index i = 0; i < x->len; i++)
       result->blk[i] = x->blk[i];
     return 0;
   }
+
   int initBU(BigUnsigned *result){
-    if (!result){
+		if (!result){
       return -1;
     }
     result->isNULL = false;
-    result->cap = 0;
+    //result->cap = 0;
     result->len = 0;
     return 0;
   }
@@ -64,7 +61,7 @@
         return initBU(result);
       else {
         result->isNULL = false;
-        result->cap = 1;
+        //result->cap = 1;
         result->len = 1;
         result->blk[0] = x;
         return 0;
@@ -81,7 +78,7 @@
         return initBU(result);
       else {
         result->isNULL = false;
-        result->cap = 8;
+        //result->cap = 8;
         result->len = 8;
         for (int i = 0; i < 8; ++i){
           result->blk[i] = x;
@@ -106,19 +103,6 @@
       }
       else
         return error;
-    }
-  }
-
-  void allocateBUAndCopy(BigUnsigned *x, Index c) {
-    // If the requested capacity is more than the current capacity...
-#ifdef BIG_INTEGER_STATIC
-    //if (c > BIG_INTEGER_SIZE) throw std::logic_error("BIG_INTEGER_SIZE too small");
-#endif
-
-    if (c > x->cap) {
-      Blk *oldBlk = x->blk;
-      // Allocate the new number array
-      x->cap = c;
     }
   }
 
@@ -147,7 +131,7 @@
     Blk part2 = (x == num->len) ? 0 : (num->blk[x] << y);
     return part1 | part2;
   }
-  int getBUBitLength(BigUnsigned *bu) {
+  Index getBUBitLength(BigUnsigned *bu) {
     if (isBUZero(bu))
       return 0;
     else {
@@ -199,8 +183,6 @@
 
   //~~ARITHMATIC OPERATIONS~~//
   int addBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
-    if (!result || !a || !b)
-      return -1;
     if (a->len == 0) {
       return initBUBU(result, b); //Copy B, return that.
     }
@@ -259,8 +241,6 @@
     return 0;
   }
   int subtractBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
-    if (!result || !a || !b)
-      return -1;
     if (b->len == 0) {
       // If b is zero, copy a.
       return initBUBU(result, a);
@@ -325,8 +305,6 @@
   /* These are straightforward blockwise operations except that they differ in
    * the output length and the necessity of zapLeadingZeros. */
   int andBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
-    if (!result || !a || !b)
-      return -1;
     initBU(result);
     // The bitwise & can't be longer than either operand.
     result->len = (a->len >= b->len) ? b->len : a->len;
@@ -336,9 +314,6 @@
     return 0;
   }
   int orBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
-    if (!result || !a || !b) {
-      return -1;
-    }
     Index i;
     BigUnsigned *a2, *b2;
     if (a->len >= b->len) {
@@ -358,9 +333,6 @@
     return 0;
   }
   int xOrBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
-    if (!result || !a || !b) {
-      return -1;
-    }
     Index i;
     BigUnsigned *a2, *b2;
     if (a->len >= b->len) {
@@ -382,8 +354,6 @@
   int shiftBURight(BigUnsigned *result, BigUnsigned *a, int b);
   int shiftBULeft(BigUnsigned *result, BigUnsigned *a, int b);
   int shiftBURight(BigUnsigned *result, BigUnsigned *a, int b) {
-    if (!result || !a || !b)
-      return -1;
     initBU(result);
     if (b < 0) {
       //if (b << 1 == 0)

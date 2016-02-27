@@ -27,13 +27,15 @@ namespace Karras {
 Morton* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
   initBlkBU(result, 0);
 	BigUnsigned temp;
+	BigUnsigned tempb;
 	for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
 			if (p.s[j] & (1 << i)) {
 				//ret |= Morton(1) << (i*DIM + j);
 				initBlkBU(&temp, 1);
-				shiftBULeft(&temp, &temp, i*DIM + j);
-				orBU(result, result, &temp);
+				shiftBULeft(&tempb, &temp, i*DIM + j);
+				initBUBU(&temp, result);
+				orBU(result, &temp, &tempb);
 			}
     }
   }
@@ -42,15 +44,15 @@ Morton* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
 
 intn z2xyz(Morton *z, const Resln* resln) {
   intn p = make_intn(0);
-	BigUnsigned temp;
+	BigUnsigned temp, tempb;
 	BigUnsigned zero;
 	initBlkBU(&zero, 0);
   for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
       //if ((z & (Morton(1) << (i*DIM+j))) > 0)
 			initBlkBU(&temp, 1);
-			shiftBULeft(&temp, &temp, i*DIM + j);
-			andBU(&temp, z, &temp);
+			shiftBULeft(&tempb, &temp, i*DIM + j);
+			andBU(&temp, z, &tempb);
 			if (compareBU(&temp, &zero) > 0) {
 				p.s[j] |= (1 << i);
 			}
@@ -84,9 +86,7 @@ bool equalsMorton(BigUnsigned& a, BigUnsigned &b) {
 	if (compareBU(&a, &b) == 0) {
 		return 1;
 	}
-	else {
-		return 0;
-	}
+	return 0;
 }
 // dwidth is passed in for performance reasons. It is equal to
 //   float dwidth = bb.max_size();
@@ -169,20 +169,23 @@ vector<OctNode> BuildOctree(
   sort(mpoints, mpoints + n, lessThanMorton);
   //sort_points(mpoints, mpoints + n);
 
-  if (verbose) {
-    cout << "mpoints: ";
-    for (int i = 0; i < n; ++i) {
-      cout << buToString(mpoints[i]) << " ";
-    }
-    cout << endl;
-  }
-
+  
   // Make sure points are unique
-  vector<Morton> unique_points_vec(n);
+  
+	//vector<Morton> unique_points_vec(n);
   //n = unique_points(mpoints, unique_points_vec.data(), n);
+	//mpoints = unique_points_vec.data();
 	n = unique(mpoints, mpoints + n, equalsMorton)-(mpoints);
-	mpoints = unique_points_vec.data();
 
+	if (verbose) {
+		cout << "mpoints: ";
+		for (int i = 0; i < n; ++i) {
+			cout << buToString(mpoints[i]) << " " << endl;
+		}
+		cout << endl;
+	}
+
+	cout << sizeof(BigUnsigned) << endl;
   // // Send mpoints to gpu
   // if (o.gpu) {
   //   oct::Gpu gpu;

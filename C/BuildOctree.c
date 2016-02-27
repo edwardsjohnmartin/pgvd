@@ -30,6 +30,7 @@ void compute_lcp(Morton *lcp, Morton *value, const int length, const struct Resl
 	Morton one;
 	initBlkBU(&one, 1);
 	Morton temp;
+	initBU(&temp);
   for (int i = 0; i < length; ++i) {
     //mask |= (one << (resln->mbits - 1 - i));
 		shiftBULeft(&temp, &one, (resln->mbits - 1 - i));
@@ -50,8 +51,8 @@ int compute_lcp_length_impl(Morton* a, Morton* b, const struct Resln* resln) {
 		//Morton mask = one << i;
 		shiftBULeft(&mask, &one, i);
 		//if ((a & mask) != (b & mask)) {
-		andBU(&tempa, &a, &mask);
-		andBU(&tempb, &b, &mask);
+		andBU(&tempa, a, &mask);
+		andBU(&tempb, b, &mask);
 		if(compareBU(&tempa, &tempb) != 0){
       return resln->mbits - i - 1;
     }
@@ -60,7 +61,7 @@ int compute_lcp_length_impl(Morton* a, Morton* b, const struct Resln* resln) {
 }
 
 int compute_lcp_length(const int i, const int j,
-                       const Morton* _mpoints, const struct Resln* _resln) {
+                       Morton* _mpoints, const struct Resln* _resln) {
   return compute_lcp_length_impl(&_mpoints[i], &_mpoints[j], _resln);
 }
 
@@ -81,11 +82,12 @@ int quadrantInLcp(const struct BrtNode* brt_node, const int i) {
   const int rshift = i * DIM + rem;
   //return (brt_node->lcp >> rshift) & mask;
 	BigUnsigned temp;
+	BigUnsigned tempb;
 	BigUnsigned buMask;
 	initBlkBU(&buMask, mask);
 	shiftBURight(&temp, &brt_node->lcp, rshift);
-	andBU(&temp, &temp, &buMask);
-	return getBUBlock(&temp, 0); //Not sure if this is right. I'm assuming the quadrant is at DIM bits
+	andBU(&tempb, &temp, &buMask);
+	return getBUBlock(&tempb, 0); //Not sure if this is right. I'm assuming the quadrant is at DIM bits
 }
 
 //------------------------------------------------------------
@@ -114,8 +116,7 @@ void build_brt_kernel(
   } else {
     const int lcp_min = compute_lcp_length(i, i-d, mpoints, resln);
     int l_max = 2;
-    while (i+l_max*d >= 0 && i+l_max*d <= n-1 &&
-           compute_lcp_length(i, i+l_max*d, mpoints, resln) > lcp_min) {
+    while (i+l_max*d >= 0 && i+l_max*d <= n-1 && compute_lcp_length(i, i+l_max*d, mpoints, resln) > lcp_min) {
       l_max = l_max << 1;
     }
     // Find the other end using binary search.

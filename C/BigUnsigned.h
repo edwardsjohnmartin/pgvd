@@ -1,9 +1,9 @@
 #pragma once
 #ifndef BIGUNSIGNED_C
 #define BIGUNSIGNED_C
-#define BIG_INTEGER_SIZE 54
+#define BIG_INTEGER_SIZE 2
 
-	typedef int Index; // Type for the index of a block in the array
+	typedef unsigned long long Index; // Type for the index of a block in the array
 	typedef unsigned long long Blk;  // Type for the blocks 
 
 #ifndef __cplusplus
@@ -25,8 +25,8 @@
 	// BigUnsigned allows storing integers larger than a long using an array of blk.
 #ifndef BIGUNSIGNED
 #define BIGUNSIGNED
-	typedef struct {
-		Index cap;                                      // Current allocated capacity (in blocks)
+	typedef struct {   
+		//Index cap;																			// Current allocated capacity (in blocks)
 		Index len;                                      // Actual length of the value stored (in blocks)
 		bool isNULL;
 		Blk blk[BIG_INTEGER_SIZE];
