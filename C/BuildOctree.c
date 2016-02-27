@@ -24,22 +24,35 @@ int sign(const int i) {
 // Now shift, and lcp is
 //      ___
 // 00000011
-Morton compute_lcp(const Morton value, const int length, const struct Resln* resln) {
-  Morton mask = 0;
-  static const Morton one = 1;
+void compute_lcp(Morton *lcp, Morton *value, const int length, const struct Resln* resln) {
+	Morton mask;
+	initBlkBU(&mask, 0);
+	Morton one;
+	initBlkBU(&one, 1);
+	Morton temp;
   for (int i = 0; i < length; ++i) {
-    mask |= (one << (resln->mbits - 1 - i));
+    //mask |= (one << (resln->mbits - 1 - i));
+		shiftBULeft(&temp, &one, (resln->mbits - 1 - i));
+		orBU(&mask, &mask, &temp);
   }
-  const Morton lcp = (value & mask) >> (resln->mbits - length);
-  return lcp;
+  //const Morton lcp = (value & mask) >> (resln->mbits - length);
+	andBU(&temp, value, &mask);
+	shiftBURight(lcp, &temp, resln->mbits - length);
 }
 
 // Longest common prefix, denoted \delta in karras2014
-int compute_lcp_length_impl(const Morton a, const Morton b, const struct Resln* resln) {
-  static const Morton one = 1;
+int compute_lcp_length_impl(Morton* a, Morton* b, const struct Resln* resln) {
+	Morton one;
+	initBlkBU(&one, 1);
+	Morton tempa, tempb;
+  Morton mask;
   for (int i = resln->mbits-1; i >= 0; --i) {
-    const Morton mask = one << i;
-    if ((a & mask) != (b & mask)) {
+		//Morton mask = one << i;
+		shiftBULeft(&mask, &one, i);
+		//if ((a & mask) != (b & mask)) {
+		andBU(&tempa, &a, &mask);
+		andBU(&tempb, &b, &mask);
+		if(compareBU(&tempa, &tempb) != 0){
       return resln->mbits - i - 1;
     }
   }
@@ -48,7 +61,7 @@ int compute_lcp_length_impl(const Morton a, const Morton b, const struct Resln* 
 
 int compute_lcp_length(const int i, const int j,
                        const Morton* _mpoints, const struct Resln* _resln) {
-  return compute_lcp_length_impl(_mpoints[i], _mpoints[j], _resln);
+  return compute_lcp_length_impl(&_mpoints[i], &_mpoints[j], _resln);
 }
 
 // Given a lcp, returns the i'th quadrant starting from the most local.
@@ -66,7 +79,13 @@ int quadrantInLcp(const struct BrtNode* brt_node, const int i) {
   /*   throw logic_error("BrtNode::oct_nodes not yet supported for D>3"); */
   const int rem = brt_node->lcp_length % DIM;
   const int rshift = i * DIM + rem;
-  return (brt_node->lcp >> rshift) & mask;
+  //return (brt_node->lcp >> rshift) & mask;
+	BigUnsigned temp;
+	BigUnsigned buMask;
+	initBlkBU(&buMask, mask);
+	shiftBURight(&temp, &brt_node->lcp, rshift);
+	andBU(&temp, &temp, &buMask);
+	return getBUBlock(&temp, 0); //Not sure if this is right. I'm assuming the quadrant is at DIM bits
 }
 
 //------------------------------------------------------------
@@ -135,7 +154,7 @@ void build_brt_kernel(
   I[i].left = split;
   I[i].left_leaf = (fmin(i, j) == split);
   I[i].right_leaf = (fmax(i, j) == split+1);
-  I[i].lcp = compute_lcp(mpoints[i], lcp_node, resln);
+  compute_lcp(&I[i].lcp,&mpoints[i], lcp_node, resln);
   I[i].lcp_length = lcp_node;
 }
 
@@ -198,7 +217,8 @@ int unique_points(Morton* mpoints, Morton* dest, const int n) {
   dest[0] = mpoints[0];
   int idx = 1;
   for (int i = 1; i < n; ++i) {
-    if (mpoints[i] != mpoints[i-1]) {
+    //if (mpoints[i] != mpoints[i-1]) {
+		if (compareBU(&mpoints[i], &mpoints[i - 1]) != 0) {
       dest[idx++] = mpoints[i];
     }
   }

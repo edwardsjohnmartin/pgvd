@@ -17,7 +17,7 @@ namespace OctreeUtils {
 
 OctCell FindLeaf(
     const intn& p, const vector<OctNode>& octree, const Resln& resln) {
-  const Morton z = Karras::xyz2z(p, &resln);
+  Morton z = Karras::xyz2z(p, &resln);
 
   // Set up mask
   int mask = 0;
@@ -29,9 +29,14 @@ OctCell FindLeaf(
   int width = resln.width;
   OctNode const * node = &octree[0];
   int idx = 0;
-  for (int i = resln.mbits-DIM; i >= 0; i-=DIM) {
-    // const int octant = (z >> i).getBlock(0) & mask;
-    const int octant = (z >> i) & mask;
+	BigUnsigned temp;
+
+	for (int i = resln.mbits-DIM; i >= 0; i-=DIM) {
+    //const int octant = (z >> i).getBlock(0) & mask;
+		initBUBU(&temp, &z);
+		shiftBURight(&temp, &temp, i);
+		const int octant = getBUBlock(&temp, 0);
+    //const int octant = (z >> i) & mask;
     width /= 2;
 
     if (octant % 2 == 1)
@@ -50,13 +55,13 @@ OctCell FindLeaf(
 
   ofstream out("find.err");
   out << p << endl;
-  out << resln << endl;
+  //out << resln << endl;
   out << octree << endl;
   out.close();
 
   cerr << "Didn't find leaf node" << endl;
   cerr << "p = " << p << endl;
-  cerr << "resln = " << resln << endl;
+  //cerr << "resln = " << resln << endl;
   // cerr << "octree = " << octree.size() << " " << octree.back() << endl;
   cerr << "octree = " << octree << endl;
 

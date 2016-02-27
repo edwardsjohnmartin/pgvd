@@ -25,9 +25,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#ifdef __cplusplus
-#include <iostream>
-#endif // __cplusplus
+//#ifdef __cplusplus
+//#include <iostream>
+//#endif // __cplusplus
 
 #ifdef __OPEN_CL_SUPPORT__
 #ifdef __APPLE__
@@ -67,7 +67,7 @@ static __CONST__ int kSubAdded = 5;
 static __CONST__ int kSubAdded = 19;
 #endif
 
-#ifdef __cplusplus
+/*#ifdef __cplusplus
 template <typename T, typename P>
 void CompareAndExit(const T& a, const T& b, const P p,
                     const std::string prefix) {
@@ -87,7 +87,7 @@ void CompareAndExit(const T& a, const T& b,
     exit(0);
   }
 }
-#endif // __cplusplus
+#endif // __cplusplus*/
 
 #endif
 

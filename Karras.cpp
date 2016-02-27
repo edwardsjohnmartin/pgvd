@@ -3,13 +3,13 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
+#include <string>
 
 #include "./BoundingBox.h"
 // #include "./gpu.h"
 
-extern "C" {
+
 #include "./C/BuildOctree.h"
-}
 
 using std::cout;
 using std::endl;
@@ -24,26 +24,54 @@ using std::shared_ptr;
 
 namespace Karras {
 
-Morton xyz2z(intn p, const Resln* resln) {
-  Morton ret = 0;
-  for (int i = 0; i < resln->bits; ++i) {
+Morton xyz2z(BigUnsigned &result, intn p, const Resln* resln) {
+  initBlkBU(&result, 0);
+	BigUnsigned temp;
+	for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
-      if (p.s[j] & (1<<i))
-        ret |= Morton(1) << (i*DIM+j);
+			if (p.s[j] & (1 << i)) {
+				//ret |= Morton(1) << (i*DIM + j);
+				initBlkBU(&temp, 1);
+				shiftBULeft(&temp, &temp, i*DIM + j);
+				orBU(&result, &result, &temp);
+			}
     }
   }
-  return ret;
+  return result;
 }
 
-intn z2xyz(const Morton z, const Resln* resln) {
+intn z2xyz(Morton &z, const Resln* resln) {
   intn p = make_intn(0);
+	BigUnsigned temp;
+	BigUnsigned zero;
+	initBlkBU(&zero, 0);
   for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
-      if ((z & (Morton(1) << (i*DIM+j))) > 0)
-        p.s[j] |= (1<<i);
+      //if ((z & (Morton(1) << (i*DIM+j))) > 0)
+			initBlkBU(&temp, 1);
+			shiftBULeft(&temp, &temp, i*DIM + j);
+			andBU(&temp, &z, &temp);
+			if (compareBU(&temp, &zero) > 0) {
+				p.s[j] |= (1 << i);
+			}
     }
   }
   return p;
+}
+
+inline std::string buToString(BigUnsigned bu) {
+	std::string representation = "";
+	if (bu.len == 0)
+	{
+		representation += "[0]";
+	}
+	else {
+		for (int i = bu.len; i > 0; --i) {
+			representation += "[" + std::to_string(bu.blk[i - 1]) + "]";
+		}
+	}
+
+	return representation;
 }
 
 // dwidth is passed in for performance reasons. It is equal to
@@ -124,13 +152,13 @@ vector<OctNode> BuildOctree(
   // GPU CANDIDATE
   // Currently uses std::sort. The call below that is commented out
   // calls the (unimplemented) sort in BuildOctree.c.
-  sort(mpoints, mpoints + n);
+  //sort(mpoints, mpoints + n);
   // sort_points(mpoints, mpoints + n);
 
   if (verbose) {
     cout << "mpoints: ";
     for (int i = 0; i < n; ++i) {
-      cout << mpoints[i] << " ";
+      cout << buToString(mpoints[i]) << " ";
     }
     cout << endl;
   }
@@ -188,7 +216,7 @@ vector<OctNode> BuildOctree(
     for (int i = 0; i < n-1; ++i) {
       cout << i << ": left = " << I[i].left << (I[i].left_leaf ? "L" : "I")
            << " right = " << I[i].left+1 << (I[i].right_leaf ? "L" : "I")
-           << " lcp = " << I[i].lcp
+           << " lcp = " << buToString(I[i].lcp)
            << " oct nodes: (";
       const BrtNode* brt_node = &I[i];
       cout << ") lcp_length = " << I[i].lcp_length

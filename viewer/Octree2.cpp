@@ -341,10 +341,9 @@ void error_log(OctCell cell, const floatn& a, const floatn& b,
   cerr << "a = " << std::fixed << a << endl;
   cerr << "b = " << std::fixed << b << endl;
   cerr << "cell = " << cell << endl;
-  cerr << "resln = " << resln << endl;
+  //cerr << "resln = " << resln << endl;
   ofstream out("mccallback.err");
-  out << cell << " " << a << " " << b
-      << " " << octree << " " << resln << endl;
+  //out << cell << " " << a << " " << b << " " << octree << " " << resln << endl;
   out.close();
   write_seg(a, b, "data1.dat");
   const intn o = cell.get_origin();

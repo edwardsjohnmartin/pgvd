@@ -6,7 +6,9 @@
 
 // #include "./opencl/defs.h"
 #include "./opencl/vec.h"
+extern "C" {
 #include "./Resln.h"
+}
 #include "./OctNode.h"
 #include "./BoundingBox.h"
 

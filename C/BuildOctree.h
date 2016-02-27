@@ -6,7 +6,7 @@
 
 int sign(const int i);
 
-Morton compute_lcp(const Morton value, const int length, const struct Resln* resln);
+void compute_lcp(Morton *lcp, Morton *value, const int length, const struct Resln* resln);
 
 // int compute_lcp_length_impl(const Morton a, const Morton b, const struct Resln* resln);
 

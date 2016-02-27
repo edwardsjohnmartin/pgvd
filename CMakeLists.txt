@@ -58,12 +58,8 @@ SET(SRCS
    ./Karras.cpp
    ./OctreeUtils.cpp
    ./C/BuildOctree.c
+   ./C/BigUnsigned.c
    ./opencl/Geom.cpp
-   ./bigint/BigInteger.cc
-   ./bigint/BigUnsigned.cc
-   ./bigint/BigIntegerAlgorithms.cc
-   ./bigint/BigIntegerUtils.cc
-   ./bigint/BigUnsignedInABase.cc
    ./Options.cpp
 )
 
@@ -89,8 +85,6 @@ ADD_DEFINITIONS(-DMAX_OCTREE_DEPTH=${MAX_OCTREE_DEPTH})
 find_path(GLEW_INCLUDE_DIR GL/glew.h PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/include)
 find_library(GLEW_LIBRARY NAMES GLEW glew32 glew glew32s PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/lib/Release/Win32 PATH_SUFFIXES lib64 Win32 Release)
 
-message(STATUS "GLEW_INCLUDE_DIR: ${GLEW_INCLUDE_DIR}")
-message(STATUS "GLEW_LIBRARY: ${GLEW_LIBRARY}")
 
 
 
@@ -100,6 +94,8 @@ FIND_PACKAGE(GLEW)
 include_directories(${GLEW_INCLUDE_DIRS})
 
 
+message(STATUS "GLEW_INCLUDE_DIR: ${GLEW_INCLUDE_DIRS}")
+message(STATUS "GLEW_LIBRARY: ${GLEW_LIBRARY}")
 
 
 IF(APPLE)

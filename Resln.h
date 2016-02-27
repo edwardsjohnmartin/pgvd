@@ -1,7 +1,7 @@
 #ifndef __RESLN_H__
 #define __RESLN_H__
 
-#include <stdint.h>
+//#include <stdint.h>
 
 // #ifdef __APPLE__
 // #include "OpenCL/opencl.h"
@@ -9,11 +9,11 @@
 // #include "CL/cl.h"
 // #endif
 #include "./opencl/defs.h"
-
+#include "C\BigUnsigned.h"
 // typedef unsigned int Morton;
 // typedef unsigned long Morton;
 // typedef cl_ulong Morton;
-typedef int64_t Morton;
+typedef BigUnsigned Morton;
 
 // #include "./bigint/BigUnsigned.hh"
 // #include "./bigint/BigIntegerUtils.hh"
@@ -52,13 +52,13 @@ struct Resln {
   // Total number of bits for morton code is mbits = bits * DIM.
   int mbits;
 };
-
 #ifdef __cplusplus
 inline Resln make_resln(const int width_) {
   Resln resln;
   resln.width = width_;
   if (resln.width == 0) {
-    throw std::logic_error("No support for width of 0");
+    //throw std::logic_error("No support for width of 0");
+		assert(0);
   }
   resln.volume = resln.width;
   for (int i = 1; i < DIM; ++i) {
@@ -74,15 +74,14 @@ inline Resln make_resln(const int width_) {
   return resln;
 }
 
-inline std::ostream& operator<<(std::ostream& out, const Resln& resln) {
-  out << resln.width << " " << resln.volume << " "
-      << resln.bits << " " << resln.mbits;
-  return out;
-}
+/*
+inline std::ostream& operator<<(std::ostream& out, const Resln& resln)
+
 inline std::istream& operator>>(std::istream& in, Resln& resln) {
   in >> resln.width >> resln.volume >> resln.bits >> resln.mbits;
   return in;
 }
+*/
 #endif // __cplusplus
 
 #endif
