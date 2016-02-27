@@ -4,7 +4,7 @@
 #define BIG_INTEGER_SIZE 54
 
 	typedef int Index; // Type for the index of a block in the array
-	typedef unsigned char Blk;  // Type for the blocks 
+	typedef unsigned long long Blk;  // Type for the blocks 
 
 #ifndef __cplusplus
 #if __STDC_VERSION__ < 199901L

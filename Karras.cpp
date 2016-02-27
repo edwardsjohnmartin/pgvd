@@ -8,9 +8,9 @@
 #include "./BoundingBox.h"
 // #include "./gpu.h"
 
-
-#include "./C/BuildOctree.h"
-
+extern "C" {
+	#include "./C/BuildOctree.h"
+}
 using std::cout;
 using std::endl;
 using std::vector;
@@ -24,8 +24,8 @@ using std::shared_ptr;
 
 namespace Karras {
 
-Morton xyz2z(BigUnsigned &result, intn p, const Resln* resln) {
-  initBlkBU(&result, 0);
+Morton* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
+  initBlkBU(result, 0);
 	BigUnsigned temp;
 	for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
@@ -33,14 +33,14 @@ Morton xyz2z(BigUnsigned &result, intn p, const Resln* resln) {
 				//ret |= Morton(1) << (i*DIM + j);
 				initBlkBU(&temp, 1);
 				shiftBULeft(&temp, &temp, i*DIM + j);
-				orBU(&result, &result, &temp);
+				orBU(result, result, &temp);
 			}
     }
   }
   return result;
 }
 
-intn z2xyz(Morton &z, const Resln* resln) {
+intn z2xyz(Morton *z, const Resln* resln) {
   intn p = make_intn(0);
 	BigUnsigned temp;
 	BigUnsigned zero;
@@ -50,7 +50,7 @@ intn z2xyz(Morton &z, const Resln* resln) {
       //if ((z & (Morton(1) << (i*DIM+j))) > 0)
 			initBlkBU(&temp, 1);
 			shiftBULeft(&temp, &temp, i*DIM + j);
-			andBU(&temp, &z, &temp);
+			andBU(&temp, z, &temp);
 			if (compareBU(&temp, &zero) > 0) {
 				p.s[j] |= (1 << i);
 			}
@@ -74,6 +74,20 @@ inline std::string buToString(BigUnsigned bu) {
 	return representation;
 }
 
+bool lessThanMorton(Morton& a, Morton&b) {
+	if (compareBU(&a, &b) == -1) {
+		return 1;
+	}
+	return 0;
+}
+bool equalsMorton(BigUnsigned& a, BigUnsigned &b) {
+	if (compareBU(&a, &b) == 0) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
 // dwidth is passed in for performance reasons. It is equal to
 //   float dwidth = bb.max_size();
 intn Quantize(
@@ -146,14 +160,14 @@ vector<OctNode> BuildOctree(
   vector<Morton> mpoints_vec(n);
   Morton* mpoints = mpoints_vec.data();
   for (int i = 0; i < points.size(); ++i) {
-    mpoints[i] = xyz2z(points[i], &resln);
+    xyz2z(&mpoints[i], points[i], &resln);
   }
 
   // GPU CANDIDATE
   // Currently uses std::sort. The call below that is commented out
   // calls the (unimplemented) sort in BuildOctree.c.
-  //sort(mpoints, mpoints + n);
-  // sort_points(mpoints, mpoints + n);
+  sort(mpoints, mpoints + n, lessThanMorton);
+  //sort_points(mpoints, mpoints + n);
 
   if (verbose) {
     cout << "mpoints: ";
@@ -165,8 +179,9 @@ vector<OctNode> BuildOctree(
 
   // Make sure points are unique
   vector<Morton> unique_points_vec(n);
-  n = unique_points(mpoints, unique_points_vec.data(), n);
-  mpoints = unique_points_vec.data();
+  //n = unique_points(mpoints, unique_points_vec.data(), n);
+	n = unique(mpoints, mpoints + n, equalsMorton)-(mpoints);
+	mpoints = unique_points_vec.data();
 
   // // Send mpoints to gpu
   // if (o.gpu) {

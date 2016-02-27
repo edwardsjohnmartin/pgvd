@@ -7,15 +7,15 @@
 // #include "./opencl/defs.h"
 #include "./opencl/vec.h"
 extern "C" {
-#include "./Resln.h"
+  #include "./Resln.h"
 }
 #include "./OctNode.h"
 #include "./BoundingBox.h"
 
 namespace Karras {
 
-Morton xyz2z(intn p, const Resln* r);
-intn z2xyz(const Morton z, const Resln* r);
+Morton* xyz2z(BigUnsigned *result, intn p, const Resln* resln);
+intn z2xyz(Morton *z, const Resln* resln);
 
 // Quantize a single point.
 // dwidth is passed in for performance reasons. It is equal to

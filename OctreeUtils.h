@@ -2,12 +2,15 @@
 #define __OCTREE_UTILS_H__
 
 #include <vector>
+#include <iostream>
 
 #include "./opencl/defs.h"
 #include "./opencl/vec.h"
 #include "./OctNode.h"
 #include "./OctCell.h"
-#include "./Resln.h"
+extern "C" {
+  #include "./Resln.h"
+}
 
 namespace OctreeUtils {
 

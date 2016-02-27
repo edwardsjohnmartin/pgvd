@@ -17,7 +17,9 @@ namespace OctreeUtils {
 
 OctCell FindLeaf(
     const intn& p, const vector<OctNode>& octree, const Resln& resln) {
-  Morton z = Karras::xyz2z(p, &resln);
+	Morton z;
+	initBlkBU(&z, 0);
+	Karras::xyz2z(&z, p, &resln);
 
   // Set up mask
   int mask = 0;

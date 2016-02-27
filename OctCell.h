@@ -1,7 +1,9 @@
 #ifndef __OCT_CELL_H__
 #define __OCT_CELL_H__
 
-#include "./Resln.h"
+extern "C" {
+	#include "./Resln.h"
+}
 #include "./BoundingBox.h"
 #include "./OctNode.h"
 

@@ -2,7 +2,7 @@
 #define BIG_INTEGER_SIZE 54
 
   typedef int Index; // Type for the index of a block in the array
-	typedef unsigned char Blk;  // Type for the blocks 
+	typedef unsigned long long Blk;  // Type for the blocks 
 #ifndef __cplusplus
 
 #if __STDC_VERSION__ < 199901L
@@ -160,7 +160,7 @@
       return leftmostBlockLen + (bu->len - 1) * numBUBits;
     }
   }
-	Blk getBUBit(BigUnsigned *bu, Index bi) {
+	bool getBUBit(BigUnsigned *bu, Index bi) {
     Blk b = 1;
     return (getBUBlock(bu, bi / numBUBits) & (b << (bi % numBUBits))) != 0;
   }
