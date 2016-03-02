@@ -17,7 +17,6 @@
 // typedef cl_ulong Morton;
 
 #include "C/BigUnsigned.h"
-typedef BigUnsigned Morton;
 
 // #include "./bigint/BigUnsigned.hh"
 // #include "./bigint/BigIntegerUtils.hh"

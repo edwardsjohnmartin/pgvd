@@ -25,31 +25,31 @@ int sign(const int i) {
 // Now shift, and lcp is
 //      ___
 // 00000011
-void compute_lcp(Morton *lcp, Morton *value, const int length, const struct Resln* resln) {
-	Morton mask;
+void compute_lcp(BigUnsigned *lcp, BigUnsigned *value, const int length, const struct Resln* resln) {
+	BigUnsigned mask;
 	initBlkBU(&mask, 0);
-	Morton one;
+	BigUnsigned one;
 	initBlkBU(&one, 1);
-	Morton temp;
+	BigUnsigned temp;
 	initBU(&temp);
   for (int i = 0; i < length; ++i) {
     //mask |= (one << (resln->mbits - 1 - i));
 		shiftBULeft(&temp, &one, (resln->mbits - 1 - i));
 		orBU(&mask, &mask, &temp);
   }
-  //const Morton lcp = (value & mask) >> (resln->mbits - length);
+  //const BigUnsigned lcp = (value & mask) >> (resln->mbits - length);
 	andBU(&temp, value, &mask);
 	shiftBURight(lcp, &temp, resln->mbits - length);
 }
 
 // Longest common prefix, denoted \delta in karras2014
-int compute_lcp_length_impl(Morton* a, Morton* b, const struct Resln* resln) {
-	Morton one;
+int compute_lcp_length_impl(BigUnsigned* a, BigUnsigned* b, const struct Resln* resln) {
+	BigUnsigned one;
 	initBlkBU(&one, 1);
-	Morton tempa, tempb;
-  Morton mask;
+	BigUnsigned tempa, tempb;
+  BigUnsigned mask;
   for (int i = resln->mbits-1; i >= 0; --i) {
-		//Morton mask = one << i;
+		//BigUnsigned mask = one << i;
 		shiftBULeft(&mask, &one, i);
 		//if ((a & mask) != (b & mask)) {
 		andBU(&tempa, a, &mask);
@@ -62,7 +62,7 @@ int compute_lcp_length_impl(Morton* a, Morton* b, const struct Resln* resln) {
 }
 
 int compute_lcp_length(const int i, const int j,
-                       Morton* _mpoints, const struct Resln* _resln) {
+                       BigUnsigned* _mpoints, const struct Resln* _resln) {
   return compute_lcp_length_impl(&_mpoints[i], &_mpoints[j], _resln);
 }
 
@@ -99,7 +99,7 @@ int quadrantInLcp(const struct BrtNode* brt_node, const int i) {
 
 void build_brt_kernel(
     const int i, struct BrtNode* I, struct BrtNode* L,
-    const Morton* mpoints, const int n,
+    const BigUnsigned* mpoints, const int n,
     const struct Resln* resln) {
   // Determine direction of the range (+1 or -1)
   int d;
@@ -207,13 +207,13 @@ void brt2octree_kernel(
 //------------------------------------------------------------
 
 // Needs to be implemented
-void sort_points(Morton* mpoints, const int n) {
+void sort_points(BigUnsigned* mpoints, const int n) {
   /* sort(mpoints, mpoints + n); */
   printf("sort_points() not implemented\n");
 }
 
 // JME: Haven't split this out into a kernel...
-int unique_points(Morton* mpoints, Morton* dest, const int n) {
+int unique_points(BigUnsigned* mpoints, BigUnsigned* dest, const int n) {
   if (n == 0) return 0;
 
   dest[0] = mpoints[0];
@@ -229,7 +229,7 @@ int unique_points(Morton* mpoints, Morton* dest, const int n) {
 
 void build_brt(
     struct BrtNode* I, struct BrtNode* L,
-    const Morton* mpoints, const int n,
+    const BigUnsigned* mpoints, const int n,
     const struct Resln* resln) {
   // Note that it loops only n-1 times.
   for (int i = 0; i < n-1; ++i) {

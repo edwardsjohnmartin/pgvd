@@ -17,7 +17,7 @@ namespace OctreeUtils {
 
 OctCell FindLeaf(
     const intn& p, const vector<OctNode>& octree, const Resln& resln) {
-	Morton z;
+	BigUnsigned z;
 	initBlkBU(&z, 0);
 	Karras::xyz2z(&z, p, &resln);
 

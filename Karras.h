@@ -14,8 +14,8 @@ extern "C" {
 
 namespace Karras {
 
-Morton* xyz2z(Morton *result, intn p, const Resln* resln);
-intn z2xyz(Morton *z, const Resln* resln);
+BigUnsigned* xyz2z(BigUnsigned *result, intn p, const Resln* resln);
+intn z2xyz(BigUnsigned *z, const Resln* resln);
 
 // Quantize a single point.
 // dwidth is passed in for performance reasons. It is equal to

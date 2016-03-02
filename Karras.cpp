@@ -24,14 +24,14 @@ using std::shared_ptr;
 
 namespace Karras {
 
-Morton* xyz2z(Morton *result, intn p, const Resln* resln) {
+BigUnsigned* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
   initBlkBU(result, 0);
 	BigUnsigned temp;
 	BigUnsigned tempb;
 	for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
 			if (p.s[j] & (1 << i)) {
-				//ret |= Morton(1) << (i*DIM + j);
+				//ret |= BigUnsigned(1) << (i*DIM + j);
 				initBlkBU(&temp, 1);
 				shiftBULeft(&tempb, &temp, i*DIM + j);
 				initBUBU(&temp, result);
@@ -42,14 +42,14 @@ Morton* xyz2z(Morton *result, intn p, const Resln* resln) {
   return result;
 }
 
-intn z2xyz(Morton *z, const Resln* resln) {
+intn z2xyz(BigUnsigned *z, const Resln* resln) {
   intn p = make_intn(0);
 	BigUnsigned temp, tempb;
 	BigUnsigned zero;
 	initBlkBU(&zero, 0);
   for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
-      //if ((z & (Morton(1) << (i*DIM+j))) > 0)
+      //if ((z & (BigUnsigned(1) << (i*DIM+j))) > 0)
 			initBlkBU(&temp, 1);
 			shiftBULeft(&tempb, &temp, i*DIM + j);
 			andBU(&temp, z, &tempb);
@@ -76,13 +76,13 @@ inline std::string buToString(BigUnsigned bu) {
 	return representation;
 }
 
-bool lessThanMorton(Morton& a, Morton&b) {
+bool lessThanBigUnsigned(BigUnsigned& a, BigUnsigned&b) {
 	if (compareBU(&a, &b) == -1) {
 		return 1;
 	}
 	return 0;
 }
-bool equalsMorton(BigUnsigned& a, BigUnsigned &b) {
+bool equalsBigUnsigned(BigUnsigned& a, BigUnsigned &b) {
 	if (compareBU(&a, &b) == 0) {
 		return 1;
 	}
@@ -154,11 +154,11 @@ vector<OctNode> BuildOctree(
   if (points.empty())
     throw logic_error("Zero points not supported");
   
-  cout << "Morton = " << sizeof(Morton) << endl;
+  cout << "BigUnsigned = " << sizeof(BigUnsigned) << endl;
 
   int n = points.size();
-  vector<Morton> mpoints_vec(n);
-  Morton* mpoints = mpoints_vec.data();
+  vector<BigUnsigned> mpoints_vec(n);
+  BigUnsigned* mpoints = mpoints_vec.data();
   for (int i = 0; i < points.size(); ++i) {
     xyz2z(&mpoints[i], points[i], &resln);
   }
@@ -166,16 +166,16 @@ vector<OctNode> BuildOctree(
   // GPU CANDIDATE
   // Currently uses std::sort. The call below that is commented out
   // calls the (unimplemented) sort in BuildOctree.c.
-  sort(mpoints, mpoints + n, lessThanMorton);
+  sort(mpoints, mpoints + n, lessThanBigUnsigned);
   //sort_points(mpoints, mpoints + n);
 
   
   // Make sure points are unique
   
-	//vector<Morton> unique_points_vec(n);
+	//vector<BigUnsigned> unique_points_vec(n);
   //n = unique_points(mpoints, unique_points_vec.data(), n);
 	//mpoints = unique_points_vec.data();
-	n = unique(mpoints, mpoints + n, equalsMorton)-(mpoints);
+	n = unique(mpoints, mpoints + n, equalsBigUnsigned)-(mpoints);
 
 	if (verbose) {
 		cout << "mpoints: ";

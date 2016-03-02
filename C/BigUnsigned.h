@@ -14,11 +14,6 @@
 // #endif
 // #endif
 
-	// Make sure we have NULL.
-#ifndef NULL
-#define NULL 0
-#endif
-
 	// Number of bits in a block.
 	extern unsigned int numBUBits;
 

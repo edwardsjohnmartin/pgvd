@@ -6,12 +6,12 @@
 
 int sign(const int i);
 
-void compute_lcp(Morton *lcp, Morton *value, const int length, const struct Resln* resln);
+void compute_lcp(BigUnsigned *lcp, BigUnsigned *value, const int length, const struct Resln* resln);
 
-// int compute_lcp_length_impl(const Morton a, const Morton b, const struct Resln* resln);
+// int compute_lcp_length_impl(const BigUnsigned a, const BigUnsigned b, const struct Resln* resln);
 
 int compute_lcp_length(const int i, const int j,
-                       Morton* _mpoints, const struct Resln* _resln);
+                       BigUnsigned* _mpoints, const struct Resln* _resln);
 
 struct BrtNode {
   // left child (right child = left+1)
@@ -19,7 +19,7 @@ struct BrtNode {
   // Whether the left (resp. right) child is a leaf or not
   bool left_leaf, right_leaf;
   // The longest common prefix
-  Morton lcp;
+  BigUnsigned lcp;
   // Number of bits in the longest common prefix
   int lcp_length;
 
@@ -29,13 +29,13 @@ struct BrtNode {
 
 int quadrantInLcp(const struct BrtNode* brt_node, const int i);
 
-void sort_points(Morton* mpoints, const int n);
+void sort_points(BigUnsigned* mpoints, const int n);
 
-int unique_points(Morton* mpoints, Morton* dest, const int n);
+int unique_points(BigUnsigned* mpoints, BigUnsigned* dest, const int n);
 
 void build_brt(
     struct BrtNode* I, struct BrtNode* L,
-    const Morton* mpoints, const int n,
+    const BigUnsigned* mpoints, const int n,
     const struct Resln* resln);
 
 void set_brt_parents(struct BrtNode* I, const int n);
