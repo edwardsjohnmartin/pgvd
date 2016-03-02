@@ -60,6 +60,9 @@ SET(SRCS
    ./C/BuildOctree.c
    ./C/BigUnsigned.c
    ./opencl/Geom.cpp
+   ./opencl/CLWrapper/CLWrapper_Initializers.cpp
+   ./opencl/CLWrapper/CLWrapper_Kernels.cpp
+   ./opencl/Kernels/KernelBox.cpp
    ./Options.cpp
 )
 
