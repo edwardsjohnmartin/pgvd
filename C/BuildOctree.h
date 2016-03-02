@@ -11,7 +11,7 @@ void compute_lcp(Morton *lcp, Morton *value, const int length, const struct Resl
 // int compute_lcp_length_impl(const Morton a, const Morton b, const struct Resln* resln);
 
 int compute_lcp_length(const int i, const int j,
-                       const Morton* _mpoints, const struct Resln* _resln);
+                       Morton* _mpoints, const struct Resln* _resln);
 
 struct BrtNode {
   // left child (right child = left+1)

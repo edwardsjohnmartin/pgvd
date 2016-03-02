@@ -15,6 +15,8 @@
 #ifndef __OCT_DEFS_H__
 #define __OCT_DEFS_H__
 
+#include "./dim.h"
+
 //------------------------------------------------------------
 //------------------------------------------------------------
 // C++
@@ -145,7 +147,7 @@ static __CONST__ int kGradation = 1;
 //------------------------------------------------------------
 // 2D
 //------------------------------------------------------------
-#define DIM 2
+// #define DIM 2
 // #define Face Edge
 // #include "./edge.h"
 // // static __CONST__ int kNumSubdivided = 9;
@@ -160,7 +162,7 @@ static __CONST__ int kGradation = 1;
 //------------------------------------------------------------
 // 3D
 //------------------------------------------------------------
-#define DIM 3
+// #define DIM 3
 // #define Face Triangle
 // #include "./triangle.h"
 // // static __CONST__ int kNumSubdivided = 27;

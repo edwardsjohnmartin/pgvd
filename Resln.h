@@ -1,6 +1,9 @@
 #ifndef __RESLN_H__
 #define __RESLN_H__
 
+#include "./opencl/dim.h"
+
+#include <assert.h>
 //#include <stdint.h>
 
 // #ifdef __APPLE__
@@ -8,11 +11,12 @@
 // #else
 // #include "CL/cl.h"
 // #endif
-#include "./opencl/defs.h"
-#include "C/BigUnsigned.h"
+// #include "./opencl/defs.h"
 // typedef unsigned int Morton;
 // typedef unsigned long Morton;
 // typedef cl_ulong Morton;
+
+#include "C/BigUnsigned.h"
 typedef BigUnsigned Morton;
 
 // #include "./bigint/BigUnsigned.hh"
@@ -52,7 +56,9 @@ struct Resln {
   // Total number of bits for morton code is mbits = bits * DIM.
   int mbits;
 };
+
 #ifdef __cplusplus
+
 inline Resln make_resln(const int width_) {
   Resln resln;
   resln.width = width_;
@@ -74,14 +80,6 @@ inline Resln make_resln(const int width_) {
   return resln;
 }
 
-/*
-inline std::ostream& operator<<(std::ostream& out, const Resln& resln)
-
-inline std::istream& operator>>(std::istream& in, Resln& resln) {
-  in >> resln.width >> resln.volume >> resln.bits >> resln.mbits;
-  return in;
-}
-*/
 #endif // __cplusplus
 
 #endif

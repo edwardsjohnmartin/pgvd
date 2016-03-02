@@ -24,7 +24,7 @@ using std::shared_ptr;
 
 namespace Karras {
 
-Morton* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
+Morton* xyz2z(Morton *result, intn p, const Resln* resln) {
   initBlkBU(result, 0);
 	BigUnsigned temp;
 	BigUnsigned tempb;

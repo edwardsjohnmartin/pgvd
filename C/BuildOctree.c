@@ -1,3 +1,4 @@
+#include "./bool.h"
 #include "BuildOctree.h"
 
 #include <stdio.h>

@@ -6,13 +6,13 @@
 	typedef unsigned long long Index; // Type for the index of a block in the array
 	typedef unsigned long long Blk;  // Type for the blocks 
 
-#ifndef __cplusplus
-#if __STDC_VERSION__ < 199901L
-	typedef unsigned char bool;
-#define true 1
-#define false 0
-#endif
-#endif
+// #ifndef __cplusplus
+// #if __STDC_VERSION__ < 199901L
+// 	typedef unsigned char bool;
+// #define true 1
+// #define false 0
+// #endif
+// #endif
 
 	// Make sure we have NULL.
 #ifndef NULL
@@ -73,4 +73,5 @@
 	int xOrBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b);
 	int shiftBURight(BigUnsigned *result, BigUnsigned *a, int b);
 	int shiftBULeft(BigUnsigned *result, BigUnsigned *a, int b);
+
 #endif
