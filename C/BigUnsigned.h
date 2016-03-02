@@ -18,15 +18,11 @@
 	extern unsigned int numBUBits;
 
 	// BigUnsigned allows storing integers larger than a long using an array of blk.
-#ifndef BIGUNSIGNED
-#define BIGUNSIGNED
-	typedef struct {   
-		//Index cap;																			// Current allocated capacity (in blocks)
+	typedef struct BigUnsigned {
 		Index len;                                      // Actual length of the value stored (in blocks)
 		bool isNULL;
 		Blk blk[BIG_INTEGER_SIZE];
 	} BigUnsigned;
-#endif
 
 	//~~HELPER FUNCTIONS~~//
 	// Decreases len to eliminate any leading zero blocks.

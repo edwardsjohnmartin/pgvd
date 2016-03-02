@@ -4,13 +4,13 @@
 #include <stdio.h>
 #include <math.h>
 
-//------------------------------------------------------------
-// Utility functions
-//------------------------------------------------------------
+// UTILITY FUNCTIONS
 
 int sign(const int i) {
   return (i<0) ? -1 : ((i>0) ? +1 : 0);
 }
+
+// LEAST COMMON PREFIX CALCULATIONS (\delta in karras2014)
 
 // Longest common prefix
 //
@@ -41,8 +41,6 @@ void compute_lcp(BigUnsigned *lcp, BigUnsigned *value, const int length, const s
 	andBU(&temp, value, &mask);
 	shiftBURight(lcp, &temp, resln->mbits - length);
 }
-
-// Longest common prefix, denoted \delta in karras2014
 int compute_lcp_length_impl(BigUnsigned* a, BigUnsigned* b, const struct Resln* resln) {
 	BigUnsigned one;
 	initBlkBU(&one, 1);
@@ -60,12 +58,9 @@ int compute_lcp_length_impl(BigUnsigned* a, BigUnsigned* b, const struct Resln* 
   }
   return resln->mbits;
 }
-
-int compute_lcp_length(const int i, const int j,
-                       BigUnsigned* _mpoints, const struct Resln* _resln) {
+int compute_lcp_length(const int i, const int j, BigUnsigned* _mpoints, const struct Resln* _resln) {
   return compute_lcp_length_impl(&_mpoints[i], &_mpoints[j], _resln);
 }
-
 // Given a lcp, returns the i'th quadrant starting from the most local.
 // Suppose node.lcp is 1010011 and DIM == 2. The
 // quadrantInLcp(node, 0) returns 01 (1010011)
@@ -74,7 +69,7 @@ int compute_lcp_length(const int i, const int j,
 //                                      ^^
 // quadrantInLcp(node, 2) returns 10 (1010011)
 //                                    ^^
-int quadrantInLcp(const struct BrtNode* brt_node, const int i) {
+int quadrantInLcp(const BrtNode* brt_node, const int i) {
   static const int mask = (DIM == 2) ? 3 : 7;
   assert(DIM <= 3);
   /* if (DIM > 3) */
@@ -91,14 +86,10 @@ int quadrantInLcp(const struct BrtNode* brt_node, const int i) {
 	return getBUBlock(&tempb, 0); //Not sure if this is right. I'm assuming the quadrant is at DIM bits
 }
 
-//------------------------------------------------------------
-//------------------------------------------------------------
-// Kernels
-//------------------------------------------------------------
-//------------------------------------------------------------
 
+// KERNELS
 void build_brt_kernel(
-    const int i, struct BrtNode* I, struct BrtNode* L,
+    const int i, BrtNode* I, BrtNode* L,
     const BigUnsigned* mpoints, const int n,
     const struct Resln* resln) {
   // Determine direction of the range (+1 or -1)
@@ -161,7 +152,7 @@ void build_brt_kernel(
 }
 
 void compute_local_splits_kernel(
-    const int i, int* local_splits, struct BrtNode* I, const int n) {
+    const int i, int* local_splits, BrtNode* I, const int n) {
   const int local = I[i].lcp_length / DIM;
   const int left = I[i].left;
   const int right = left+1;
@@ -175,12 +166,12 @@ void compute_local_splits_kernel(
 
 void brt2octree_kernel(
     const int brt_i,
-    const struct BrtNode* I, struct OctNode* octree, const int* local_splits,
+    const BrtNode* I, struct OctNode* octree, const int* local_splits,
     const int* prefix_sums, const int n, const int octree_size) {
   if (local_splits[brt_i] > 0) {
     // m = number of local splits
     const int m = local_splits[brt_i];
-    const struct BrtNode* brt_node = &I[brt_i];
+    const BrtNode* brt_node = &I[brt_i];
     // Current octree node index
     int oct_i = prefix_sums[brt_i];
     for (int j = 0; j < m-1; ++j) {
@@ -200,11 +191,7 @@ void brt2octree_kernel(
   }
 }
 
-//------------------------------------------------------------
-//------------------------------------------------------------
-// Calling functions
-//------------------------------------------------------------
-//------------------------------------------------------------
+// CALLING FUNCTIONS
 
 // Needs to be implemented
 void sort_points(BigUnsigned* mpoints, const int n) {
@@ -228,7 +215,7 @@ int unique_points(BigUnsigned* mpoints, BigUnsigned* dest, const int n) {
 }
 
 void build_brt(
-    struct BrtNode* I, struct BrtNode* L,
+    BrtNode* I, BrtNode* L,
     const BigUnsigned* mpoints, const int n,
     const struct Resln* resln) {
   // Note that it loops only n-1 times.
@@ -238,7 +225,7 @@ void build_brt(
 }
 
 // JME: Haven't split this into a kernel
-void set_brt_parents(struct BrtNode* I, const int n) {
+void set_brt_parents(BrtNode* I, const int n) {
   if (n > 0)
     I[0].parent = -1;
   for (int i = 0; i < n-1; ++i) {
@@ -257,8 +244,7 @@ void set_brt_parents(struct BrtNode* I, const int n) {
 // split from a parent to a child in the brt. For example, in 2D if a child
 // has an lcp_length of 8 and the parent has lcp_length of 4, then
 // the child represents two octree splits.
-void compute_local_splits(
-    int* local_splits, struct BrtNode* I, const int n) {
+void compute_local_splits( int* local_splits, BrtNode* I, const int n) {
   if (n > 0) {
     local_splits[0] = 1 + I[0].lcp_length / DIM;
   }
@@ -279,7 +265,7 @@ void compute_prefix_sums(const int* src, int* prefix_sums, const int n) {
 }
 
 void brt2octree(
-    const struct BrtNode* I, struct OctNode* octree, const int* local_splits,
+    const BrtNode* I, struct OctNode* octree, const int* local_splits,
     const int* prefix_sums, const int n) {
   const int octree_size = prefix_sums[n-1];
   // Initialize octree - needs to be done in parallel
