@@ -1,10 +1,15 @@
 #pragma once
-#include <CL\cl.hpp>
+#ifdef __APPLE__
+#include "OpenCL/opencl.h"
+#else
+#include <CL/cl.hpp>
+#endif // __APPLE__
+
 #include <vector>
 #include <fstream>
 #include <iostream>
 #include <string>
-#include "..\..\C\BigUnsigned.h"
+#include "../../C/BigUnsigned.h"
 
 /*
   KernelBox. 
@@ -25,8 +30,8 @@ private:
 	cl_command_queue queue;
 
 	//Methods
-	void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
-	void KernelBox::initKernels();
+	void initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
+	void initKernels();
 
 	//HelperMethods
 	std::string loadKernel(const char* name);

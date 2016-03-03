@@ -280,14 +280,14 @@ void split(WalkState* state, const int position) {
         // Origin remains the same
         break;
       case 1:
-        state->origin[0] += (state->w >> 1);
+        state->origin.s[0] += (state->w >> 1);
         break;
       case 2:
-        state->origin[1] += (state->w >> 1);
+        state->origin.s[1] += (state->w >> 1);
         break;
       case 3:
-        state->origin[0] += (state->w >> 1);
-        state->origin[1] += (state->w >> 1);
+        state->origin.s[0] += (state->w >> 1);
+        state->origin.s[1] += (state->w >> 1);
         break;
     }
     state->positionStack <<= 2;
@@ -331,15 +331,15 @@ void popLevel(WalkState* state) {
       break;
     case 1:
       state->origin =
-          make_intn(state->origin[0] - state->w, state->origin[1]);
+          make_intn(state->origin.s[0] - state->w, state->origin.s[1]);
       break;
     case 2:
       state->origin =
-          make_intn(state->origin[0], state->origin[1] - state->w);
+          make_intn(state->origin.s[0], state->origin.s[1] - state->w);
       break;
     case 3:
       state->origin =
-          make_intn(state->origin[0] - state->w, state->origin[1] - state->w);
+          make_intn(state->origin.s[0] - state->w, state->origin.s[1] - state->w);
       break;
   }
   
@@ -353,9 +353,9 @@ void popLevel(WalkState* state) {
 int getInterceptRegion(const WalkState* state,
     const int y_value, const int y_axis, const intn p0, const floatn v) {
   const int x_axis = 1 - y_axis;
-  const float t = (y_value - p0[y_axis]) / v[y_axis];
+  const float t = (y_value - p0.s[y_axis]) / v.s[y_axis];
   const int x =  p0[x_axis] + int(v[x_axis] * t);
-  const int x_center = state->origin[x_axis] + (state->w >> 1);
+  const int x_center = state->origin.s[x_axis] + (state->w >> 1);
   const int region =
       getRegion(x, x_center, (state->w>>1));
   return region;
@@ -381,13 +381,13 @@ void getIntercepts(
   const int y_axis = waxis;
 
   intercepts->ybottom = getInterceptRegion(
-      state, state->origin[y_axis], y_axis, p0, v);
+      state, state->origin.s[y_axis], y_axis, p0, v);
   intercepts->ycenter = getInterceptRegion(
-      state, state->origin[y_axis] + (state->w >> 1), y_axis, p0, v);
+      state, state->origin.s[y_axis] + (state->w >> 1), y_axis, p0, v);
   intercepts->ytop = getInterceptRegion(
-      state, state->origin[y_axis] + state->w, y_axis, p0, v);
+      state, state->origin.s[y_axis] + state->w, y_axis, p0, v);
   intercepts->xcenter = getInterceptRegion(
-      state, state->origin[x_axis] + (state->w >> 1), x_axis, p0, v);
+      state, state->origin.s[x_axis] + (state->w >> 1), x_axis, p0, v);
 }
 
 // Contains subdivide tasks for between 0 and 2^DIM subdivisions

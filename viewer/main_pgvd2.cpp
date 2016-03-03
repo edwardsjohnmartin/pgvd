@@ -6,10 +6,10 @@
 #include <stdarg.h>
 #include <math.h>
 #include <fstream>
-#include "..\opencl\CLWrapper\CLWrapper.h"
 #define GL_LOG_FILE "gl.log"
 
 #include "gl_utils.h"
+#include "../opencl/CLWrapper/CLWrapper.h"
 
 #include "../opencl/vec.h"
 #include "./Polylines.h"

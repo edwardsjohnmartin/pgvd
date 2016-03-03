@@ -1,16 +1,16 @@
 //Radix Predication
 __kernel void Predicate(
-	__global int *inputBuffer,
+	__global BigUnsigned *inputBuffer,
 	__global Index *predicateBuffer,
 	Index index,
 	unsigned char comparedWith)
 {
-	//const size_t gid = get_global_id(0);
-	//BigUnsigned self = inputBuffer[gid];
-    //predicateBuffer[gid] = (getBUBit(&self, index) == comparedWith) ? 1:0;
+	const size_t gid = get_global_id(0);
+	BigUnsigned self = inputBuffer[gid];
+    predicateBuffer[gid] = (getBUBit(&self, index) == comparedWith) ? 1:0;
 }
 
-/*
+
 //StreamScan
 //https://www.youtube.com/watch?v=RdfmxfZBHpo
 #define SWAP(a,b) {__local Index *tmp=a;a=b;b=tmp;}
@@ -76,4 +76,3 @@ __kernel void BUCompact(
 	BigUnsigned temp = inputBuffer[gid];
   resultBuffer[index - 1] = temp;
 }
-*/
