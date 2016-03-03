@@ -53,29 +53,41 @@ void KernelBox::doubleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem 
 	}
 };
 
-KernelBox::KernelBox(const int numFiles, std::vector<std::string> fileNames, cl_context &context, cl_command_queue &_queue, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds)
+KernelBox::KernelBox(std::vector<std::string> fileNames, cl_context &context, cl_command_queue &_queue, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds)
 {
 	error = CL_SUCCESS;
 	queue = _queue;
-	initProgram(numFiles, fileNames, context, deviceIdCount, deviceIds);
+	initProgram(fileNames, context, deviceIdCount, deviceIds);
 	initKernels();
 }
-void KernelBox::initProgram(const int numFiles, std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds){
+void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds){
+	using std::string;
 	if (verbose)
 		std::cout << "KernelBox: Building kernel programs: ";
 
-	std::vector<std::string> sources;
-	std::vector<size_t> sourceLengths;
-	for (int i = 0; i < numFiles; ++i){
+	const char** sources = new const char*[fileNames.size()];
+	string* ssources = new string[fileNames.size()];
+	size_t* lengths = new size_t[fileNames.size()];
+
+	int n = fileNames.size();
+	n = 3;
+	//std::vector<size_t> sourceLengths;
+	for (int i = 0; i < n; ++i){
 		std::string k = loadKernel(fileNames[i].c_str());
-		sources.push_back(k);
-		sourceLengths.push_back((size_t)k.size());
+		ssources[i] = k;
+		sources[i] = ssources[i].data();
+		lengths[i] = k.size();
+		//sourceLengths.push_back((size_t)k.size());
+	  //std::cout << "File: " << (int)k.data()[k.length()] << std::endl;
 	}
-	std::vector<const char*> cstrings;
-	for (size_t i = 0; i < sources.size(); ++i)
-		cstrings.push_back(sources[i].data());
-	program = clCreateProgramWithSource(context, numFiles, &cstrings[0], &sourceLengths[0], &error);
+	std::cout << sources[2] << std::endl;
+
+	program = clCreateProgramWithSource(context, n, sources, lengths, &error);
 	error = clBuildProgram(program, deviceIdCount, deviceIds.data(), nullptr, nullptr, nullptr);// , program, deviceIds[0];
+
+	delete[] sources;
+	delete[] ssources;
+	delete[] lengths;
 
 	if (error == CL_BUILD_PROGRAM_FAILURE) {
 		// Determine the size of the log

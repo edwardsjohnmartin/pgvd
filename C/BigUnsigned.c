@@ -1,5 +1,7 @@
+#ifndef __OPENCL_VERSION__
 #include "./bool.h"
 #include "BigUnsigned.h"
+#endif
 
   // Make sure we have NULL.
 #ifndef NULL

@@ -98,11 +98,11 @@ void CLWrapper::initCommandQueue() {
     std::cout << "SUCCESS" << std::endl;
 }
 void CLWrapper::initKernelBox(){
-  const int numFiles = 2;
   std::vector<std::string> files;
-  files.push_back("bigint\\BigUnsigned.c");
-  files.push_back("kernels.cl");
-  kernelBox = new KernelBox(numFiles, files, context, queue, deviceIdCount, deviceIds);
+	files.push_back("../C/BigUnsigned.h");
+  files.push_back("../C/BigUnsigned.c");
+  files.push_back("../opencl/Kernels/kernels.cl");
+  kernelBox = new KernelBox(files, context, queue, deviceIdCount, deviceIds);
 }
 
 std::string CLWrapper::getPlatformName(cl_platform_id id)

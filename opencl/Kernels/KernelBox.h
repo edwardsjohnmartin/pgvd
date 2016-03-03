@@ -25,7 +25,7 @@ private:
 	cl_command_queue queue;
 
 	//Methods
-	void KernelBox::initProgram(const int numFiles, std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
+	void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
 	void KernelBox::initKernels();
 
 	//HelperMethods
@@ -33,7 +33,7 @@ private:
 
 public:
 	bool verbose = true;
-	KernelBox(const int numFiles, std::vector<std::string> fileNames, cl_context &context, cl_command_queue &_queue, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
+	KernelBox(std::vector<std::string> fileNames, cl_context &context, cl_command_queue &_queue, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
 	~KernelBox();
 
 	void predicate(cl_mem &input, cl_mem &predicate, Index &index, unsigned char compared, size_t globalSize, size_t localSize);
