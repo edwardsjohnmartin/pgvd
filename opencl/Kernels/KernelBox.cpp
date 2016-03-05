@@ -60,8 +60,7 @@ KernelBox::KernelBox(std::vector<std::string> fileNames, cl_context &context, cl
 	initProgram(fileNames, context, deviceIdCount, deviceIds);
 	initKernels();
 }
-
-cl_program CreateProgram(const std::string& source, cl_context context)
+cl_program KernelBox::CreateProgram(const std::string& source, cl_context context)
 {
   size_t lengths[1] = { source.size() };
   const char* sources[1] = { source.data() };
@@ -76,45 +75,18 @@ cl_program CreateProgram(const std::string& source, cl_context context)
 
   return program;
 }
-
 void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds){
 	using std::string;
   using namespace::std;
 	if (verbose)
 		std::cout << "KernelBox: Building kernel programs: ";
-
-	const char** sources = new const char*[fileNames.size()];
-	string* ssources = new string[fileNames.size()];
-	size_t* lengths = new size_t[fileNames.size()];
-
-	int n = fileNames.size();
-	//n = 3;
-	//std::vector<size_t> sourceLengths;
+	
   string entireProgram;
-  size_t* entireLength = new size_t(0);
-	for (int i = 0; i < n; ++i){
-		std::string k = loadKernel(fileNames[i].c_str());
-		ssources[i] = k;
-		sources[i] = ssources[i].data();
-		lengths[i] = k.size();
-    entireProgram += k;
-    entireLength += k.size();
-    //sourceLengths.push_back((size_t)k.size());
-	  //std::cout << "File: " << (int)k.data()[k.length()] << std::endl;
-	}
-  //n = 1;
-  sources[0] = entireProgram.c_str();
-  *entireLength = (size_t)entireProgram.size();
-
-
-  //program = clCreateProgramWithSource(context, n, sources, lengths, &error);
-  //program = clCreateProgramWithSource(context, 1, sources, entireLength, &error);
+	for (int i = 0; i < fileNames.size(); ++i)
+    entireProgram += loadFile(fileNames[i].c_str());;
+	
   program = CreateProgram(entireProgram, context);
   error = clBuildProgram(program, deviceIdCount, deviceIds.data(), nullptr, nullptr, nullptr);// , program, deviceIds[0];
-
-	delete[] sources;
-	delete[] ssources;
-	delete[] lengths;
 
 	if (error == CL_BUILD_PROGRAM_FAILURE) {
 		// Determine the size of the log
@@ -169,7 +141,7 @@ void KernelBox::initKernels() {
 	}
 }
 
-std::string KernelBox::loadKernel(const char* name)
+std::string KernelBox::loadFile(const char* name)
 {
 	std::ifstream in(name);
 	std::string result(

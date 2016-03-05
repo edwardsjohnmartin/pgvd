@@ -44,7 +44,7 @@ int Octree2::processArgs(int argc, char** argv) {
   // }
 
   // resln = Resln(1<<options.max_level);
-  resln = make_resln(1<<options.max_level);
+  resln = make_resln(1 << options.max_level);
 
   // if (options.test > -1)
   //   test(options.test);

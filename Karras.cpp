@@ -28,20 +28,22 @@ BigUnsigned* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
   initBlkBU(result, 0);
 	BigUnsigned temp;
   initBlkBU(&temp, 0);
-	BigUnsigned tempb;
-  initBlkBU(&tempb, 0);
+  BigUnsigned *tempb = new BigUnsigned;
+  initBlkBU(tempb, 0);
 
 	for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
 			if (p.s[j] & (1 << i)) {
 				//ret |= BigUnsigned(1) << (i*DIM + j);
 				initBlkBU(&temp, 1);
-				shiftBULeft(&tempb, &temp, i*DIM + j);
+				shiftBULeft(tempb, &temp, i*DIM + j);
 				initBUBU(&temp, result);
-				orBU(result, &temp, &tempb);
+				orBU(result, &temp, tempb);
 			}
     }
   }
+  delete tempb;
+  //free(tempb);
   return result;
 }
 

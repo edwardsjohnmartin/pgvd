@@ -31,10 +31,11 @@ private:
 
 	//Methods
 	void initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
+  cl_program CreateProgram(const std::string& source, cl_context context);
 	void initKernels();
 
 	//HelperMethods
-	std::string loadKernel(const char* name);
+	std::string loadFile(const char* name);
 
 public:
 	bool verbose = true;

@@ -1,6 +1,5 @@
 #include "CLWrapper.h"
 //--PUBLIC--//
-
 // Initializes an OpenCL wrapper.
 //    This includes automatically selecting a platform, automatically selecting a device,
 //    initialing a context, command queue, and all kernels in the kernel box.
@@ -30,6 +29,7 @@ void CLWrapper::checkError(cl_int error){
   }
 }
 void CLWrapper::initPlatformIds(){
+  //Here, we find what OpenCL platforms we can use (Intel, NVidia, etc), and save them to platformIds.
   platformIdCount = 0;
   clGetPlatformIDs(0, nullptr, &platformIdCount);
 
@@ -49,6 +49,7 @@ void CLWrapper::initPlatformIds(){
     std::cout << "CLWrapper: \t (" << (i + 1) << ") : " << getPlatformName(platformIds[i]) << std::endl;
 }
 void CLWrapper::initDevices(){
+  //Here, we're hunting for avalable devices with the last platform avalable. (assumes graphics cards appear later in the list.)
   deviceIdCount = 0;
   clGetDeviceIDs(platformIds[platformIds.size() - 1], CL_DEVICE_TYPE_ALL, 0, nullptr, &deviceIdCount);
 
@@ -68,6 +69,7 @@ void CLWrapper::initDevices(){
     std::cout << "CLWrapper: \t (" << (i + 1) << ") : " << getDeviceName(deviceIds[i]) << std::endl;
 }
 void CLWrapper::initContext(){
+  //Here, we're creating a context using the last platform avalable. (assumes graphics cards appear later in the list.)
   if (verbose)
     std::cout << "CLWrapper: Creating a context: ";
   const cl_context_properties contextProperties[] = {
@@ -85,6 +87,7 @@ void CLWrapper::initContext(){
     std::cout << "SUCCESS" << std::endl;
 }
 void CLWrapper::initCommandQueue() {
+  //Here, we select the first device avalable to us, and use it for our kernel command queue.
   if (verbose)
     std::cout << "CLWrapper: Creating a command queue: ";
 
@@ -98,14 +101,11 @@ void CLWrapper::initCommandQueue() {
     std::cout << "SUCCESS" << std::endl;
 }
 void CLWrapper::initKernelBox(){
+  //These are the files sent to be built by OpenCL
   std::vector<std::string> files;
 	files.push_back("../C/BigUnsigned.h");
   files.push_back("../C/BigUnsigned.c");
   files.push_back("../opencl/Kernels/kernels.cl");
-  //files.push_back("../opencl/Kernels/test.h");
-  //files.push_back("../opencl/Kernels/test.c");
-  //files.push_back("../opencl/Kernels/testKernel.cl");
-
   kernelBox = new KernelBox(files, context, queue, deviceIdCount, deviceIds);
 }
 

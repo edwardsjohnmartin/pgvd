@@ -1,17 +1,9 @@
 #ifndef BIGUNSIGNED_C
 #define BIGUNSIGNED_C
-#define BIG_INTEGER_SIZE 2
+#define BIG_INTEGER_SIZE 10
 
 typedef unsigned long Index; // Type for the index of a block in the array
 typedef unsigned long Blk;  // Type for the blocks
-
-// #ifndef __cplusplus
-// #if __STDC_VERSION__ < 199901L
-// 	typedef unsigned char bool;
-// #define true 1
-// #define false 0
-// #endif
-// #endif
 
 // BigUnsigned allows storing integers larger than a long using an array of blk.
 typedef struct {
