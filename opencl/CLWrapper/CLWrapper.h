@@ -43,7 +43,7 @@ private:
 	//Helper methods
 	std::string getPlatformName(cl_platform_id id);
 	std::string getDeviceName(cl_device_id id);
-  void initRadixSortBuffers(std::vector<BigUnsigned> &input);
+  void initRadixSortBuffers(void* mpoints);
 	void envokeRadixSortRoutine(const Index numBits);
 	void checkError(cl_int error);
 public:
@@ -55,6 +55,6 @@ public:
 	~CLWrapper();
 
 	//Kernel Wrappers
-	void RadixSort(std::vector<BigUnsigned> &input, const Index numBits);
+  void RadixSort(void* mpoints, const Index numBits, int _globalSize, int _localSize);
 };
 

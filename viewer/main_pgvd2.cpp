@@ -9,7 +9,6 @@
 #define GL_LOG_FILE "gl.log"
 
 #include "gl_utils.h"
-#include "../opencl/CLWrapper/CLWrapper.h"
 
 #include "../opencl/vec.h"
 #include "./Polylines.h"
@@ -139,8 +138,6 @@ int main(int argc, char** argv) {
   lines = new Polylines();
 
   program = new LinesProgram();
-
-	CLWrapper cl(64,64);
 	
   for (const string& f : options.filenames) {
     ifstream in(f.c_str());

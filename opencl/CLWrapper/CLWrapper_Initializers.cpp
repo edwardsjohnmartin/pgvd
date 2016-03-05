@@ -24,8 +24,8 @@ CLWrapper::~CLWrapper()
 void CLWrapper::checkError(cl_int error){
   if (error != CL_SUCCESS) {
     std::cerr << "CLWrapper: OpenCL call failed with error " << error << std::endl;
-    std::getchar();
-    std::exit;
+    //std::getchar();
+    //std::exit;
   }
 }
 void CLWrapper::initPlatformIds(){

@@ -1,12 +1,15 @@
 #include "CLWrapper.h"
 
 //--PUBLIC--//
-void CLWrapper::RadixSort(std::vector<BigUnsigned> &input, const Index numBits) {
+void CLWrapper::RadixSort(void *input, const Index numBits, int _globalSize, int _localSize) {
+  globalSize = _globalSize;
+  localSize = _localSize;
   //Input: 0. LPBuffer: 1. RPBuffer: 2. LABuffer: 3. RABuffer: 4. Result: 5.
   if (sizeof(BigUnsigned) > 0 && !(sizeof(BigUnsigned)& (sizeof(BigUnsigned)-1))) {
     initRadixSortBuffers(input);
-    envokeRadixSortRoutine(numBits);
-    checkError(clEnqueueReadBuffer(queue, buffers[0], CL_TRUE, 0, globalSize * sizeof (BigUnsigned), input.data(), 0, nullptr, nullptr));
+    //envokeRadixSortRoutine(numBits);
+    checkError(clEnqueueReadBuffer(queue, buffers[0], CL_TRUE, 0, globalSize * sizeof (BigUnsigned), input, 0, nullptr, nullptr));
+    clFinish(queue);
   }
   else {
     std::cout << "CLWrapper: Sorry, but BigUnsigned is " << std::to_string(sizeof(BigUnsigned)) <<" bytes, which isn't a power of two and cannot be sorted in parallel." << std::endl;
@@ -14,13 +17,13 @@ void CLWrapper::RadixSort(std::vector<BigUnsigned> &input, const Index numBits) 
 };
 
 //--PRIVATE--//
-void CLWrapper::initRadixSortBuffers(std::vector<BigUnsigned> &input){
+void CLWrapper::initRadixSortBuffers(void* input){
   //Input: 0. LPBuffer: 1. RPBuffer: 2. LABuffer: 3. RABuffer: 4. Result: 5. Intermediate. 6. ICopy. 7
   cl_int error = CL_SUCCESS;
   std::vector<Index> zeroVector(globalSize);
   std::vector<BigUnsigned> result(globalSize);
 
-  buffers.push_back(clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR, sizeof (BigUnsigned)* (globalSize), input.data(), &error));
+  buffers.push_back(clCreateBuffer(context, CL_MEM_READ_WRITE| CL_MEM_USE_HOST_PTR, sizeof (BigUnsigned)* (globalSize), input, &error));
   buffers.push_back(clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof (Index)* (globalSize), zeroVector.data(), &error));
   buffers.push_back(clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof (Index)* (globalSize), zeroVector.data(), &error));
   buffers.push_back(clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof (Index)* (globalSize), zeroVector.data(), &error));

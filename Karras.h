@@ -28,6 +28,8 @@ std::vector<intn> Quantize(
     const std::vector<floatn>& points, const Resln& r,
     const BoundingBox<floatn>* customBB = 0, const bool clamped = false);
 
+void sort_points(BigUnsigned* mpoints, const int n);
+
 std::vector<OctNode> BuildOctree(
     const std::vector<intn>& opoints, const Resln& r, const bool verbose=false);
 

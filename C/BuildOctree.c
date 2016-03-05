@@ -191,14 +191,6 @@ void brt2octree_kernel(
   }
 }
 
-// CALLING FUNCTIONS
-
-// Needs to be implemented
-void sort_points(BigUnsigned* mpoints, const int n) {
-  /* sort(mpoints, mpoints + n); */
-  printf("sort_points() not implemented\n");
-}
-
 // JME: Haven't split this out into a kernel...
 int unique_points(BigUnsigned* mpoints, BigUnsigned* dest, const int n) {
   if (n == 0) return 0;

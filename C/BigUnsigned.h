@@ -1,6 +1,6 @@
 #ifndef BIGUNSIGNED_C
 #define BIGUNSIGNED_C
-#define BIG_INTEGER_SIZE 10
+#define BIG_INTEGER_SIZE 6 //6 results in 32 byte BUs.
 
 typedef unsigned long Index; // Type for the index of a block in the array
 typedef unsigned long Blk;  // Type for the blocks

@@ -6,6 +6,7 @@
 #include <string>
 
 #include "./BoundingBox.h"
+#include "opencl/CLWrapper/CLWrapper.h"
 // #include "./gpu.h"
 
 extern "C" {
@@ -23,7 +24,7 @@ using std::shared_ptr;
 // static const int kNumBits = 3;
 
 namespace Karras {
-
+  CLWrapper CL(256, 256);
 BigUnsigned* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
   initBlkBU(result, 0);
 	BigUnsigned temp;
@@ -93,6 +94,19 @@ bool equalsBigUnsigned(BigUnsigned& a, BigUnsigned &b) {
 	}
 	return 0;
 }
+
+// Needs to be implemented
+void sort_points(BigUnsigned* mpoints, const int n) {
+  /*int nextPowerOfTwo = pow(2, ceil(log(n) / log(2)));
+  printf("Next power of two is: %d\n", nextPowerOfTwo);
+  int difference = nextPowerOfTwo - n;
+  BigUnsigned* mpoints = BigUnsigned[n + difference];
+  for (int i = 0; i < difference; i++)
+  {
+    mpoints[n + i]
+  }*/
+}
+
 // dwidth is passed in for performance reasons. It is equal to
 //   float dwidth = bb.max_size();
 intn Quantize(
@@ -156,25 +170,31 @@ vector<intn> Quantize(
 
 vector<OctNode> BuildOctree(
     const vector<intn>& points, const Resln& resln, const bool verbose) {
-
-  printBUSize();
-
   if (points.empty())
     throw logic_error("Zero points not supported");
   
   cout << "BigUnsigned = " << sizeof(BigUnsigned) << endl;
 
   int n = points.size();
-  vector<BigUnsigned> mpoints_vec(n);
+  int nextPowerOfTwo = pow(2, ceil(log(n) / log(2)));
+  vector<BigUnsigned> mpoints_vec(nextPowerOfTwo);
   BigUnsigned* mpoints = mpoints_vec.data();
   for (int i = 0; i < points.size(); ++i) {
     xyz2z(&mpoints[i], points[i], &resln);
+  }
+  for (int i = points.size(); i < nextPowerOfTwo; i++) {
+    initBlkBU(&mpoints[i], 0);
   }
 
   // GPU CANDIDATE
   // Currently uses std::sort. The call below that is commented out
   // calls the (unimplemented) sort in BuildOctree.c.
-  sort(mpoints, mpoints + n, lessThanBigUnsigned);
+  if (nextPowerOfTwo > 8) {
+    CL.RadixSort((void*)mpoints, 384, nextPowerOfTwo, min(nextPowerOfTwo/2, 256));
+  }
+  else {
+    sort(mpoints, mpoints + n, lessThanBigUnsigned);
+  }
   //sort_points(mpoints, mpoints + n);
 
   

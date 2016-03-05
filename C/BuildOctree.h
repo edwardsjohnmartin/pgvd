@@ -25,7 +25,6 @@ int compute_lcp_length(const int i, const int j, BigUnsigned* _mpoints, const st
 
 
 int quadrantInLcp(const BrtNode* brt_node, const int i);
-void sort_points(BigUnsigned* mpoints, const int n);
 int unique_points(BigUnsigned* mpoints, BigUnsigned* dest, const int n);
 void build_brt(
     BrtNode* I, BrtNode* L,
