@@ -60,8 +60,26 @@ KernelBox::KernelBox(std::vector<std::string> fileNames, cl_context &context, cl
 	initProgram(fileNames, context, deviceIdCount, deviceIds);
 	initKernels();
 }
+
+cl_program CreateProgram(const std::string& source, cl_context context)
+{
+  size_t lengths[1] = { source.size() };
+  const char* sources[1] = { source.data() };
+
+  cl_int error = 0;
+  cl_program program = clCreateProgramWithSource(context, 1, sources, lengths, &error);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+
+  return program;
+}
+
 void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds){
 	using std::string;
+  using namespace::std;
 	if (verbose)
 		std::cout << "KernelBox: Building kernel programs: ";
 
@@ -70,20 +88,29 @@ void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context conte
 	size_t* lengths = new size_t[fileNames.size()];
 
 	int n = fileNames.size();
-	n = 3;
+	//n = 3;
 	//std::vector<size_t> sourceLengths;
+  string entireProgram;
+  size_t* entireLength = new size_t(0);
 	for (int i = 0; i < n; ++i){
 		std::string k = loadKernel(fileNames[i].c_str());
 		ssources[i] = k;
 		sources[i] = ssources[i].data();
 		lengths[i] = k.size();
-		//sourceLengths.push_back((size_t)k.size());
+    entireProgram += k;
+    entireLength += k.size();
+    //sourceLengths.push_back((size_t)k.size());
 	  //std::cout << "File: " << (int)k.data()[k.length()] << std::endl;
 	}
-	std::cout << sources[2] << std::endl;
+  //n = 1;
+  sources[0] = entireProgram.c_str();
+  *entireLength = (size_t)entireProgram.size();
 
-	program = clCreateProgramWithSource(context, n, sources, lengths, &error);
-	error = clBuildProgram(program, deviceIdCount, deviceIds.data(), nullptr, nullptr, nullptr);// , program, deviceIds[0];
+
+  //program = clCreateProgramWithSource(context, n, sources, lengths, &error);
+  //program = clCreateProgramWithSource(context, 1, sources, entireLength, &error);
+  program = CreateProgram(entireProgram, context);
+  error = clBuildProgram(program, deviceIdCount, deviceIds.data(), nullptr, nullptr, nullptr);// , program, deviceIds[0];
 
 	delete[] sources;
 	delete[] ssources;
@@ -103,7 +130,7 @@ void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context conte
 		// Print the log
 		printf("%s\n", log);
 		getchar();
-		std::exit(1);
+		//std::exit(1);
 	}
 	else if (error != CL_SUCCESS) {
 		std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;

@@ -27,7 +27,10 @@ namespace Karras {
 BigUnsigned* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
   initBlkBU(result, 0);
 	BigUnsigned temp;
+  initBlkBU(&temp, 0);
 	BigUnsigned tempb;
+  initBlkBU(&tempb, 0);
+
 	for (int i = 0; i < resln->bits; ++i) {
     for (int j = 0; j < DIM; ++j) {
 			if (p.s[j] & (1 << i)) {
@@ -151,6 +154,9 @@ vector<intn> Quantize(
 
 vector<OctNode> BuildOctree(
     const vector<intn>& points, const Resln& resln, const bool verbose) {
+
+  printBUSize();
+
   if (points.empty())
     throw logic_error("Zero points not supported");
   

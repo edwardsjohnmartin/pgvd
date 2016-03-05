@@ -102,6 +102,10 @@ void CLWrapper::initKernelBox(){
 	files.push_back("../C/BigUnsigned.h");
   files.push_back("../C/BigUnsigned.c");
   files.push_back("../opencl/Kernels/kernels.cl");
+  //files.push_back("../opencl/Kernels/test.h");
+  //files.push_back("../opencl/Kernels/test.c");
+  //files.push_back("../opencl/Kernels/testKernel.cl");
+
   kernelBox = new KernelBox(files, context, queue, deviceIdCount, deviceIds);
 }
 

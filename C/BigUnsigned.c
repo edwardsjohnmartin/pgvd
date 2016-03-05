@@ -25,6 +25,9 @@
   int isBUZero(BigUnsigned *bu) {
     return bu->len == 0;
   }
+  void printBUSize() {
+    printf("%d\n", sizeof(BigUnsigned));
+  }
 
   //~~INITIALIZERS~~//
   int initBUBU(BigUnsigned *result, BigUnsigned *x) {

@@ -2,8 +2,8 @@
 #define BIGUNSIGNED_C
 #define BIG_INTEGER_SIZE 2
 
-typedef unsigned long long Index; // Type for the index of a block in the array
-typedef unsigned long long Blk;  // Type for the blocks
+typedef unsigned long Index; // Type for the index of a block in the array
+typedef unsigned long Blk;  // Type for the blocks
 
 // #ifndef __cplusplus
 // #if __STDC_VERSION__ < 199901L
@@ -14,7 +14,7 @@ typedef unsigned long long Blk;  // Type for the blocks
 // #endif
 
 // BigUnsigned allows storing integers larger than a long using an array of blk.
-typedef struct BigUnsigned {
+typedef struct {
 	Index len;                                      // Actual length of the value stored (in blocks)
 	bool isNULL;
 	Blk blk[BIG_INTEGER_SIZE];
@@ -24,6 +24,7 @@ typedef struct BigUnsigned {
 // Decreases len to eliminate any leading zero blocks.
 void zapLeadingZeros(BigUnsigned * bu);
 int isBUZero(BigUnsigned *bu);
+void printBUSize();
 
 //~~INITIALIZERS~~//
 int initBUBU(BigUnsigned *result, BigUnsigned *x);
