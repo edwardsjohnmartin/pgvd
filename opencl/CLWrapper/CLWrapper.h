@@ -1,9 +1,14 @@
 #pragma once
-#include "..\Kernels\KernelBox.h"
-#include <CL\cl.hpp>
+#include "../Kernels/KernelBox.h"
+#ifdef __APPLE__
+#include "OpenCL/opencl.h"
+#else
+#include <CL/cl.hpp>
+#endif // __APPLE__
+
 #include <vector>
 #include <iostream>
-#include "..\..\C\BigUnsigned.h"
+#include "../../C/BigUnsigned.h"
 
 /*
   CLWrapper.
@@ -40,7 +45,7 @@ private:
 	std::string getDeviceName(cl_device_id id);
   void initRadixSortBuffers(std::vector<BigUnsigned> &input);
 	void envokeRadixSortRoutine(const Index numBits);
-	void CLWrapper::checkError(cl_int error);
+	void checkError(cl_int error);
 public:
 	bool verbose = true;
 	size_t globalSize;
