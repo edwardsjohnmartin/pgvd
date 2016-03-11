@@ -3,16 +3,15 @@
 void KernelBox::predicate(cl_mem &input, cl_mem &predicate, Index &index, unsigned char compared, size_t globalSize, size_t localSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
-	Index i = index;
+	cl_ulong i = index;
 	unsigned char c = compared;
-
-	clSetKernelArg(predicateKernel, 0, sizeof (cl_mem), &input);
-	clSetKernelArg(predicateKernel, 1, sizeof (cl_mem), &predicate);
-	clSetKernelArg(predicateKernel, 2, sizeof (Index), &i);
-	clSetKernelArg(predicateKernel, 3, sizeof (unsigned char), &c);
-	error = clEnqueueNDRangeKernel(queue, predicateKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+	error = clSetKernelArg(predicateKernel, 0, sizeof (cl_mem), &input);
+	error = clSetKernelArg(predicateKernel, 1, sizeof (cl_mem), &predicate);
+	error = clSetKernelArg(predicateKernel, 2, sizeof(unsigned short), &i);
+	error = clSetKernelArg(predicateKernel, 3, sizeof (unsigned char), &c);
+	error = clEnqueueNDRangeKernel(queue, predicateKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
 	if (error != CL_SUCCESS) {
-		std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
+		std::cerr << "KernelBox predication: OpenCL call failed with error " << error << std::endl;
 		std::getchar();
 		std::exit;
 	}
@@ -21,7 +20,7 @@ void KernelBox::streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &intermed
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
 
-  clEnqueueCopyBuffer(queue, intermediate, intermediateCopy, 0, 0, sizeof(Index)* (globalSize / localSize), 0, nullptr, nullptr);
+	clEnqueueCopyBuffer(queue, intermediate, intermediateCopy, 0, 0, sizeof(cl_int)* (globalSize / localSize), 0, nullptr, nullptr);
 
 	clSetKernelArg(scanKernel, 0, sizeof (cl_mem), &input);
 	clSetKernelArg(scanKernel, 1, sizeof (cl_mem), &result);
@@ -29,9 +28,9 @@ void KernelBox::streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &intermed
 	clSetKernelArg(scanKernel, 3, localSize * sizeof(Index), NULL);
 	clSetKernelArg(scanKernel, 4, localSize * sizeof(Index), NULL);
 
-	error = clEnqueueNDRangeKernel(queue, scanKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+	error = clEnqueueNDRangeKernel(queue, scanKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
 	if (error != CL_SUCCESS) {
-		std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
+		std::cerr << "KernelBox stream scan: OpenCL call failed with error " << error << std::endl;
 		std::getchar();
 		std::exit;
 	}
@@ -40,14 +39,14 @@ void KernelBox::doubleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem 
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
 	clSetKernelArg(compactKernel, 0, sizeof (cl_mem), &inputBuffer);
-  clSetKernelArg(compactKernel, 1, sizeof (cl_mem), &resultBuffer);
+	clSetKernelArg(compactKernel, 1, sizeof (cl_mem), &resultBuffer);
 	clSetKernelArg(compactKernel, 2, sizeof (cl_mem), &LPBuffer);
 	clSetKernelArg(compactKernel, 3, sizeof (cl_mem), &LABuffer);
 	clSetKernelArg(compactKernel, 4, sizeof (cl_mem), &RABuffer);
-	clSetKernelArg(compactKernel, 5, sizeof (Index), &globalSize);
-	error = clEnqueueNDRangeKernel(queue, compactKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+	clSetKernelArg(compactKernel, 5, sizeof (unsigned short), &globalSize);
+	error = clEnqueueNDRangeKernel(queue, compactKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
 	if (error != CL_SUCCESS) {
-		std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
+		std::cerr << "KernelBox double compaction: OpenCL call failed with error " << error << std::endl;
 		std::getchar();
 		std::exit;
 	}

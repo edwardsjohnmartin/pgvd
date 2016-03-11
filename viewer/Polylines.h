@@ -120,7 +120,7 @@ class Polylines {
     glEnableVertexAttribArray(program->getVertexLoc());
 
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-		glLineWidth(1.5);
+		glLineWidth(5.0);
 
     int first = 0;
     for (int i = 0; i < lasts.size(); ++i) {

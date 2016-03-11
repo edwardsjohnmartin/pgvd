@@ -19,8 +19,8 @@ void StreamScan(
 __global Index* buffer,
 __global Index* result,
 __global volatile int* I,
-__local int* localBuffer,
-__local int* scratch)
+__local Index* localBuffer,
+__local Index* scratch)
 {
 	//INITIALIZATION
   const size_t gid = get_global_id(0);
@@ -44,6 +44,7 @@ __local int* scratch)
   }
   if (gid == 0) I[0] = scratch[0];
   barrier(CLK_LOCAL_MEM_FENCE);
+  result[gid] = scratch[0];
 
   //SCAN
   scratch[lid] = localBuffer[lid];
@@ -56,6 +57,7 @@ __local int* scratch)
 	  barrier(CLK_LOCAL_MEM_FENCE);
 	}
   sum = localBuffer[lid];
+  
   if (wid != 0) sum += I[wid - 1];
   result[gid] = sum;
 }

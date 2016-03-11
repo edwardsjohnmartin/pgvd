@@ -349,8 +349,6 @@
     zapLeadingZeros(result);
     return 0;
   }
-  int shiftBURight(BigUnsigned *result, BigUnsigned *a, int b);
-  int shiftBULeft(BigUnsigned *result, BigUnsigned *a, int b);
   int shiftBURight(BigUnsigned *result, BigUnsigned *a, int b) {
     initBU(result);
     if (b < 0) {
@@ -359,7 +357,23 @@
       //"Pathological shift amount not implemented";
 
       if (!(b << 1 == 0)) {
-        return shiftBULeft(result, a, -b);
+        //return shiftBULeft(result, a, -b); 
+		  //Had to eliminate transitive recursion for intel's OpenCL implementation
+		b = -b;
+		initBU(result);
+		Index shiftBlocks = b / numBUBits;
+		unsigned int shiftBits = b % numBUBits;
+		// + 1: room for high bits nudged left into another block
+		result->len = a->len + shiftBlocks + 1;
+		Index i, j;
+		for (i = 0; i < shiftBlocks; i++)
+			result->blk[i] = 0;
+		for (j = 0, i = shiftBlocks; j <= a->len; j++, i++)
+			result->blk[i] = getShiftedBUBlock(a, j, shiftBits);
+		// Zap possible leading zero
+		if (result->blk[result->len - 1] == 0)
+			result->len--;
+		return result;
       }
     }
     // This calculation is wacky, but expressing the shift as a left bit shift

@@ -17,8 +17,8 @@
 #include "../Resln.h"
 
 // keep track of window size for things like the viewport and the mouse cursor
-int g_gl_width = 500;
-int g_gl_height = 400;
+int g_gl_width = 1000;
+int g_gl_height = 1000;
 GLFWwindow* g_window = NULL;
 
 Polylines* lines;

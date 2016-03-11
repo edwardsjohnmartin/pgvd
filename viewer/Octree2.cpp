@@ -663,11 +663,11 @@ void Octree2::render(LinesProgram* program) {
       program->getVertexLoc(), 3, GL_FLOAT, GL_FALSE, 0, NULL);
   glEnableVertexAttribArray(program->getVertexLoc());
 
-  program->setColor(make_float3(0.5, 0.5, 0.5));
+  program->setColor(make_float3(0.0, 0.0, 0.0));
 
   // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawIndices_vbo);
   // glDrawElements(GL_LINE_STRIP, numIndices, GL_UNSIGNED_INT, (void*)0);
-
+  glLineWidth(1.0);
   glDrawArrays(GL_LINES, 0, vertices.size());
 
   print_error("Octree2::render 1");

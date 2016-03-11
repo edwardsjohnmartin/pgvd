@@ -179,6 +179,7 @@ vector<OctNode> BuildOctree(
   int nextPowerOfTwo = pow(2, ceil(log(n) / log(2)));
   vector<BigUnsigned> mpoints_vec(nextPowerOfTwo);
   BigUnsigned* mpoints = mpoints_vec.data();
+ //BigUnsigned* mpoints = clEnqueueMapBuffer()
   for (int i = 0; i < points.size(); ++i) {
     xyz2z(&mpoints[i], points[i], &resln);
   }
@@ -186,16 +187,31 @@ vector<OctNode> BuildOctree(
     initBlkBU(&mpoints[i], 0);
   }
 
+  std::cout << "Next power of two: " << nextPowerOfTwo << std::endl;
+  std::cout << "Unpadded number of points: " << points.size() << std::endl;
+
   // GPU CANDIDATE
   // Currently uses std::sort. The call below that is commented out
   // calls the (unimplemented) sort in BuildOctree.c.
-  if (nextPowerOfTwo > 8) {
-    CL.RadixSort((void*)mpoints, 384, nextPowerOfTwo, min(nextPowerOfTwo/2, 256));
+  //if (nextPowerOfTwo > 8) {
+  //}
+  //else {
+//	sort(mpoints, mpoints + n, lessThanBigUnsigned);
+  //}
+  
+  if (nextPowerOfTwo < 8) {
+	  sort(mpoints, mpoints + n, lessThanBigUnsigned);
   }
   else {
-    sort(mpoints, mpoints + n, lessThanBigUnsigned);
+	  CL.RadixSort((void*)mpoints, 48, nextPowerOfTwo, min(nextPowerOfTwo / 4, 256));
   }
-  //sort_points(mpoints, mpoints + n);
+
+  n = unique(mpoints, mpoints + n, equalsBigUnsigned)-(mpoints);
+	//if (nextPowerOfTwo != points.size()) {
+	//	n -= 1;
+	//	mpoints += 1;
+	//}
+	//sort_points(mpoints, mpoints + n);
 
   
   // Make sure points are unique
@@ -203,7 +219,6 @@ vector<OctNode> BuildOctree(
 	//vector<BigUnsigned> unique_points_vec(n);
   //n = unique_points(mpoints, unique_points_vec.data(), n);
 	//mpoints = unique_points_vec.data();
-	n = unique(mpoints, mpoints + n, equalsBigUnsigned)-(mpoints);
 
 	if (verbose) {
 		cout << "mpoints: ";

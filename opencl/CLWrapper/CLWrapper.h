@@ -43,7 +43,7 @@ private:
 	//Helper methods
 	std::string getPlatformName(cl_platform_id id);
 	std::string getDeviceName(cl_device_id id);
-  void initRadixSortBuffers(void* mpoints);
+	inline void initRadixSortBuffers(void* mpoints);
 	void envokeRadixSortRoutine(const Index numBits);
 	void checkError(cl_int error);
 public:
