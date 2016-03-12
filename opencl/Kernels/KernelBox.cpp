@@ -16,15 +16,16 @@ void KernelBox::predicate(cl_mem &input, cl_mem &predicate, Index &index, unsign
 		std::exit;
 	}
 };
-void KernelBox::streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &intermediateCopy, cl_mem &result, size_t globalSize, size_t localSize){
+void KernelBox::streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &result, size_t globalSize, size_t localSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
 
-	clEnqueueCopyBuffer(queue, intermediate, intermediateCopy, 0, 0, sizeof(cl_int)* (globalSize / localSize), 0, nullptr, nullptr);
+	Index* negativeOne = new Index(-1);
+	clEnqueueFillBuffer(queue, intermediate, negativeOne, sizeof(Index), 0, sizeof(Index)* (globalSize / localSize), 0, NULL, NULL);
 
 	clSetKernelArg(scanKernel, 0, sizeof (cl_mem), &input);
 	clSetKernelArg(scanKernel, 1, sizeof (cl_mem), &result);
-	clSetKernelArg(scanKernel, 2, sizeof (cl_mem), &intermediateCopy);
+	clSetKernelArg(scanKernel, 2, sizeof (cl_mem), &intermediate);
 	clSetKernelArg(scanKernel, 3, localSize * sizeof(Index), NULL);
 	clSetKernelArg(scanKernel, 4, localSize * sizeof(Index), NULL);
 
@@ -34,6 +35,7 @@ void KernelBox::streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &intermed
 		std::getchar();
 		std::exit;
 	}
+	delete negativeOne;
 };
 void KernelBox::doubleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem &LPBuffer, cl_mem &LABuffer, cl_mem &RABuffer, size_t globalSize, size_t localSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };

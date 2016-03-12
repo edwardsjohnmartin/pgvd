@@ -31,7 +31,9 @@ private:
 	std::vector<cl_device_id> deviceIds;
 	KernelBox* kernelBox;
 
-  std::vector<cl_mem> buffers;
+    std::vector<cl_mem> gpuBuffers;
+	std::vector<cl_mem> sharedBuffers;
+	std::vector<void*> sharedPointers;
 
 	//Initializers
 	void initPlatformIds();
@@ -43,7 +45,7 @@ private:
 	//Helper methods
 	std::string getPlatformName(cl_platform_id id);
 	std::string getDeviceName(cl_device_id id);
-	inline void initRadixSortBuffers(void* mpoints);
+	inline void initRadixSortBuffers(int sharedMemoryIndex);
 	void envokeRadixSortRoutine(const Index numBits);
 	void checkError(cl_int error);
 public:
@@ -55,6 +57,8 @@ public:
 	~CLWrapper();
 
 	//Kernel Wrappers
-  void RadixSort(void* mpoints, const Index numBits, int _globalSize, int _localSize);
+    void RadixSort(int sharedMemoryIndex, const Index numBits, int _globalSize, int _localSize);
+	void* getSharedMemoryPointer(size_t size, int readOrWriteFlag);
+	void unmapSharedMemory();
 };
 

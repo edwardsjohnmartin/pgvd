@@ -43,7 +43,7 @@ public:
 	~KernelBox();
 
 	void predicate(cl_mem &input, cl_mem &predicate, Index &index, unsigned char compared, size_t globalSize, size_t localSize);
-  void streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &intermediateCopy, cl_mem &result, size_t globalSize, size_t localSize);
+	void streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &result, size_t globalSize, size_t localSize);
 	void doubleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem &LPBuffer, cl_mem &LABuffer, cl_mem &RABuffer, size_t globalSize, size_t localSize);
 };
 
