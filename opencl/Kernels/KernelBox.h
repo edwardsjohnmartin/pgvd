@@ -23,11 +23,13 @@ class KernelBox
 private:
 	//Variables
 	cl_int error;
-  cl_kernel predicateKernel;
   cl_program program;
-	cl_kernel scanKernel;
-	cl_kernel compactKernel;
 	cl_command_queue queue;
+  cl_kernel bitPredicateKernel;
+  cl_kernel uniquePredicateKernel;
+	cl_kernel scanKernel;
+  cl_kernel doubleCompactKernel;
+  cl_kernel singleCompactKernel;
 
 	//Methods
 	void initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
@@ -42,8 +44,10 @@ public:
 	KernelBox(std::vector<std::string> fileNames, cl_context &context, cl_command_queue &_queue, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
 	~KernelBox();
 
-	void predicate(cl_mem &input, cl_mem &predicate, Index &index, unsigned char compared, size_t globalSize, size_t localSize);
+	void bitPredicate(cl_mem &input, cl_mem &predicate, Index &index, unsigned char compared, size_t globalSize, size_t localSize);
+  void uniquePredicate(cl_mem &input, cl_mem &predicate, size_t globalSize, size_t localSize);
 	void streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &result, size_t globalSize, size_t localSize);
-	void doubleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem &LPBuffer, cl_mem &LABuffer, cl_mem &RABuffer, size_t globalSize, size_t localSize);
+  void doubleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem &LPBuffer, cl_mem &LABuffer, cl_mem &RABuffer, size_t globalSize, size_t localSize);
+  void singleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem &PBuffer, cl_mem &ABuffer, size_t globalSize, size_t localSize);
 };
 

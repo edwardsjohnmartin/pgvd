@@ -47,6 +47,7 @@ private:
 	std::string getDeviceName(cl_device_id id);
 	inline void initRadixSortBuffers(int sharedMemoryIndex);
 	void envokeRadixSortRoutine(const Index numBits);
+  inline void initUniqueBuffers(int sharedMemoryIndex);
 	void checkError(cl_int error);
 public:
 	bool verbose = true;
@@ -57,7 +58,8 @@ public:
 	~CLWrapper();
 
 	//Kernel Wrappers
-    void RadixSort(int sharedMemoryIndex, const Index numBits, int _globalSize, int _localSize);
+  void RadixSort(int sharedMemoryIndex, const Index numBits, int _globalSize, int _localSize);
+  int UniqueSorted(int sharedMemoryIndex, int _globalSize, int _localSize);
 	void* getSharedMemoryPointer(size_t size, int readOrWriteFlag);
 	void unmapSharedMemory();
 };

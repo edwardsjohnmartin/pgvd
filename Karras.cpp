@@ -71,7 +71,12 @@ inline std::string buToString(BigUnsigned bu) {
 	std::string representation = "";
 	if (bu.len == 0)
 	{
-		representation += "[0]";
+    if (bu.isNULL) {
+      representation += "[NULL]";
+    }
+    else {
+      representation += "[0]";
+    }
 	}
 	else {
 		for (int i = bu.len; i > 0; --i) {
@@ -189,10 +194,8 @@ vector<OctNode> BuildOctree(
   std::cout << "Unpadded number of points: " << points.size() << std::endl;
 
   CL.RadixSort(0, 48, nextPowerOfTwo, min(nextPowerOfTwo / 4, 256));
-  mpoints = (BigUnsigned*)CL.getSharedMemoryPointer(nextPowerOfTwo*sizeof(BigUnsigned), CL_MAP_READ);
-
-
-  n = unique(mpoints, mpoints + n, equalsBigUnsigned)-(mpoints);
+  n = CL.UniqueSorted(0, nextPowerOfTwo, min(nextPowerOfTwo / 4, 256)); //Bug here. Not sure why, but memory becomes corrupt in a special case.
+  mpoints = (BigUnsigned*)CL.getSharedMemoryPointer(n*sizeof(BigUnsigned), CL_MAP_READ);
 
 	if (verbose) {
 		cout << "mpoints: ";

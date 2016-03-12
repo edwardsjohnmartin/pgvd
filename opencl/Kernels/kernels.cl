@@ -1,5 +1,5 @@
 //Radix Predication
-__kernel void Predicate(
+__kernel void BitPredicate(
 	__global BigUnsigned *inputBuffer,
 	__global Index *predicateBuffer,
 	Index index,
@@ -8,6 +8,22 @@ __kernel void Predicate(
   const size_t gid = get_global_id(0);
   BigUnsigned self = inputBuffer[gid];
   predicateBuffer[gid] = (getBUBit(&self, index) == comparedWith) ? 1:0;
+}
+
+//Unique Predication
+//Requires input be sorted.
+__kernel void UniquePredicate(
+  __global BigUnsigned *inputBuffer,
+  __global Index *predicateBuffer)
+{
+  const size_t gid = get_global_id(0);
+  if (gid == 0) {
+    predicateBuffer[gid] = 1;
+  } else {
+    BigUnsigned self = inputBuffer[gid];
+    BigUnsigned previous = inputBuffer[gid-1];
+    predicateBuffer[gid] = (compareBU(&self, &previous) != 0);
+  }
 }
 
 
@@ -77,4 +93,20 @@ __kernel void BUCompact(
 	else index = rightBuffer[gid] + leftBuffer[size - 1];
 	BigUnsigned temp = inputBuffer[gid];
   resultBuffer[index - 1] = temp;
+}
+
+//Single Compaction
+__kernel void BUSingleCompact(
+  __global BigUnsigned *inputBuffer,
+  __global BigUnsigned *resultBuffer,
+  __global Index *predicateBuffer,
+  __global Index *addressBuffer)
+{
+  const size_t gid = get_global_id(0);
+  Index index;
+  if (predicateBuffer[gid] == 1) {
+    index = addressBuffer[gid];
+    BigUnsigned temp = inputBuffer[gid];
+    resultBuffer[index - 1] = temp;
+  } 
 }

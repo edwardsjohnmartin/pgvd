@@ -1,21 +1,43 @@
 #include "KernelBox.h"
 
-void KernelBox::predicate(cl_mem &input, cl_mem &predicate, Index &index, unsigned char compared, size_t globalSize, size_t localSize){
+void KernelBox::bitPredicate(cl_mem &input, cl_mem &predicate, Index &index, unsigned char compared, size_t globalSize, size_t localSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
 	cl_ulong i = index;
 	unsigned char c = compared;
-	error = clSetKernelArg(predicateKernel, 0, sizeof (cl_mem), &input);
-	error = clSetKernelArg(predicateKernel, 1, sizeof (cl_mem), &predicate);
-	error = clSetKernelArg(predicateKernel, 2, sizeof(unsigned short), &i);
-	error = clSetKernelArg(predicateKernel, 3, sizeof (unsigned char), &c);
-	error = clEnqueueNDRangeKernel(queue, predicateKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
+	error = clSetKernelArg(bitPredicateKernel, 0, sizeof (cl_mem), &input);
+	error = clSetKernelArg(bitPredicateKernel, 1, sizeof (cl_mem), &predicate);
+	error = clSetKernelArg(bitPredicateKernel, 2, sizeof(unsigned short), &i);
+	error = clSetKernelArg(bitPredicateKernel, 3, sizeof (unsigned char), &c);
+	error = clEnqueueNDRangeKernel(queue, bitPredicateKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
 	if (error != CL_SUCCESS) {
 		std::cerr << "KernelBox predication: OpenCL call failed with error " << error << std::endl;
 		std::getchar();
 		std::exit;
 	}
 };
+void KernelBox::uniquePredicate(cl_mem &input, cl_mem &predicate, size_t globalSize, size_t localSize) {
+  const size_t globalWorkSize[] = { globalSize, 0, 0 };
+  const size_t localWorkSize[] = { localSize, 0, 0 };
+  error = clSetKernelArg(uniquePredicateKernel, 0, sizeof(cl_mem), &input);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox unique predication 1: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+  error = clSetKernelArg(uniquePredicateKernel, 1, sizeof(cl_mem), &predicate);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox unique predication 2: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+  error = clEnqueueNDRangeKernel(queue, uniquePredicateKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox unique predication: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+}
 void KernelBox::streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &result, size_t globalSize, size_t localSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
@@ -37,16 +59,30 @@ void KernelBox::streamScan(cl_mem &input, cl_mem &intermediate, cl_mem &result, 
 	}
 	delete negativeOne;
 };
+void KernelBox::singleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem &PBuffer, cl_mem &ABuffer, size_t globalSize, size_t localSize) {
+  const size_t globalWorkSize[] = { globalSize, 0, 0 };
+  const size_t localWorkSize[] = { localSize, 0, 0 };
+  clSetKernelArg(singleCompactKernel, 0, sizeof(cl_mem), &inputBuffer);
+  clSetKernelArg(singleCompactKernel, 1, sizeof(cl_mem), &resultBuffer);
+  clSetKernelArg(singleCompactKernel, 2, sizeof(cl_mem), &PBuffer);
+  clSetKernelArg(singleCompactKernel, 3, sizeof(cl_mem), &ABuffer);
+  error = clEnqueueNDRangeKernel(queue, singleCompactKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox double compaction: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+}
 void KernelBox::doubleCompact(cl_mem &inputBuffer, cl_mem &resultBuffer, cl_mem &LPBuffer, cl_mem &LABuffer, cl_mem &RABuffer, size_t globalSize, size_t localSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
-	clSetKernelArg(compactKernel, 0, sizeof (cl_mem), &inputBuffer);
-	clSetKernelArg(compactKernel, 1, sizeof (cl_mem), &resultBuffer);
-	clSetKernelArg(compactKernel, 2, sizeof (cl_mem), &LPBuffer);
-	clSetKernelArg(compactKernel, 3, sizeof (cl_mem), &LABuffer);
-	clSetKernelArg(compactKernel, 4, sizeof (cl_mem), &RABuffer);
-	clSetKernelArg(compactKernel, 5, sizeof (unsigned short), &globalSize);
-	error = clEnqueueNDRangeKernel(queue, compactKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
+	clSetKernelArg(doubleCompactKernel, 0, sizeof (cl_mem), &inputBuffer);
+	clSetKernelArg(doubleCompactKernel, 1, sizeof (cl_mem), &resultBuffer);
+	clSetKernelArg(doubleCompactKernel, 2, sizeof (cl_mem), &LPBuffer);
+	clSetKernelArg(doubleCompactKernel, 3, sizeof (cl_mem), &LABuffer);
+	clSetKernelArg(doubleCompactKernel, 4, sizeof (cl_mem), &RABuffer);
+	clSetKernelArg(doubleCompactKernel, 5, sizeof (unsigned short), &globalSize);
+	error = clEnqueueNDRangeKernel(queue, doubleCompactKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
 	if (error != CL_SUCCESS) {
 		std::cerr << "KernelBox double compaction: OpenCL call failed with error " << error << std::endl;
 		std::getchar();
@@ -116,14 +152,24 @@ void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context conte
 void KernelBox::initKernels() {
 	//Create Predication, Scan, & Compact kernels
 	if (verbose)
-		std::cout << "KernelBox: Creating Predicate Kernel..." << std::endl;
+		std::cout << "KernelBox: Creating Bit Predicate Kernel..." << std::endl;
 
-  predicateKernel = clCreateKernel(program, "Predicate", &error);
+  bitPredicateKernel = clCreateKernel(program, "BitPredicate", &error);
 	if (error != CL_SUCCESS) {
 		std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
 		std::getchar();
 		std::exit;
 	}
+
+  if (verbose)
+    std::cout << "KernelBox: Creating Unique Predicate Kernel..." << std::endl;
+  uniquePredicateKernel = clCreateKernel(program, "UniquePredicate", &error);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+
 	if (verbose)
 		std::cout << "KernelBox: Creating StreamScan Kernel..." << std::endl;
 	scanKernel = clCreateKernel(program, "StreamScan", &error);
@@ -134,12 +180,20 @@ void KernelBox::initKernels() {
 	}
 	if (verbose)
 		std::cout << "KernelBox: Creating BUCompact Kernel..." << std::endl;
-	compactKernel = clCreateKernel(program, "BUCompact", &error);
+	doubleCompactKernel = clCreateKernel(program, "BUCompact", &error);
 	if (error != CL_SUCCESS) {
 		std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
 		std::getchar();
 		std::exit;
 	}
+  if (verbose)
+    std::cout << "KernelBox: Creating BUSingleCompact Kernel..." << std::endl;
+  singleCompactKernel = clCreateKernel(program, "BUSingleCompact", &error);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
 }
 
 std::string KernelBox::loadFile(const char* name)
