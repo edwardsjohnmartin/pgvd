@@ -1,0 +1,5 @@
+C:/git/pgvd/pgvdBuild/CMakeFiles/pgvd2.dir
+C:/git/pgvd/pgvdBuild/CMakeFiles/ALL_BUILD.dir
+C:/git/pgvd/pgvdBuild/CMakeFiles/ZERO_CHECK.dir
+C:/git/pgvd/pgvdBuild/glfw/CMakeFiles/ALL_BUILD.dir
+C:/git/pgvd/pgvdBuild/glfw/src/CMakeFiles/glfw.dir

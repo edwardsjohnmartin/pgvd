@@ -19,6 +19,18 @@ CLWrapper::~CLWrapper()
   clReleaseCommandQueue(queue);
   clReleaseContext(context);
 }
+shared_ptr<Buffer> CLWrapper::createBuffer(size_t size) {
+  return make_shared<Buffer>(size, context, queue);
+}
+bool CLWrapper::isBufferUsable(shared_ptr<Buffer> buffer, size_t expectedSizeInBytes) {
+  if (buffer == nullptr)
+    return false;
+  else if (buffer->getSize() != expectedSizeInBytes)
+    return false;
+  else
+    return true;
+}
+
 
 //--PRIVATE--//
 void CLWrapper::checkError(cl_int error){
@@ -102,9 +114,20 @@ void CLWrapper::initCommandQueue() {
 }
 void CLWrapper::initKernelBox(){
   //These are the files sent to be built by OpenCL
+
+  //These files need to be copied relative to the executable...
   std::vector<std::string> files;
 	files.push_back("../C/BigUnsigned.h");
   files.push_back("../C/BigUnsigned.c");
+  files.push_back("../C/ParallelAlgorithms.h");
+  files.push_back("../C/ParallelAlgorithms.c");
+  files.push_back("../C/BrtNode.h");
+  files.push_back("../C/BuildBRT.h");
+  files.push_back("../C/BuildBRT.c");
+  files.push_back("../OpenCL/dim.h"); 
+  files.push_back("../OctNode.h");
+  files.push_back("../C/BuildOctree.h");
+  files.push_back("../C/BuildOctree.c");
   files.push_back("../opencl/Kernels/kernels.cl");
   kernelBox = new KernelBox(files, context, queue, deviceIdCount, deviceIds);
 }
@@ -132,4 +155,3 @@ std::string CLWrapper::getDeviceName(cl_device_id id)
 
   return result;
 }
-

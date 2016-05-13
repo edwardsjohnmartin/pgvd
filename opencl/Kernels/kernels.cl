@@ -1,112 +1,141 @@
-//Radix Predication
-__kernel void BitPredicate(
-	__global BigUnsigned *inputBuffer,
-	__global Index *predicateBuffer,
-	Index index,
-	unsigned char comparedWith)
+
+__kernel void BitPredicateKernel( 
+  __global BigUnsigned *inputBuffer, 
+  __global Index *predicateBuffer, 
+  Index index, 
+  unsigned char comparedWith)
 {
-  const size_t gid = get_global_id(0);
-  BigUnsigned self = inputBuffer[gid];
-  predicateBuffer[gid] = (getBUBit(&self, index) == comparedWith) ? 1:0;
+  BitPredicate(inputBuffer, predicateBuffer, index, comparedWith, get_global_id(0));
 }
 
-//Unique Predication
-//Requires input be sorted.
-__kernel void UniquePredicate(
-  __global BigUnsigned *inputBuffer,
+__kernel void UniquePredicateKernel(
+ __global BigUnsigned *inputBuffer,
   __global Index *predicateBuffer)
 {
-  const size_t gid = get_global_id(0);
-  if (gid == 0) {
-    predicateBuffer[gid] = 1;
-  } else {
-    BigUnsigned self = inputBuffer[gid];
-    BigUnsigned previous = inputBuffer[gid-1];
-    predicateBuffer[gid] = (compareBU(&self, &previous) != 0);
-  }
+  UniquePredicate(inputBuffer, predicateBuffer, get_global_id(0));
 }
 
-
-//StreamScan
-//https://www.youtube.com/watch?v=RdfmxfZBHpo
-#define SWAP(a,b) {__local Index *tmp=a;a=b;b=tmp;}
-__kernel
-void StreamScan(
-__global Index* buffer,
-__global Index* result,
-__global volatile int* I,
-__local Index* localBuffer,
-__local Index* scratch)
+__kernel void StreamScanKernel( 
+  __global Index* buffer, 
+  __global Index* result, 
+  __global volatile int* I, 
+  __local Index* localBuffer, 
+  __local Index* scratch)
 {
-	//INITIALIZATION
   const size_t gid = get_global_id(0);
   const size_t lid = get_local_id(0);
   const size_t wid = get_group_id(0);
   const size_t ls = get_local_size(0);
-  Index sum;
-	localBuffer[lid] = scratch[lid] = buffer[gid];
+  int sum = 0;  
+  StreamScan_Init(buffer, localBuffer, scratch, gid, lid);
   barrier(CLK_LOCAL_MEM_FENCE);
 
-	//ADDITIVE REDUCTION
-	for (int offset = ls / 2; offset > 0; offset >>= 1) {
-    if (lid < offset){ scratch[lid] = scratch[lid + offset] + scratch[lid];}
-		barrier(CLK_LOCAL_MEM_FENCE);
-	}
+  for (int offset = ls / 2; offset > 0; offset >>= 1) {
+    AddAll(scratch, lid, offset);
+    barrier(CLK_LOCAL_MEM_FENCE);
+  }
 
-	//ADJACENT SYNCRONIZATION
+  //ADJACENT SYNCRONIZATION
   if (lid == 0 && gid != 0) {
-    while (I[wid - 1] == -1);
-    I[wid] = I[wid - 1] + scratch[0];
+  while (I[wid - 1] == -1);
+  I[wid] = I[wid - 1] + scratch[0];
   }
   if (gid == 0) I[0] = scratch[0];
   barrier(CLK_LOCAL_MEM_FENCE);
   result[gid] = scratch[0];
 
-  //SCAN
   scratch[lid] = localBuffer[lid];
-	for (uint i = 1; i < ls; i <<= 1) {
-		if (lid >(i - 1))
-			scratch[lid] = localBuffer[lid] + localBuffer[lid - i];
-		else
-			scratch[lid] = localBuffer[lid];
-	  SWAP(scratch, localBuffer);
-	  barrier(CLK_LOCAL_MEM_FENCE);
-	}
+  for (unsigned int i = 1; i < ls; i <<= 1) {
+    HillesSteelScan(localBuffer, scratch, lid, i);
+    __local Index *tmp = scratch;
+    scratch = localBuffer;
+    localBuffer = tmp;
+    barrier(CLK_LOCAL_MEM_FENCE);
+  }
   sum = localBuffer[lid];
-  
+
   if (wid != 0) sum += I[wid - 1];
-  result[gid] = sum;
+  result[gid] = sum; 
 }
 
 //Double Compaction
-__kernel void BUCompact(
-	__global BigUnsigned *inputBuffer,
-  __global BigUnsigned *resultBuffer,
-	__global Index *lPredicateBuffer,
-	__global Index *leftBuffer,
-	__global Index *rightBuffer,
-	Index size)
+__kernel void BUCompactKernel( 
+  __global BigUnsigned *inputBuffer, 
+  __global BigUnsigned *resultBuffer, 
+  __global Index *lPredicateBuffer, 
+  __global Index *leftBuffer, 
+  __global Index *rightBuffer, 
+  Index size)
 {
-	const size_t gid = get_global_id(0);
-	Index index;
-	if (lPredicateBuffer[gid] == 1) index = leftBuffer[gid];
-	else index = rightBuffer[gid] + leftBuffer[size - 1];
-	BigUnsigned temp = inputBuffer[gid];
-  resultBuffer[index - 1] = temp;
+  BUCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, rightBuffer, size, get_global_id(0));
 }
 
 //Single Compaction
-__kernel void BUSingleCompact(
+__kernel void BUSingleCompactKernel(
   __global BigUnsigned *inputBuffer,
   __global BigUnsigned *resultBuffer,
   __global Index *predicateBuffer,
   __global Index *addressBuffer)
 {
+  BUSingleCompact(inputBuffer, resultBuffer, predicateBuffer, addressBuffer, get_global_id(0));
+}
+
+
+//Binary Radix Tree Builder
+__kernel void BuildBinaryRadixTreeKernel(
+__global BrtNode *I,
+__global BrtNode* L,
+__global BigUnsigned* mpoints,
+int mbits,
+int size
+) 
+{
+  BuildBinaryRadixTree(I, L, mpoints, mbits, size, get_global_id(0));
+}
+
+
+__kernel void ComputeLocalSplitsKernel(
+  __global unsigned int* local_splits, 
+  __global BrtNode* I,
+  const int size
+)
+{
   const size_t gid = get_global_id(0);
-  Index index;
-  if (predicateBuffer[gid] == 1) {
-    index = addressBuffer[gid];
-    BigUnsigned temp = inputBuffer[gid];
-    resultBuffer[index - 1] = temp;
-  } 
+  if (gid == 0 && size > 0) {
+    local_splits[0] = 1 + I[0].lcp_length / DIM;
+  }
+  if (gid < (size-1) ) {
+    ComputeLocalSplits(local_splits, I, gid);
+  }
+}
+
+
+
+__kernel void BRT2OctreeKernel_init(
+  __global BrtNode *I,
+  __global OctNode *octree,
+  __global unsigned int *local_splits,
+  __global unsigned int *prefix_sums,
+  const int n
+) {
+  const size_t gid = get_global_id(0);
+  const int octree_size = prefix_sums[n-1];
+
+  if (gid < octree_size)
+    brt2octree_init( gid, octree);
+}
+
+__kernel void BRT2OctreeKernel(
+  __global BrtNode *I,
+  __global OctNode *octree,
+  __global unsigned int *local_splits,
+  __global unsigned int *prefix_sums,
+  const int n
+) {
+  const size_t gid = get_global_id(0);
+  const int octree_size = prefix_sums[n-1];
+  if (gid == 0) {
+    for (int brt_i = 1; brt_i < n-1; ++brt_i)
+      brt2octree( brt_i, I, octree, local_splits, prefix_sums, n, octree_size);
+  }  
 }

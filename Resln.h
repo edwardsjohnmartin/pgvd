@@ -3,7 +3,10 @@
 
 #include "./opencl/dim.h"
 
+#ifndef  __OPENCL_VERSION__ 
 #include <assert.h>
+#endif
+
 //#include <stdint.h>
 
 // #ifdef __APPLE__

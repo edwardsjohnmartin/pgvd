@@ -1,4 +1,5 @@
 #pragma once
+using namespace std;
 #include "../Kernels/KernelBox.h"
 #ifdef __APPLE__
 #include "OpenCL/opencl.h"
@@ -8,7 +9,12 @@
 
 #include <vector>
 #include <iostream>
-#include "../../C/BigUnsigned.h"
+#include <memory>
+#include <algorithm>
+#include "../BufferCollection/buffers.h"
+#include "../BufferCollection/Buffer.h"
+#include "../../C/BrtNode.h"
+#include "../../OctNode.h"
 
 /*
   CLWrapper.
@@ -20,47 +26,50 @@
 */
 class CLWrapper
 {
-private:
-	//Variables
-	cl_int error;
-	cl_uint platformIdCount;
-	cl_uint deviceIdCount;
-	cl_context context;
-	cl_command_queue queue;
-	std::vector<cl_platform_id> platformIds;
-	std::vector<cl_device_id> deviceIds;
-	KernelBox* kernelBox;
+  private:
+	  //Variables
+	  cl_int error;
+	  cl_uint platformIdCount;
+	  cl_uint deviceIdCount;
+	  cl_context context;
+	  cl_command_queue queue;
+	  vector<cl_platform_id> platformIds;
+	  vector<cl_device_id> deviceIds;
+	  KernelBox* kernelBox;
 
-    std::vector<cl_mem> gpuBuffers;
-	std::vector<cl_mem> sharedBuffers;
-	std::vector<void*> sharedPointers;
+	  //Initializers
+	  void initPlatformIds();
+	  void initDevices();
+	  void initContext();
+	  void initCommandQueue();
+	  void initKernelBox();
 
-	//Initializers
-	void initPlatformIds();
-	void initDevices();
-	void initContext();
-	void initCommandQueue();
-	void initKernelBox();
+	  //Private helper methods
+	  string getPlatformName(cl_platform_id id);
+	  string getDeviceName(cl_device_id id);
+	  inline void initRadixSortBuffers();
+	  void envokeRadixSortRoutine(const Index numBits);
+	  inline void initUniqueBuffers();
+	  inline void initBrtBuffers();
+    inline void initBRT2OctreeBuffers(size_t n);
+	  void checkError(cl_int error);
 
-	//Helper methods
-	std::string getPlatformName(cl_platform_id id);
-	std::string getDeviceName(cl_device_id id);
-	inline void initRadixSortBuffers(int sharedMemoryIndex);
-	void envokeRadixSortRoutine(const Index numBits);
-  inline void initUniqueBuffers(int sharedMemoryIndex);
-	void checkError(cl_int error);
-public:
-	bool verbose = true;
-	size_t globalSize;
-	size_t localSize;
+  public:
+    Buffers buffers;
+	  bool verbose = true;
+	  size_t globalSize;
+	  size_t localSize;
 
-	CLWrapper(size_t globalSize, size_t localSize);
-	~CLWrapper();
-
-	//Kernel Wrappers
-  void RadixSort(int sharedMemoryIndex, const Index numBits, int _globalSize, int _localSize);
-  int UniqueSorted(int sharedMemoryIndex, int _globalSize, int _localSize);
-	void* getSharedMemoryPointer(size_t size, int readOrWriteFlag);
-	void unmapSharedMemory();
+	  CLWrapper(size_t globalSize, size_t localSize);
+	  ~CLWrapper();
+    //Public helper methods
+    shared_ptr<Buffer> createBuffer(size_t size);
+    bool isBufferUsable(shared_ptr<Buffer> buffer, size_t expectedSizeInBytes);
+	  
+    //Kernel Wrappers
+    void RadixSort(const Index numBits);
+    size_t UniqueSorted();
+	  void buildBrt(size_t n, int mbits);
+    vector<OctNode> BRT2Octree(size_t n);
 };
 

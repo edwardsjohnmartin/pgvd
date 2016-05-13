@@ -184,7 +184,7 @@ void Octree2::build(const Polylines& lines,
 
     ++iterations;
   } while (iterations < options.karras_iterations && !extra_qpoints.empty());
-  cout << "Karras iterations: " << iterations << endl;
+  //cout << "Karras iterations: " << iterations << endl;
 
   // Count the number of cells with multiple intersections
   int count = 0;
@@ -195,7 +195,7 @@ void Octree2::build(const Polylines& lines,
       }
     }
   }
-  cout << "Number of multi-intersection cells: " << count << endl;
+  //cout << "Number of multi-intersection cells: " << count << endl;
 
   // todo: setup vertices on GPU for rendering
   buildOctVertices();

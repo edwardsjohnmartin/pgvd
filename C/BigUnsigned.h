@@ -1,8 +1,8 @@
 #ifndef BIGUNSIGNED_C
 #define BIGUNSIGNED_C
-#define BIG_INTEGER_SIZE 6 //6 results in 32 byte BUs.
-typedef unsigned short Index; // Type for the index of a block in the array
-typedef unsigned short Blk;  // Type for the blocks
+#define BIG_INTEGER_SIZE 10 //6 results in 32 byte BUs.
+typedef unsigned int Index; // Type for the index of a block in the array
+typedef unsigned char Blk;  // Type for the blocks
 
 // BigUnsigned allows storing integers larger than a long using an array of blk.
 typedef struct {

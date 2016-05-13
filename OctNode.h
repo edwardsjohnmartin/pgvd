@@ -1,13 +1,18 @@
 #ifndef __OCT_NODE_H__
 #define __OCT_NODE_H__
-
+#define DIM 2
 // An octree node is an internal node of the octree. An octree cell
 // is a general term that refers to both internal nodes and leaves.
 
+#ifndef  __OPENCL_VERSION__ 
 static const int leaf_masks[] = { 1, 2, 4, 8 };
+#else
+__constant int leaf_masks[] = { 1, 2, 4, 8 };
+#endif
+
 
 // You must call init_OctNode()!
-struct OctNode {
+typedef struct OctNode {
 
 #ifdef __cplusplus
   const int& operator[](const int i) const {
@@ -17,7 +22,10 @@ struct OctNode {
 
   int children[1<<DIM];
   unsigned char leaf;
-};
+  int pad1;
+  int pad2;
+  int pad3;
+} OctNode;
 
 static inline void init_OctNode(struct OctNode* node) {
   node->leaf = 15;
@@ -41,7 +49,9 @@ static inline bool is_leaf(const struct OctNode* node, const int i) {
 }
 
 static inline void set_data(struct OctNode* node, const int octant, const int data) {
-  assert(is_leaf(node, octant));
+  #ifndef  __OPENCL_VERSION__ 
+    //assert(is_leaf(node, octant));  
+  #endif
   // if (!is_leaf(node, octant))
   //   throw std::logic_error("Trying to set data on a non-leaf cell");
   node->children[octant] = data;

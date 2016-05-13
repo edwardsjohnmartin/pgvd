@@ -10,7 +10,8 @@
 // #include "./gpu.h"
 
 extern "C" {
-	#include "./C/BuildOctree.h"
+  #include "C/ParallelAlgorithms.h"
+	#include "C/BuildOctree.h"
 }
 using std::cout;
 using std::endl;
@@ -178,115 +179,29 @@ vector<OctNode> BuildOctree(
   if (points.empty())
     throw logic_error("Zero points not supported");
 
+  //Here, we're making a buffer vector containing the input we'd like to sort.
   int n = points.size();
-  int nextPowerOfTwo = pow(2, ceil(log(n) / log(2)));
-  nextPowerOfTwo = max(nextPowerOfTwo, 8);
-  BigUnsigned* mpoints = (BigUnsigned*)CL.getSharedMemoryPointer(nextPowerOfTwo*sizeof(BigUnsigned), CL_MAP_WRITE);
-
-  for (int i = 0; i < points.size(); ++i) {
+  int nextPowerOfTwo = max( (int) pow( 2, ceil( log( n ) / log( 2 ) ) ), 8 );
+  if (verbose)
+    cout << "Next Power of Two: " << nextPowerOfTwo << endl;
+  if (!CL.isBufferUsable(CL.buffers.bigUnsignedInput, sizeof(BigUnsigned)* (nextPowerOfTwo)))
+    CL.buffers.bigUnsignedInput = CL.createBuffer(nextPowerOfTwo*sizeof(BigUnsigned));
+  
+  //In this case, we're sorting Z-Order points. 
+  //We pad with 0's that will be culled using unique.
+  BigUnsigned* mpoints = (BigUnsigned*)CL.buffers.bigUnsignedInput->map_buffer();
+  for (int i = 0; i < points.size(); ++i) 
     xyz2z(&mpoints[i], points[i], &resln);
-  }
-  for (int i = points.size(); i < nextPowerOfTwo; i++) {
-    initBlkBU(&mpoints[i], 0);
-  }
+  for (int i = points.size(); i < nextPowerOfTwo; i++) 
+    initBlkBU(&mpoints[i], 0);  
 
-  std::cout << "Next power of two: " << nextPowerOfTwo << std::endl;
-  std::cout << "Unpadded number of points: " << points.size() << std::endl;
+  CL.buffers.bigUnsignedInput->unmap_buffer();
+  CL.RadixSort(resln.mbits);
+  n = CL.UniqueSorted();
 
-  CL.RadixSort(0, 48, nextPowerOfTwo, min(nextPowerOfTwo / 4, 256));
-  n = CL.UniqueSorted(0, nextPowerOfTwo, min(nextPowerOfTwo / 4, 256)); //Bug here. Not sure why, but memory becomes corrupt in a special case.
-  mpoints = (BigUnsigned*)CL.getSharedMemoryPointer(n*sizeof(BigUnsigned), CL_MAP_READ);
-
-	if (verbose) {
-		cout << "mpoints: ";
-		for (int i = 0; i < n; ++i) {
-			cout << buToString(mpoints[i]) << " " << endl;
-		}
-		cout << endl;
-	}
-
-	cout << sizeof(BigUnsigned) << endl;
-  // // Send mpoints to gpu
-  // if (o.gpu) {
-  //   oct::Gpu gpu;
-  //   gpu.CreateMPoints(mpoints.size());
-  // }
-
-  // Internal nodes
-  vector<BrtNode> I_vec(n-1);
-  // Leaf nodes
-  vector<BrtNode> L_vec(n);
-  BrtNode* I = I_vec.data();
-  BrtNode* L = L_vec.data();
-  build_brt(I, L, mpoints, n, &resln);
-  CL.unmapSharedMemory();
-
-  // Set parents
-  set_brt_parents(I, n);
-
-  // local_splits stores how many times the octree needs to be
-  // split from a parent to a child in the brt. For example, in 2D if a child
-  // has an lcp_length of 8 and the parent has lcp_length of 4, then
-  // the child represents two octree splits.
-  vector<int> local_splits_vec(n-1, 0); // be sure to initialize to zero
-  int* local_splits = local_splits_vec.data();
-
-  // Determine number of octree nodes necessary
-  // First pass - initialize temporary array
-  compute_local_splits(local_splits, I, n);
-
-  // Second pass - calculate prefix sums
-  vector<int> prefix_sums_vec(n);
-  int* prefix_sums = prefix_sums_vec.data();
-  compute_prefix_sums(local_splits, prefix_sums, n);
-
-  const int octree_size = prefix_sums[n-1];
-
-  // Set parent for each octree node
-  vector<OctNode> octree_vec(octree_size);
-  OctNode* octree = octree_vec.data();
-  brt2octree(I, octree, local_splits, prefix_sums, n);
-
-  //--------------
-  // Debug output
-  //--------------
-  if (verbose) {
-    cout << endl;
-    for (int i = 0; i < n-1; ++i) {
-      cout << i << ": left = " << I[i].left << (I[i].left_leaf ? "L" : "I")
-           << " right = " << I[i].left+1 << (I[i].right_leaf ? "L" : "I")
-           << " lcp = " << buToString(I[i].lcp)
-           << " oct nodes: (";
-      const BrtNode* brt_node = &I[i];
-      cout << ") lcp_length = " << I[i].lcp_length
-           << " parent = " << I[i].parent
-           << endl;
-    }
-
-    cout << "Local splits: ";
-    for (int i = 0; i < n-1; ++i) {
-      cout << local_splits[i] << " ";
-    }
-    cout << endl;
-    cout << "Prefix sums: ";
-    for (int i = 0; i < n; ++i) {
-      cout << prefix_sums[i] << " ";
-    }
-    cout << endl;
-
-    cout << "# octree splits = " << octree_size << endl;
-
-    for (int i = 0; i < octree_size; ++i) {
-      cout << i << ": ";
-      for (int j = 0; j < 4; ++j) {
-        cout << octree[i][j] << " ";
-      }
-      cout << endl;
-    }
-    OutputOctree(octree, octree_size);
-  }
-
-  return octree_vec;
+  //Using the unique, sorted morton numbers, we construct a binary radix tree in parallel.
+  CL.buildBrt(n, resln.mbits);
+  return CL.BRT2Octree(n);
 }
 
 // Debug output
