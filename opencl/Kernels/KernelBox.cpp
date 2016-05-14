@@ -1,6 +1,20 @@
 #include "KernelBox.h"
 #include <algorithm>
 
+void KernelBox::pointsToMorton(cl_mem input, cl_mem points, cl_int size, cl_int bits, size_t globalSize) {
+  const size_t globalWorkSize[] = { globalSize, 0, 0 };
+  
+  error = clSetKernelArg(pointsToMortonKernel, 0, sizeof(cl_mem), &input);
+  error = clSetKernelArg(pointsToMortonKernel, 1, sizeof(cl_mem), &points);
+  error = clSetKernelArg(pointsToMortonKernel, 2, sizeof(cl_int), &size);
+  error = clSetKernelArg(pointsToMortonKernel, 3, sizeof(cl_int), &bits);
+  error = clEnqueueNDRangeKernel(queue, pointsToMortonKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox predication: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+};
 void KernelBox::bitPredicate(cl_mem input, cl_mem predicate, Index &index, unsigned char compared, size_t globalSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	cl_ulong i = index;
@@ -220,7 +234,17 @@ void KernelBox::initProgram(std::vector<std::string> fileNames, cl_context conte
 }
 void KernelBox::initKernels() {
 	//Create Predication, Scan, & Compact kernels
-	if (verbose)
+  if (verbose)
+    std::cout << "KernelBox: Creating PointsToMortonKernel..." << std::endl;
+
+  pointsToMortonKernel = clCreateKernel(program, "PointsToMortonKernel", &error);
+  if (error != CL_SUCCESS) {
+    std::cerr << "KernelBox: OpenCL call failed with error " << error << std::endl;
+    std::getchar();
+    std::exit;
+  }
+
+  if (verbose)
 		std::cout << "KernelBox: Creating BitPredicateKernel..." << std::endl;
 
   bitPredicateKernel = clCreateKernel(program, "BitPredicateKernel", &error);

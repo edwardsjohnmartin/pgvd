@@ -14,11 +14,13 @@
 
 #ifndef __VEC_CL_H__
 #define __VEC_CL_H__
-
+#define OCT2D;
 #ifdef OCT2D
 typedef int2 intn;
 typedef float2 floatn;
+#ifndef __OPENCL_VERSION__
 typedef double2 doublen;
+#endif
 #else
 typedef int3 intn;
 typedef float3 floatn;

@@ -1,5 +1,5 @@
 #include "./OctreeUtils.h"
-#include "./Karras.h"
+#include "C/z_order.h"
 
 #include <iostream>
 #include <fstream>
@@ -19,7 +19,7 @@ OctCell FindLeaf(
     const intn& p, const vector<OctNode>& octree, const Resln& resln) {
 	BigUnsigned z;
 	initBlkBU(&z, 0);
-	Karras::xyz2z(&z, p, &resln);
+	xyz2z(&z, p, resln.bits);
 
   // Set up mask
   int mask = 0;
