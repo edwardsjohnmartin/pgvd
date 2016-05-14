@@ -1,4 +1,5 @@
 #include "CLWrapper.h"
+#include <math.h>
 
 //--PUBLIC--//
 void CLWrapper::RadixSort(const Index numBits) {
