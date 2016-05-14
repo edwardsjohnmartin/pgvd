@@ -26,6 +26,7 @@ private:
   cl_program program;
 	cl_command_queue queue;
   cl_device_id device;
+  cl_kernel pointsToMortonKernel;
   cl_kernel bitPredicateKernel;
   cl_kernel uniquePredicateKernel;
 	cl_kernel scanKernel;
@@ -48,7 +49,7 @@ public:
 	bool verbose = true;
 	KernelBox(std::vector<std::string> fileNames, cl_context &context, cl_command_queue &_queue, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
 	~KernelBox();
-
+  void pointsToMorton(cl_mem input, cl_mem points, cl_int size, cl_int bits, size_t globalSize);
 	void bitPredicate(cl_mem input, cl_mem predicate, Index &index, unsigned char compared, size_t globalSize);
   void uniquePredicate(cl_mem input, cl_mem predicate, size_t globalSize);
 	void streamScan(cl_mem input, cl_mem intermediate, cl_mem result, size_t globalSize);

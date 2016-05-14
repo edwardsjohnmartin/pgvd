@@ -1,14 +1,17 @@
 #include "CLWrapper.h"
 
 //--PUBLIC--//
-void CLWrapper::RadixSort(const Index numBits) {
-  globalSize = buffers.bigUnsignedInput->getSize()/sizeof(BigUnsigned);
+void CLWrapper::RadixSort(const vector<intn>& points, const int bits, const Index mBits) {
+  globalSize = max((int)pow(2, ceil(log(points.size()) / log(2))), 8); //buffers.bigUnsignedInput->getSize()/sizeof(BigUnsigned);
   localSize = min((int)globalSize, 256);//min((int)pow(2, floor(log(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)/log(2))), (int)globalSize);
 
   //LPBuffer: 0. RPBuffer: 1. LABuffer: 2. RABuffer: 3. Result: 4. Intermediate: 5.
   if (sizeof(BigUnsigned) > 0 && !(sizeof(BigUnsigned)& (sizeof(BigUnsigned)-1))) {
     initRadixSortBuffers();
-    envokeRadixSortRoutine(numBits);
+
+    clEnqueueWriteBuffer(queue, buffers.points->getBuffer(), true, 0, points.size() * sizeof(intn), points.data(), 0, NULL, NULL);
+
+    envokeRadixSortRoutine(points.size(), bits, mBits);
   }
   else 
     std::cout << "CLWrapper: Sorry, but BigUnsigned is " << std::to_string(sizeof(BigUnsigned)) 
@@ -57,9 +60,9 @@ vector<OctNode> CLWrapper::BRT2Octree(size_t n) {
   //Read in the required octree size
   unsigned int octree_size; //= prefix_sums[n - 1];
   vector<unsigned int> sums(n,0);
-  clEnqueueReadBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, 0, sizeof(unsigned int)*n, sums.data(), 0, NULL, NULL);
+  clEnqueueReadBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, sizeof(unsigned int)*(n-2), sizeof(unsigned int), &octree_size, 0, NULL, NULL);
   
-  octree_size = sums[n - 1];
+  //octree_size = sums[n - 1];
   //Make it a power of two.
   const int nextOctreeSizePowerOfTwo = max((int)pow(2, ceil(log(octree_size) / log(2))), 8);
   //Create an octree buffer.
@@ -85,7 +88,10 @@ vector<OctNode> CLWrapper::BRT2Octree(size_t n) {
 */
 //--PRIVATE--//
 inline void CLWrapper::initRadixSortBuffers(){
-  //LPBuffer: 0. RPBuffer: 1. LABuffer: 2. RABuffer: 3. Result: 4. Intermediate: 5.
+  if (!isBufferUsable(buffers.points, sizeof(intn)* (globalSize)))
+    buffers.points = createBuffer(sizeof(intn)* (globalSize));
+  if (!isBufferUsable(buffers.bigUnsignedInput, sizeof(BigUnsigned)* (globalSize)))
+    buffers.bigUnsignedInput = createBuffer(sizeof(BigUnsigned)* (globalSize));
   if (!isBufferUsable(buffers.leftPredicate, sizeof(Index)* (globalSize)))
     buffers.leftPredicate = createBuffer(sizeof (Index)* (globalSize));
   if (!isBufferUsable(buffers.rightPredicate, sizeof(Index)* (globalSize)))
@@ -101,15 +107,18 @@ inline void CLWrapper::initRadixSortBuffers(){
   if (!isBufferUsable(buffers.intermediate, sizeof(cl_int)*(globalSize / streamScanLocalSize)))
     buffers.intermediate = createBuffer(sizeof(cl_int)*(globalSize / streamScanLocalSize));
 }
-void CLWrapper::envokeRadixSortRoutine(const Index numBits){
+void CLWrapper::envokeRadixSortRoutine(const int size, const int bits, const Index mbits){
   //Input: 0. LPBuffer: 1. RPBuffer: 2. LABuffer: 3. RABuffer: 4. Result: 5.
   //Using default workgroup size.
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
   const size_t localWorkSize[] = { localSize, 0, 0 };
+  
+  //convert points to mpoints.
+  kernelBox->pointsToMorton(buffers.bigUnsignedInput->getBuffer(), buffers.points->getBuffer(), size, bits, globalSize);
 
   shared_ptr<Buffer> temp;
   //For each bit
-  for (Index index = 0; index < numBits; index++) {
+  for (Index index = 0; index < mbits; index++) {
     //Predicate the 0's and 1's
     cl_mem x=buffers.bigUnsignedInput->getBuffer();
     kernelBox->bitPredicate(buffers.bigUnsignedInput->getBuffer(), buffers.leftPredicate->getBuffer(), index, 1, globalSize);

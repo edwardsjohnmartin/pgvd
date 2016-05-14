@@ -26,28 +26,6 @@ using std::shared_ptr;
 
 namespace Karras {
   CLWrapper CL(256, 256);
-BigUnsigned* xyz2z(BigUnsigned *result, intn p, const Resln* resln) {
-  initBlkBU(result, 0);
-	BigUnsigned temp;
-  initBlkBU(&temp, 0);
-  BigUnsigned *tempb = new BigUnsigned;
-  initBlkBU(tempb, 0);
-
-	for (int i = 0; i < resln->bits; ++i) {
-    for (int j = 0; j < DIM; ++j) {
-			if (p.s[j] & (1 << i)) {
-				//ret |= BigUnsigned(1) << (i*DIM + j);
-				initBlkBU(&temp, 1);
-				shiftBULeft(tempb, &temp, i*DIM + j);
-				initBUBU(&temp, result);
-				orBU(result, &temp, tempb);
-			}
-    }
-  }
-  delete tempb;
-  //free(tempb);
-  return result;
-}
 
 intn z2xyz(BigUnsigned *z, const Resln* resln) {
   intn p = make_intn(0);
@@ -179,24 +157,8 @@ vector<OctNode> BuildOctree(
   if (points.empty())
     throw logic_error("Zero points not supported");
 
-  //Here, we're making a buffer vector containing the input we'd like to sort.
   int n = points.size();
-  int nextPowerOfTwo = max( (int) pow( 2, ceil( log( n ) / log( 2 ) ) ), 8 );
-  if (verbose)
-    cout << "Next Power of Two: " << nextPowerOfTwo << endl;
-  if (!CL.isBufferUsable(CL.buffers.bigUnsignedInput, sizeof(BigUnsigned)* (nextPowerOfTwo)))
-    CL.buffers.bigUnsignedInput = CL.createBuffer(nextPowerOfTwo*sizeof(BigUnsigned));
-  
-  //In this case, we're sorting Z-Order points. 
-  //We pad with 0's that will be culled using unique.
-  BigUnsigned* mpoints = (BigUnsigned*)CL.buffers.bigUnsignedInput->map_buffer();
-  for (int i = 0; i < points.size(); ++i) 
-    xyz2z(&mpoints[i], points[i], &resln);
-  for (int i = points.size(); i < nextPowerOfTwo; i++) 
-    initBlkBU(&mpoints[i], 0);  
-
-  CL.buffers.bigUnsignedInput->unmap_buffer();
-  CL.RadixSort(resln.mbits);
+  CL.RadixSort(points, resln.bits, resln.mbits);
   n = CL.UniqueSorted();
 
   //Using the unique, sorted morton numbers, we construct a binary radix tree in parallel.

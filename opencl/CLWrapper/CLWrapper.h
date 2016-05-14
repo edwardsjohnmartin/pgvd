@@ -15,6 +15,7 @@ using namespace std;
 #include "../BufferCollection/Buffer.h"
 #include "../../C/BrtNode.h"
 #include "../../OctNode.h"
+#include "../../opencl/vec.h"
 
 /*
   CLWrapper.
@@ -48,7 +49,7 @@ class CLWrapper
 	  string getPlatformName(cl_platform_id id);
 	  string getDeviceName(cl_device_id id);
 	  inline void initRadixSortBuffers();
-	  void envokeRadixSortRoutine(const Index numBits);
+	  void envokeRadixSortRoutine(const int size, const int bits, const Index mbits);
 	  inline void initUniqueBuffers();
 	  inline void initBrtBuffers();
     inline void initBRT2OctreeBuffers(size_t n);
@@ -67,7 +68,7 @@ class CLWrapper
     bool isBufferUsable(shared_ptr<Buffer> buffer, size_t expectedSizeInBytes);
 	  
     //Kernel Wrappers
-    void RadixSort(const Index numBits);
+    void RadixSort(const vector<intn>& points, const int bits, const Index mBits);
     size_t UniqueSorted();
 	  void buildBrt(size_t n, int mbits);
     vector<OctNode> BRT2Octree(size_t n);

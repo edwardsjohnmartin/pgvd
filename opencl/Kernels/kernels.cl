@@ -1,3 +1,23 @@
+__kernel void PointsToMortonKernel(
+  __global BigUnsigned *inputBuffer,
+  __global intn *points,
+  const unsigned int size,
+  const unsigned int bits
+  ) 
+{
+ const size_t gid = get_global_id(0);
+ const size_t lid = get_local_id(0);
+ BigUnsigned tempBU;
+ intn tempPoint = points[gid];
+
+ if (gid < size) {
+   xyz2z(&tempBU, tempPoint, bits);
+ } else {
+   initBlkBU(&tempBU, 0);
+ }
+ inputBuffer[gid] = tempBU;
+ 
+}
 
 __kernel void BitPredicateKernel( 
   __global BigUnsigned *inputBuffer, 

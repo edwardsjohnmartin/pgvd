@@ -9,12 +9,12 @@
 extern "C" {
   #include "./Resln.h"
 }
+#include "C/z_order.h"
 #include "./OctNode.h"
 #include "./BoundingBox.h"
 
 namespace Karras {
 
-BigUnsigned* xyz2z(BigUnsigned *result, intn p, const Resln* resln);
 intn z2xyz(BigUnsigned *z, const Resln* resln);
 
 // Quantize a single point.

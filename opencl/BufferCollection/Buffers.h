@@ -4,6 +4,7 @@
 using namespace std;
 struct Buffers
 {
+  shared_ptr<Buffer> points;
   shared_ptr<Buffer> bigUnsignedInput;
   shared_ptr<Buffer> leftPredicate;
   shared_ptr<Buffer> rightPredicate;

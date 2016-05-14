@@ -27,11 +27,7 @@ int sign(const int i) {
 // Now shift, and lcp is
 //      ___
 // 00000011
-#ifdef __OPENCL_VERSION__ 
-int compute_lcp(__global BigUnsigned *lcp, __global BigUnsigned *value, const int length, int mbits) {
-#else
-void compute_lcp(BigUnsigned *lcp, BigUnsigned *value, const int length, int mbits) {
-#endif
+void compute_lcp(__global BigUnsigned *lcp, __global BigUnsigned *value, const int length, int mbits) {
 	BigUnsigned mask;
 	initBlkBU(&mask, 0);
 	BigUnsigned one;
@@ -68,11 +64,7 @@ int compute_index_lcp_length(size_t i, size_t j) {
   }
 }
 
-#ifdef __OPENCL_VERSION__ 
 int compute_lcp_length(size_t i, size_t j, __global BigUnsigned* _mpoints, int mbits) {
-#else
-int compute_lcp_length(const int i, const int j, BigUnsigned* _mpoints, int mbits){
-#endif
   BigUnsigned one;
   initBlkBU(&one, 1);
   BigUnsigned tempa, tempb, tempc, tempd;
@@ -96,11 +88,7 @@ int compute_lcp_length(const int i, const int j, BigUnsigned* _mpoints, int mbit
   return mbits;
 }
 
-#ifndef __OPENCL_VERSION__ 
-	void BuildBinaryRadixTree( BrtNode *I, BrtNode* L, BigUnsigned* mpoints, int mbits, int size, const unsigned int gid)
-#else
-	void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size, const unsigned int gid)
-#endif
+void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size, const unsigned int gid)
 {
   //n-1 internal nodes.
   if (gid < size-1) {
@@ -130,7 +118,7 @@ int compute_lcp_length(const int i, const int j, BigUnsigned* _mpoints, int mbit
       // since it's a power of 2. So define a max length that we call l_cutoff.
       const int l_cutoff = (d==-1) ? gid : size - gid - 1;
       l = 0;
-      for (int t = l_max / 2; t >= 1; t /= 2) {
+      for (int t = l_max >> 1; t >= 1; t >>= 1) {
         if (l + t <= l_cutoff) {
           if (compute_lcp_length(gid, gid+(l+t)*d, mpoints, mbits) > lcp_min) {
             l = l + t;
@@ -160,7 +148,7 @@ int compute_lcp_length(const int i, const int j, BigUnsigned* _mpoints, int mbit
     I[gid].left = split;
     I[gid].left_leaf = (MIN(gid, j) == split);
     I[gid].right_leaf = (MAX(gid, j) == split+1);
-    compute_lcp(&I[gid].lcp,&mpoints[gid], lcp_node, mbits);
+    compute_lcp(&I[gid].lcp, &mpoints[gid], lcp_node, mbits);
     I[gid].lcp_length = lcp_node;
 
     //Set parents
