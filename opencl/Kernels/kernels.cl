@@ -138,7 +138,7 @@ __kernel void BRT2OctreeKernel_init(
   const int n
 ) {
   const size_t gid = get_global_id(0);
-  const int octree_size = prefix_sums[n-1];
+  const int octree_size = prefix_sums[n-2];
 
   if (gid < octree_size)
     brt2octree_init( gid, octree);

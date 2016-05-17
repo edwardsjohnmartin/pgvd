@@ -17,8 +17,8 @@
 #include "../Resln.h"
 
 // keep track of window size for things like the viewport and the mouse cursor
-int g_gl_width = 500;
-int g_gl_height = 400 ;
+int g_gl_width = 1000;
+int g_gl_height = 1000 ;
 GLFWwindow* g_window = NULL;
 cl_float count1 = 0;
 cl_float count2 = 0;
@@ -61,7 +61,7 @@ void onKey(GLFWwindow* window, int key, int scancode,
   if (action == GLFW_PRESS) {
     switch (key) {
       case GLFW_KEY_SPACE:
-        lines->addPoint({count1,count2});
+        lines->addPoint({(cl_float).2*sin(count1),(cl_float).2*cos(count2)});
         count1+=.01;
         count2+=.01;
         rebuild();

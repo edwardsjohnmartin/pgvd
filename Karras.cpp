@@ -120,6 +120,7 @@ vector<intn> Quantize(
   
   return qpoints;
 }
+
 inline std::string buToString(BigUnsigned bu) {
   std::string representation = "";
   if (bu.len == 0)
@@ -139,11 +140,13 @@ inline std::string buToString(BigUnsigned bu) {
 
   return representation;
 }
+
 vector<OctNode> BuildOctree(
     const vector<intn>& points, const Resln& resln, const bool verbose) {
   if (points.empty())
     throw logic_error("Zero points not supported");
   vector<OctNode> Octree;
+
 
   int n = points.size();
   CL.RadixSort(points, resln.bits, resln.mbits);
@@ -173,7 +176,6 @@ void OutputOctreeNode(
   }
 }
 
-// void OutputOctree(const std::vector<OctNode>& octree) {
 void OutputOctree(const OctNode* octree, const int n) {
   // if (!octree.empty()) {
   if (n > 0) {

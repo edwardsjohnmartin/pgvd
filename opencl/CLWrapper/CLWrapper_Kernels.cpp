@@ -1,5 +1,8 @@
 #include "CLWrapper.h"
 
+extern "C" {
+#include "../../C/BuildOctree.h"
+}
 inline std::string buToString(BigUnsigned bu) {
   std::string representation = "";
   if (bu.len == 0)
@@ -85,7 +88,7 @@ void CLWrapper::BRT2Octree(size_t n, vector<OctNode> &octree_vec) {
     buffers.octree = createBuffer(sizeof(OctNode)* (nextOctreeSizePowerOfTwo));
   }
   //use the scanned splits & brt to create octree.
-  kernelBox->brt2Octree_init(buffers.internalNodes->getBuffer(), buffers.octree->getBuffer(), buffers.localSplits->getBuffer(), buffers.scannedSplits->getBuffer(), n, n);
+  kernelBox->brt2Octree_init(buffers.internalNodes->getBuffer(), buffers.octree->getBuffer(), buffers.localSplits->getBuffer(), buffers.scannedSplits->getBuffer(), n, nextOctreeSizePowerOfTwo);
   kernelBox->brt2Octree(buffers.internalNodes->getBuffer(), buffers.octree->getBuffer(), buffers.localSplits->getBuffer(), buffers.scannedSplits->getBuffer(), n, n);
   octree_vec.resize(octree_size);
   clEnqueueReadBuffer(queue, buffers.octree->getBuffer(), true, 0, sizeof(OctNode)*(octree_size), octree_vec.data(), 0, NULL, NULL);
