@@ -84,10 +84,9 @@ __kernel void BUCompactKernel(
   __global BigUnsigned *resultBuffer, 
   __global Index *lPredicateBuffer, 
   __global Index *leftBuffer, 
-  __global Index *rightBuffer, 
   Index size)
 {
-  BUCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, rightBuffer, size, get_global_id(0));
+  BUCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
 }
 
 //Single Compaction
@@ -121,16 +120,16 @@ __kernel void ComputeLocalSplitsKernel(
 )
 {
   const size_t gid = get_global_id(0);
-  if (gid == 0 && size > 0) {
+  if (gid <size-1)
+    local_splits[gid] = 0;
+  if (gid == 0 && size > 0) 
     local_splits[0] = 1 + I[0].lcp_length / DIM;
-  }
-  if (gid < (size-1) ) {
+  if ( gid < size - 1)
     ComputeLocalSplits(local_splits, I, gid);
-  }
 }
 
 
-
+//This is dumb and will be merged with the other kernel.
 __kernel void BRT2OctreeKernel_init(
   __global BrtNode *I,
   __global OctNode *octree,
@@ -147,15 +146,15 @@ __kernel void BRT2OctreeKernel_init(
 
 __kernel void BRT2OctreeKernel(
   __global BrtNode *I,
-  __global OctNode *octree,
+  __global volatile OctNode *octree,
   __global unsigned int *local_splits,
   __global unsigned int *prefix_sums,
   const int n
 ) {
-  const size_t gid = get_global_id(0);
-  const int octree_size = prefix_sums[n-1];
-  if (gid == 0) {
-    for (int brt_i = 1; brt_i < n-1; ++brt_i)
-      brt2octree( brt_i, I, octree, local_splits, prefix_sums, n, octree_size);
+  const int gid = get_global_id(0);
+  const int octree_size = prefix_sums[n-2];
+  if (gid > 0 && gid < n-1){
+    brt2octree( gid, I, octree, local_splits, prefix_sums, n, octree_size);
+    octree[gid-1].pad1 = prefix_sums[gid-1];
   }  
 }

@@ -6,10 +6,8 @@ struct Buffers
 {
   shared_ptr<Buffer> points;
   shared_ptr<Buffer> bigUnsignedInput;
-  shared_ptr<Buffer> leftPredicate;
-  shared_ptr<Buffer> rightPredicate;
-  shared_ptr<Buffer> leftAddress;
-  shared_ptr<Buffer> rightAddress;
+  shared_ptr<Buffer> predicate;
+  shared_ptr<Buffer> address;
   shared_ptr<Buffer> intermediate;
   shared_ptr<Buffer> bigUnsignedResult;
   shared_ptr<Buffer> internalNodes;

@@ -9,8 +9,9 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include "../../C/BigUnsigned.h"
-
+extern "C" {
+  #include "../../C/BigUnsigned.h"
+}
 /*
   KernelBox. 
     -Builds openCL code
@@ -54,7 +55,7 @@ public:
   void uniquePredicate(cl_mem input, cl_mem predicate, size_t globalSize);
 	void streamScan(cl_mem input, cl_mem intermediate, cl_mem result, size_t globalSize);
   size_t getSteamScanWorkGroupSize(size_t globalSize);
-  void doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem LPBuffer, cl_mem LABuffer, cl_mem RABuffer, size_t globalSize);
+  void doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem LPBuffer, cl_mem LABuffer, size_t globalSize);
   void singleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem PBuffer, cl_mem ABuffer, size_t globalSize);
   void buildBinaryRadixTree(cl_mem internalNodes, cl_mem leafNodes, cl_mem mpoints, cl_int mbits, cl_int n, size_t globalSize);
   void computeLocalSplits(cl_mem localSplits, cl_mem I, size_t size, size_t globalSize);

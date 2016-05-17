@@ -47,24 +47,7 @@ void compute_lcp(__global BigUnsigned *lcp, __global BigUnsigned *value, const i
   *lcp = privateLcp;
 }
 
-int compute_index_lcp_length(size_t i, size_t j) {
-  int numBits = sizeof(size_t) * 8;
-  int mask;
-  size_t a, b;
-  //for each bit from most significant to least
-  for (int k = numBits - 1; k >= 0; --k) {
-    mask = 1 << k;
-    a = i & mask;
-    b = j & mask;
-    //compare the bits
-    if ((a & mask) != (b & mask)) {
-      //if the bits don't match, the iteration.
-      return numBits - k - 1;
-    }
-  }
-}
-
-int compute_lcp_length(size_t i, size_t j, __global BigUnsigned* _mpoints, int mbits) {
+int compute_lcp_length(int i, int j, __global BigUnsigned* _mpoints, int mbits) {
   BigUnsigned one;
   initBlkBU(&one, 1);
   BigUnsigned tempa, tempb, tempc, tempd;
@@ -109,8 +92,12 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     } else {
       const int lcp_min = compute_lcp_length(gid, gid-d, mpoints, mbits);
       int l_max = 2;
-      while (gid+l_max*d >= 0 && gid+l_max*d <= size-1 && compute_lcp_length(gid, gid+l_max*d, mpoints, mbits) > lcp_min) {
+      while ( gid + l_max * d >= 0 && 
+              gid + l_max * d <= size - 1 && 
+              compute_lcp_length( gid, gid + l_max * d, mpoints, mbits) > lcp_min) 
+      {
         l_max = l_max << 1;
+        I[gid].parent1 = l_max;
       }
       // Find the other end using binary search.
       // In some cases, the search can go right off the end of the array.
@@ -132,7 +119,6 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     const int j = gid + l * d;
     // Find the split position using binary search
     const int lcp_node = compute_lcp_length(gid, j, mpoints, mbits);
-
     const int s_cutoff = (d==-1) ? gid - 1 : size - gid - 2;
     int s = 0;
     for (int den = 2; den < 2*l; den *= 2) {

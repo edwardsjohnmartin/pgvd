@@ -47,19 +47,18 @@ void HillesSteelScan(__local Index* localBuffer, __local Index* scratch, const i
       scratch[lid] = localBuffer[lid];
 }
 
+//result buffer MUST be initialized as 0!!!
 void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global Index *lPredicateBuffer, 
-	__global Index *leftBuffer, __global Index *rightBuffer, Index size, const size_t gid)
+	__global Index *leftBuffer, Index size, const size_t gid)
 {
-	Index index;
-	if (lPredicateBuffer[gid] == 1) index = leftBuffer[gid];
-	else index = rightBuffer[gid] + leftBuffer[size - 1];
-	BigUnsigned temp = inputBuffer[gid];
-  	resultBuffer[index - 1] = temp;
+  //Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
+  int t = gid - leftBuffer[gid] + (lPredicateBuffer[size - 1] + leftBuffer[size - 1]);
+  int d = (!lPredicateBuffer[gid]) ? t : leftBuffer[gid] - 1;
+  resultBuffer[d] = inputBuffer[gid];
 }
 
 void BUSingleCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global Index *predicateBuffer, __global Index *addressBuffer, const int gid)
 {
-
   Index index;
   if (predicateBuffer[gid] == 1) {
     index = addressBuffer[gid];

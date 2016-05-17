@@ -6,7 +6,7 @@
 #include "ParallelAlgorithms.h"
 #endif
 
-void ComputeLocalSplits(__global unsigned int* local_splits, __global BrtNode* I, const int gid) {
+void ComputeLocalSplits(__global int* local_splits, __global BrtNode* I, const int gid) {
   const int _local = I[gid].lcp_length / DIM;
   const int left = I[gid].left;
   const int right = left+1;
@@ -61,33 +61,38 @@ int quadrantInLcp(const BrtNode* brt_node, const int i) {
 /*
   Binary radix to Octree
 */
-void brt2octree( const int brt_i, __global BrtNode* I, __global OctNode* octree, __global unsigned int* local_splits, __global unsigned int* prefix_sums, const int n, const int octree_size) {
+
+void brt2octree_end(const int brt_i, __global BrtNode* I, __global OctNode* octree, __global unsigned int* local_splits, __global unsigned int* prefix_sums, const int n, const int octree_size) {
+
+}
+void brt2octree( const int brt_i, __global BrtNode* I, __global volatile OctNode* octree, __global unsigned int* local_splits, __global int* prefix_sums, const int n, const int octree_size) {
   if (local_splits[brt_i] > 0) {
     // m = number of local splits
-    const int m = local_splits[brt_i];
+    const int numSplits = local_splits[brt_i];
     BrtNode brt_node;
     brt_node = I[brt_i];
     
     // Current octree node index
-    int oct_i;
+    int currentNode;
     if (brt_i == 0) {
-      oct_i = 0;
+      currentNode = 0;
     }
     else {
-      oct_i = prefix_sums[brt_i-1];
+      currentNode = prefix_sums[brt_i-1]; //current node might be race condition. prefix sums are not unique.
     }
-    for (int j = 0; j < m-1; ++j) {
-      const int oct_parent = oct_i+1;
-      const int onode = quadrantInLcp(&brt_node, j);
-      //set_child(&octree[oct_parent], onode, oct_i);
-      octree[oct_parent].children[onode] = oct_i;
-      if (oct_i > -1) {
-        octree[oct_parent].leaf &= ~leaf_masks[onode];
+    for (int i = 0; i < numSplits -1; ++i) {
+      const int oct_parent = currentNode+1; //oct_parent is not guaranteed to be unique!
+      const int onode = quadrantInLcp(&brt_node, i);
+      //set_child(&octree[oct_parent], onode, currentNode);
+//No race conditions up to this point
+      octree[oct_parent].children[onode] = currentNode;  //Children modified! can't be read from w.o. race condition.
+      if (currentNode > -1) {
+        octree[oct_parent].leaf &= ~leaf_masks[onode]; //leaf modified! can't be read from w.o. race condition.
       }
       else {
         octree[oct_parent].leaf |= leaf_masks[onode];
       }
-      oct_i = oct_parent;
+      currentNode = oct_parent;
     }
     int brt_parent = I[brt_i].parent;
     while (local_splits[brt_parent] == 0) {
@@ -103,18 +108,29 @@ void brt2octree( const int brt_i, __global BrtNode* I, __global OctNode* octree,
     #ifndef  __OPENCL_VERSION__ 
       assert(brt_parent >= 0 && brt_parent < n);           
       assert(oct_parent >= 0 && oct_parent < octree_size);
+    #else
+      //barrier(CLK_GLOBAL_MEM_FENCE);
     #endif // ! __OPENCL_VERSION__ 
-    //set_child(&octree[oct_parent], quadrantInLcp(brt_node, m-1), oct_i);
-    int temp = quadrantInLcp(&brt_node, m - 1);
-    octree[oct_parent].children[temp] = oct_i;
-    if (oct_i > -1) {
-      octree[oct_parent].leaf &= ~leaf_masks[temp];
+    //set_child(&octree[oct_parent], quadrantInLcp(brt_node, m-1), currentNode);
+    int temp = quadrantInLcp(&brt_node, numSplits - 1);
+    octree[oct_parent].children[temp] = currentNode;
+    if (currentNode > -1) {
+      #ifndef  __OPENCL_VERSION__
+        octree[oct_parent].leaf &= ~leaf_masks[temp];
+      #else
+        atomic_and(&octree[oct_parent].leaf, ~leaf_masks[temp]);
+      #endif
     }
     else {
-      octree[oct_parent].leaf |= leaf_masks[temp];
+      #ifndef  __OPENCL_VERSION__
+        octree[oct_parent].leaf |= leaf_masks[temp];
+      #else
+        atomic_or(&octree[oct_parent].leaf, leaf_masks[temp]);
+      #endif
     }
   }
 }
+
 void brt2octree_init(const int brt_i, __global OctNode* octree ) {
   octree[brt_i].leaf = 15;
   for (int i = 0; i < (1 << DIM); ++i) {

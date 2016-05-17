@@ -71,6 +71,6 @@ class CLWrapper
     void RadixSort(const vector<intn>& points, const int bits, const Index mBits);
     size_t UniqueSorted();
 	  void buildBrt(size_t n, int mbits);
-    vector<OctNode> BRT2Octree(size_t n);
+    void BRT2Octree(size_t n, vector<OctNode> &octree_vec);
 };
 

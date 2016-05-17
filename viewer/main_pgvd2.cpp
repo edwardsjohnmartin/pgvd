@@ -17,9 +17,11 @@
 #include "../Resln.h"
 
 // keep track of window size for things like the viewport and the mouse cursor
-int g_gl_width = 1000;
-int g_gl_height = 1000;
+int g_gl_width = 500;
+int g_gl_height = 400 ;
 GLFWwindow* g_window = NULL;
+cl_float count1 = 0;
+cl_float count2 = 0;
 
 Polylines* lines;
 LinesProgram* program;
@@ -58,6 +60,12 @@ void onKey(GLFWwindow* window, int key, int scancode,
 
   if (action == GLFW_PRESS) {
     switch (key) {
+      case GLFW_KEY_SPACE:
+        lines->addPoint({count1,count2});
+        count1+=.01;
+        count2+=.01;
+        rebuild();
+        break;
       case GLFW_KEY_C:
         lines->clear();
         octree->build(*lines);
