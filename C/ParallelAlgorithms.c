@@ -52,7 +52,7 @@ void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultB
 	__global Index *leftBuffer, Index size, const size_t gid)
 {
   //Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
-  int t = gid - leftBuffer[gid] + (lPredicateBuffer[size - 1] + leftBuffer[size - 1]);
+  int t = gid - leftBuffer[gid] + (lPredicateBuffer[size - 1] + leftBuffer[size - 2]);
   int d = (!lPredicateBuffer[gid]) ? t : leftBuffer[gid] - 1;
   resultBuffer[d] = inputBuffer[gid];
 }

@@ -93,6 +93,12 @@ void onKey(GLFWwindow* window, int key, int scancode,
   refresh();
 }
 
+void addpt(double radius) {
+  lines->addPoint({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
+  count1 += 1;
+  count2 += 1;
+  rebuild();
+}
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
   using namespace std;
 
@@ -173,10 +179,12 @@ int main(int argc, char** argv) {
 
   refresh();
 
+  float radius = 0.0;
   while (!glfwWindowShouldClose(g_window)) {
     // Refresh here for animation
     // refresh();
-    
+    addpt(radius);
+    radius += .0005;
     glfwPollEvents ();
   }
 	
