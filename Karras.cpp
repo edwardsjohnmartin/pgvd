@@ -149,6 +149,7 @@ vector<OctNode> BuildOctree(
 
 
   int n = points.size();
+  cout << n << endl;
   CL.RadixSort(points, resln.bits, resln.mbits);
   n = CL.UniqueSorted();
   CL.buildBrt(n, resln.mbits);

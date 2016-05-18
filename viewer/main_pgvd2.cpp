@@ -94,11 +94,13 @@ void onKey(GLFWwindow* window, int key, int scancode,
 }
 
 void addpt(double radius) {
-  lines->addPoint({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
+  lines->newLine({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
   count1 += 1;
   count2 += 1;
+  lines->addPoint({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
   rebuild();
 }
+
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
   using namespace std;
 

@@ -180,7 +180,7 @@ void Octree2::build(const Polylines& lines,
     } else {
       octree.clear();
     }
-    FindMultiCells(lines);
+    //FindMultiCells(lines);
 
     ++iterations;
   } while (iterations < options.karras_iterations && !extra_qpoints.empty());
