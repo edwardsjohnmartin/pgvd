@@ -70,7 +70,6 @@ class Buffer
       }
     }
     ~Buffer() {
-      cout << "Releasing Buffer: " << buffer << endl;
       if (pointer != nullptr) {
         clEnqueueUnmapMemObject(queue, buffer, pointer, 0, NULL, NULL);
       }

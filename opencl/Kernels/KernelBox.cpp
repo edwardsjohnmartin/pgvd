@@ -63,8 +63,8 @@ void KernelBox::streamScan(cl_mem input, cl_mem intermediate, cl_mem result, siz
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
 
-	Index* negativeOne = new Index(-1);
-	clEnqueueFillBuffer(queue, intermediate, negativeOne, sizeof(Index), 0, sizeof(Index)* (globalSize / localSize), 0, NULL, NULL);
+  Index negativeOne = -1;
+	clEnqueueFillBuffer(queue, intermediate, &negativeOne, sizeof(Index), 0, sizeof(Index)* (globalSize / localSize), 0, NULL, NULL);
 
 	clSetKernelArg(scanKernel, 0, sizeof (cl_mem), &input);
 	clSetKernelArg(scanKernel, 1, sizeof (cl_mem), &result);
@@ -78,7 +78,6 @@ void KernelBox::streamScan(cl_mem input, cl_mem intermediate, cl_mem result, siz
 		std::getchar();
 		std::exit;
 	}
-	delete negativeOne;
 };
 void KernelBox::singleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem PBuffer, cl_mem ABuffer, size_t globalSize) {
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
@@ -133,8 +132,8 @@ void KernelBox::computeLocalSplits(cl_mem localSplits, cl_mem I, size_t size, si
   clSetKernelArg(computeLocalSplitsKernel, 1, sizeof(cl_mem), &I);
   clSetKernelArg(computeLocalSplitsKernel, 2, sizeof(cl_mem), &size);
 
-  unsigned int* zero = new unsigned int(0);
-  clEnqueueFillBuffer(queue, localSplits, zero, sizeof(unsigned int), 0, sizeof(unsigned int)* (globalSize), 0, NULL, NULL);
+  unsigned int zero = 0;
+  clEnqueueFillBuffer(queue, localSplits, &zero, sizeof(unsigned int), 0, sizeof(unsigned int)* (globalSize), 0, NULL, NULL);
 
   error = clEnqueueNDRangeKernel(queue, computeLocalSplitsKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
   if (error != CL_SUCCESS) {
@@ -142,7 +141,6 @@ void KernelBox::computeLocalSplits(cl_mem localSplits, cl_mem I, size_t size, si
     std::getchar();
     std::exit;
   }
-  delete zero;
 }
 void KernelBox::brt2Octree(cl_mem I, cl_mem octree, cl_mem local_splits, cl_mem prefix_sums, cl_int n, size_t globalSize) {
   const size_t globalWorkSize[] = { globalSize, 0, 0 };

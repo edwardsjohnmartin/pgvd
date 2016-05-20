@@ -32,8 +32,10 @@ void CLWrapper::RadixSort(const vector<intn>& points, const int bits, const Inde
   if (sizeof(BigUnsigned) > 0 && !(sizeof(BigUnsigned)& (sizeof(BigUnsigned)-1))) {
     initRadixSortBuffers();
 
-    clEnqueueWriteBuffer(queue, buffers.points->getBuffer(), true, 0, points.size() * sizeof(intn), points.data(), 0, NULL, NULL);
-
+    intn* gpuPoints = (intn*)buffers.points->map_buffer();
+    memcpy(gpuPoints, points.data(), points.size() * sizeof(intn));
+    buffers.points->unmap_buffer();
+    
     envokeRadixSortRoutine(points.size(), bits, mBits);
   }
   else 

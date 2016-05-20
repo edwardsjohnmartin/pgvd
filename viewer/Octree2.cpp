@@ -45,6 +45,7 @@ int Octree2::processArgs(int argc, char** argv) {
 
   // resln = Resln(1<<options.max_level);
   resln = make_resln(1 << options.max_level);
+  //resln = make_resln(1 << 2);
 
   // if (options.test > -1)
   //   test(options.test);
@@ -109,7 +110,7 @@ void Octree2::build(const vector<float2>& points,
 
   vector<intn> qpoints = Karras::Quantize(karras_points, resln, &bb);
   if (qpoints.size() > 1) {
-    octree = Karras::BuildOctree(qpoints, resln, false);
+    octree = Karras::BuildOctreeInParallel(qpoints, resln, false);
   } else {
     octree.clear();
   }
@@ -176,7 +177,7 @@ void Octree2::build(const Polylines& lines,
     }
     extra_qpoints.clear();
     if (qpoints.size() > 1) {
-      octree = Karras::BuildOctree(qpoints, resln, false);
+      octree = Karras::BuildOctreeInParallel(qpoints, resln, false);
     } else {
       octree.clear();
     }
