@@ -180,7 +180,7 @@ void Octree2::build(const Polylines& lines,
     } else {
       octree.clear();
     }
-    FindMultiCells(lines);
+    //FindMultiCells(lines);
 
     ++iterations;
   } while (iterations < options.karras_iterations && !extra_qpoints.empty());
@@ -578,7 +578,7 @@ void Octree2::buildOctVertices() {
 // length is the length of the parent
 void Octree2::drawNode(
     const OctNode& parent, const int parent_idx,
-    const intn origin, const int length) {
+     const intn origin, const int length) {
 
   for (int i = 0; i < 4; ++i) {
     intn o = origin;

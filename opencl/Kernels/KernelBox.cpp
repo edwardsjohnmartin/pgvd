@@ -93,14 +93,18 @@ void KernelBox::singleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem PB
     std::exit;
   }
 }
-void KernelBox::doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem LPBuffer, cl_mem LABuffer, cl_mem RABuffer, size_t globalSize){
+void KernelBox::doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem LPBuffer, cl_mem LABuffer, size_t globalSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	clSetKernelArg(doubleCompactKernel, 0, sizeof (cl_mem), &inputBuffer);
 	clSetKernelArg(doubleCompactKernel, 1, sizeof (cl_mem), &resultBuffer);
 	clSetKernelArg(doubleCompactKernel, 2, sizeof (cl_mem), &LPBuffer);
 	clSetKernelArg(doubleCompactKernel, 3, sizeof (cl_mem), &LABuffer);
-	clSetKernelArg(doubleCompactKernel, 4, sizeof (cl_mem), &RABuffer);
-	clSetKernelArg(doubleCompactKernel, 5, sizeof (Index), &globalSize);
+	clSetKernelArg(doubleCompactKernel, 4, sizeof (Index), &globalSize);
+
+  BigUnsigned zero;
+  initBlkBU(&zero, 0);
+  clEnqueueFillBuffer(queue, resultBuffer, &zero, sizeof(BigUnsigned), 0, sizeof(BigUnsigned)* (globalSize), 0, NULL, NULL);
+
 	error = clEnqueueNDRangeKernel(queue, doubleCompactKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
 	if (error != CL_SUCCESS) {
 		std::cerr << "KernelBox double compaction: OpenCL call failed with error " << error << std::endl;

@@ -12,6 +12,7 @@
 extern "C" {
   #include "C/ParallelAlgorithms.h"
 	#include "C/BuildOctree.h"
+  #include "C/BuildBRT.h"
 }
 using std::cout;
 using std::endl;
@@ -46,26 +47,6 @@ intn z2xyz(BigUnsigned *z, const Resln* resln) {
   return p;
 }
 
-inline std::string buToString(BigUnsigned bu) {
-	std::string representation = "";
-	if (bu.len == 0)
-	{
-    if (bu.isNULL) {
-      representation += "[NULL]";
-    }
-    else {
-      representation += "[0]";
-    }
-	}
-	else {
-		for (int i = bu.len; i > 0; --i) {
-			representation += "[" + std::to_string(bu.blk[i - 1]) + "]";
-		}
-	}
-
-	return representation;
-}
-
 bool lessThanBigUnsigned(BigUnsigned& a, BigUnsigned&b) {
 	if (compareBU(&a, &b) == -1) {
 		return 1;
@@ -77,18 +58,6 @@ bool equalsBigUnsigned(BigUnsigned& a, BigUnsigned &b) {
 		return 1;
 	}
 	return 0;
-}
-
-// Needs to be implemented
-void sort_points(BigUnsigned* mpoints, const int n) {
-  /*int nextPowerOfTwo = pow(2, ceil(log(n) / log(2)));
-  printf("Next power of two is: %d\n", nextPowerOfTwo);
-  int difference = nextPowerOfTwo - n;
-  BigUnsigned* mpoints = BigUnsigned[n + difference];
-  for (int i = 0; i < difference; i++)
-  {
-    mpoints[n + i]
-  }*/
 }
 
 // dwidth is passed in for performance reasons. It is equal to
@@ -152,18 +121,41 @@ vector<intn> Quantize(
   return qpoints;
 }
 
+inline std::string buToString(BigUnsigned bu) {
+  std::string representation = "";
+  if (bu.len == 0)
+  {
+    if (bu.isNULL) {
+      representation += "[NULL]";
+    }
+    else {
+      representation += "[0]";
+    }
+  }
+  else {
+    for (int i = bu.len; i > 0; --i) {
+      representation += "[" + std::to_string(bu.blk[i - 1]) + "]";
+    }
+  }
+
+  return representation;
+}
+
 vector<OctNode> BuildOctree(
     const vector<intn>& points, const Resln& resln, const bool verbose) {
   if (points.empty())
     throw logic_error("Zero points not supported");
+  vector<OctNode> Octree;
+
 
   int n = points.size();
+  cout << n << endl;
   CL.RadixSort(points, resln.bits, resln.mbits);
   n = CL.UniqueSorted();
-
-  //Using the unique, sorted morton numbers, we construct a binary radix tree in parallel.
   CL.buildBrt(n, resln.mbits);
-  return CL.BRT2Octree(n);
+  CL.BRT2Octree(n, Octree);
+
+  return Octree;
 }
 
 // Debug output
@@ -185,7 +177,6 @@ void OutputOctreeNode(
   }
 }
 
-// void OutputOctree(const std::vector<OctNode>& octree) {
 void OutputOctree(const OctNode* octree, const int n) {
   // if (!octree.empty()) {
   if (n > 0) {

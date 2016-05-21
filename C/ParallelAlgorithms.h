@@ -15,7 +15,7 @@
   void AddAll(__local Index* localBuffer, const int lid, const int powerOfTwo);
   void HillesSteelScan(__local Index* localBuffer, __local Index* scratch, const int lid, const int powerOfTwo);
   void StreamScan_Init(__global Index* buffer, __local Index* localBuffer, __local Index* scratch, const int gid, const int lid);
-  void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global Index *lPredicateBuffer, __global Index *leftBuffer, __global Index *rightBuffer, Index size, const size_t gid);
+  void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global Index *lPredicateBuffer, __global Index *leftBuffer, Index size, const size_t gid);
 	void BUSingleCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global Index *predicateBuffer, __global Index *addressBuffer, const int gid);
   void StreamScan_SerialKernel(Index* buffer, Index* result, const int size);
 

@@ -21,7 +21,7 @@ typedef struct OctNode {
 #endif // __cplusplus
 
   int children[1<<DIM];
-  unsigned char leaf;
+  int leaf;
   int pad1;
   int pad2;
   int pad3;

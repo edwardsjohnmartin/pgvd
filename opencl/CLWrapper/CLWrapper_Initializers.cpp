@@ -25,7 +25,7 @@ shared_ptr<Buffer> CLWrapper::createBuffer(size_t size) {
 bool CLWrapper::isBufferUsable(shared_ptr<Buffer> buffer, size_t expectedSizeInBytes) {
   if (buffer == nullptr)
     return false;
-  else if (buffer->getSize() != expectedSizeInBytes)
+  else if (buffer->getSize() < expectedSizeInBytes)
     return false;
   else
     return true;

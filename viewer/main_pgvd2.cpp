@@ -18,8 +18,10 @@
 
 // keep track of window size for things like the viewport and the mouse cursor
 int g_gl_width = 1000;
-int g_gl_height = 1000;
+int g_gl_height = 1000 ;
 GLFWwindow* g_window = NULL;
+cl_float count1 = 0;
+cl_float count2 = 0;
 
 Polylines* lines;
 LinesProgram* program;
@@ -58,6 +60,12 @@ void onKey(GLFWwindow* window, int key, int scancode,
 
   if (action == GLFW_PRESS) {
     switch (key) {
+      case GLFW_KEY_SPACE:
+        lines->addPoint({(cl_float).2*sin(count1),(cl_float).2*cos(count2)});
+        count1+=.01;
+        count2+=.01;
+        rebuild();
+        break;
       case GLFW_KEY_C:
         lines->clear();
         octree->build(*lines);
@@ -83,6 +91,14 @@ void onKey(GLFWwindow* window, int key, int scancode,
   }
 
   refresh();
+}
+
+void addpt(double radius) {
+  lines->newLine({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
+  count1 += 1;
+  count2 += 1;
+  lines->addPoint({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
+  rebuild();
 }
 
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
@@ -165,10 +181,12 @@ int main(int argc, char** argv) {
 
   refresh();
 
+  float radius = 0.0;
   while (!glfwWindowShouldClose(g_window)) {
     // Refresh here for animation
     // refresh();
-    
+    addpt(radius);
+    radius += .0005;
     glfwPollEvents ();
   }
 	
