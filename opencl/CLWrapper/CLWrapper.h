@@ -11,7 +11,7 @@ using namespace std;
 #include <iostream>
 #include <memory>
 #include <algorithm>
-#include "../BufferCollection/buffers.h"
+#include "../BufferCollection/Buffers.h"
 #include "../BufferCollection/Buffer.h"
 #include "../../C/BrtNode.h"
 #include "../../OctNode.h"
