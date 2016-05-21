@@ -89,66 +89,6 @@ __kernel void BUCompactKernel(
   BUCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
 }
 
-__kernel void RadixSortKernel(
-__global BigUnsigned *inputBuffer, 
-__global BigUnsigned *resultBuffer, 
-__global Index *predicateBuffer, 
-__global Index* addressBuffer, 
-__global volatile int* I, 
-__local Index* localBuffer, 
-__local Index* scratch,
-       Index index, 
-       unsigned char comparedWith,
-       Index size
-)
-{
-  //Thread info
-  const size_t gid = get_global_id(0);
-  const size_t lid = get_local_id(0);
-  const size_t wid = get_group_id(0);
-  const size_t ls = get_local_size(0);
-
-  //Predicate
-  BitPredicate(inputBuffer, predicateBuffer, index, comparedWith, gid);
-  barrier(CLK_GLOBAL_MEM_FENCE);
-
-  //Scan
-  int sum = 0;  
-  StreamScan_Init(inputBuffer, localBuffer, scratch, gid, lid);
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-  for (int offset = ls / 2; offset > 0; offset >>= 1) {
-    AddAll(scratch, lid, offset);
-    barrier(CLK_LOCAL_MEM_FENCE);
-  }
-
-  //ADJACENT SYNCRONIZATION
-  if (lid == 0 && gid != 0) {
-  while (I[wid - 1] == -1);
-  I[wid] = I[wid - 1] + scratch[0];
-  }
-  if (gid == 0) I[0] = scratch[0];
-  barrier(CLK_LOCAL_MEM_FENCE);
-  addressBuffer[gid] = scratch[0];
-
-  scratch[lid] = localBuffer[lid];
-  for (unsigned int i = 1; i < ls; i <<= 1) {
-    HillesSteelScan(localBuffer, scratch, lid, i);
-    __local Index *tmp = scratch;
-    scratch = localBuffer;
-    localBuffer = tmp;
-    barrier(CLK_LOCAL_MEM_FENCE);
-  }
-  sum = localBuffer[lid];
-
-  if (wid != 0) sum += I[wid - 1];
-  addressBuffer[gid] = sum; 
-  barrier(CLK_GLOBAL_MEM_FENCE);
-  
-  //Stream Compaction
-  BUCompact(inputBuffer, resultBuffer, predicateBuffer, addressBuffer, size, gid);
-  barrier(CLK_GLOBAL_MEM_FENCE);
-}
 
 //Single Compaction
 __kernel void BUSingleCompactKernel(

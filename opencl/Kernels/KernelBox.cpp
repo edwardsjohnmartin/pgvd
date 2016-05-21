@@ -57,14 +57,14 @@ size_t KernelBox::getSteamScanWorkGroupSize(size_t globalSize) {
   clGetKernelWorkGroupInfo(scanKernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &localSize, NULL);
   return min((int)(localSize), (int)globalSize);
 }
-void KernelBox::streamScan(cl_mem input, cl_mem intermediate, cl_mem result, size_t globalSize){
+void KernelBox::streamScan(cl_mem input, cl_mem intermediate, cl_mem intermediateCopy, cl_mem result, size_t globalSize){
   size_t localSize = getSteamScanWorkGroupSize(globalSize);
-  
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	const size_t localWorkSize[] = { localSize, 0, 0 };
+  //std::cout << localSize << std::endl;
 
-  Index negativeOne = -1;
-	clEnqueueFillBuffer(queue, intermediate, &negativeOne, sizeof(Index), 0, sizeof(Index)* (globalSize / localSize), 0, NULL, NULL);
+  int currentNumWorkgroups = (globalSize / localSize);
+  clEnqueueCopyBuffer(queue, intermediateCopy, intermediate, 0, 0, sizeof(Index)* currentNumWorkgroups, 0, NULL, NULL);
 
 	clSetKernelArg(scanKernel, 0, sizeof (cl_mem), &input);
 	clSetKernelArg(scanKernel, 1, sizeof (cl_mem), &result);
@@ -78,6 +78,7 @@ void KernelBox::streamScan(cl_mem input, cl_mem intermediate, cl_mem result, siz
 		std::getchar();
 		std::exit;
 	}
+  lastNumWorkgroups = currentNumWorkgroups;
 };
 void KernelBox::singleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem PBuffer, cl_mem ABuffer, size_t globalSize) {
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
@@ -92,7 +93,7 @@ void KernelBox::singleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem PB
     std::exit;
   }
 }
-void KernelBox::doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem LPBuffer, cl_mem LABuffer, size_t globalSize){
+void KernelBox::doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem resultBufferCopy, cl_mem LPBuffer, cl_mem LABuffer, size_t globalSize){
 	const size_t globalWorkSize[] = { globalSize, 0, 0 };
 	clSetKernelArg(doubleCompactKernel, 0, sizeof (cl_mem), &inputBuffer);
 	clSetKernelArg(doubleCompactKernel, 1, sizeof (cl_mem), &resultBuffer);
@@ -102,8 +103,8 @@ void KernelBox::doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem LP
 
   BigUnsigned zero;
   initBlkBU(&zero, 0);
-  clEnqueueFillBuffer(queue, resultBuffer, &zero, sizeof(BigUnsigned), 0, sizeof(BigUnsigned)* (globalSize), 0, NULL, NULL);
-
+  //clEnqueueFillBuffer(queue, resultBuffer, &zero, sizeof(BigUnsigned), 0, sizeof(BigUnsigned)* (globalSize), 0, NULL, NULL);
+  clEnqueueCopyBuffer(queue, resultBufferCopy, resultBuffer, 0, 0, sizeof(BigUnsigned) * globalSize, 0, NULL, NULL);
 	error = clEnqueueNDRangeKernel(queue, doubleCompactKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
 	if (error != CL_SUCCESS) {
 		std::cerr << "KernelBox double compaction: OpenCL call failed with error " << error << std::endl;
