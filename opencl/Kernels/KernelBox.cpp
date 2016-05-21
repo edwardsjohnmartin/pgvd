@@ -127,14 +127,13 @@ void KernelBox::buildBinaryRadixTree(cl_mem internalNodes, cl_mem leafNodes, cl_
     std::exit;
   }
 }
-void KernelBox::computeLocalSplits(cl_mem localSplits, cl_mem I, size_t size, size_t globalSize) {
+void KernelBox::computeLocalSplits(cl_mem localSplits, cl_mem localSplitsCopy, cl_mem I, size_t size, size_t globalSize) {
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
   clSetKernelArg(computeLocalSplitsKernel, 0, sizeof(cl_mem), &localSplits);
   clSetKernelArg(computeLocalSplitsKernel, 1, sizeof(cl_mem), &I);
   clSetKernelArg(computeLocalSplitsKernel, 2, sizeof(cl_mem), &size);
 
-  unsigned int zero = 0;
-  clEnqueueFillBuffer(queue, localSplits, &zero, sizeof(unsigned int), 0, sizeof(unsigned int)* (globalSize), 0, NULL, NULL);
+  clEnqueueCopyBuffer(queue, localSplitsCopy, localSplits, 0, 0, sizeof(unsigned int) * globalSize, 0, NULL, NULL);
 
   error = clEnqueueNDRangeKernel(queue, computeLocalSplitsKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
   if (error != CL_SUCCESS) {

@@ -15,6 +15,7 @@ struct Buffers
   shared_ptr<Buffer> internalNodes;
   shared_ptr<Buffer> leafNodes;
   shared_ptr<Buffer> localSplits;
+  shared_ptr<Buffer> localSplitsCopy;
   shared_ptr<Buffer> scannedSplits;
   shared_ptr<Buffer> octree;
 };

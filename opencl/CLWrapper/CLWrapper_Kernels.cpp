@@ -73,14 +73,16 @@ void CLWrapper::BRT2Octree(size_t n, vector<OctNode> &octree_vec) {
   initBRT2OctreeBuffers(nextPowerOfTwo);
 
   //compute local splits
-  kernelBox->computeLocalSplits(buffers.localSplits->getBuffer(), buffers.internalNodes->getBuffer(), n, nextPowerOfTwo);
+  kernelBox->computeLocalSplits(buffers.localSplits->getBuffer(), buffers.localSplitsCopy->getBuffer(), buffers.internalNodes->getBuffer(), n, nextPowerOfTwo);
   
   //scan the splits
   kernelBox->streamScan(buffers.localSplits->getBuffer(), buffers.intermediate->getBuffer(), buffers.intermediateCopy->getBuffer(), buffers.scannedSplits->getBuffer(), nextPowerOfTwo);
 
   //Read in the required octree size
-  int octree_size; //= prefix_sums[n - 1];
-  clEnqueueReadBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, sizeof(int)*(n-2), sizeof(int), &octree_size, 0, NULL, NULL);
+  int* temp = (int*)clEnqueueMapBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, CL_MAP_READ, sizeof(int)*(n - 2), sizeof(int), 0, NULL, NULL, NULL);
+  int octree_size = *temp;//= prefix_sums[n - 1];
+  clEnqueueUnmapMemObject(queue, buffers.scannedSplits->getBuffer(), temp, 0, NULL, NULL);
+  //clEnqueueReadBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, sizeof(int)*(n-2), sizeof(int), &octree_size, 0, NULL, NULL);
   
   //Make it a power of two.
   const int nextOctreeSizePowerOfTwo = max((int)pow(2, ceil(log(octree_size) / log(2))), 8);
@@ -93,7 +95,10 @@ void CLWrapper::BRT2Octree(size_t n, vector<OctNode> &octree_vec) {
   kernelBox->brt2Octree_init(buffers.internalNodes->getBuffer(), buffers.octree->getBuffer(), buffers.localSplits->getBuffer(), buffers.scannedSplits->getBuffer(), n, nextOctreeSizePowerOfTwo);
   kernelBox->brt2Octree(buffers.internalNodes->getBuffer(), buffers.octree->getBuffer(), buffers.localSplits->getBuffer(), buffers.scannedSplits->getBuffer(), n, n);
   octree_vec.resize(octree_size);
-  clEnqueueReadBuffer(queue, buffers.octree->getBuffer(), true, 0, sizeof(OctNode)*(octree_size), octree_vec.data(), 0, NULL, NULL);
+  
+  OctNode* tempOctree = (OctNode*)clEnqueueMapBuffer(queue, buffers.octree->getBuffer(), CL_TRUE, CL_MAP_READ, 0, sizeof(OctNode)*(octree_size), 0, NULL, NULL, NULL);
+  memcpy(octree_vec.data(), tempOctree, sizeof(OctNode)*(octree_size));
+  clEnqueueUnmapMemObject(queue, buffers.octree->getBuffer(), tempOctree, 0, NULL, NULL);
 }
 
 //--PRIVATE--//
@@ -177,6 +182,11 @@ inline void CLWrapper::initBrtBuffers() {
 inline void CLWrapper::initBRT2OctreeBuffers(size_t n) {
   if (!isBufferUsable(buffers.localSplits, sizeof(unsigned int)* (n)))
     buffers.localSplits = createBuffer(sizeof(unsigned int)* (n));
+  if (!isBufferUsable(buffers.localSplitsCopy, sizeof(unsigned int)* (n))) {
+    buffers.localSplitsCopy = createBuffer(sizeof(unsigned int)* (n));
+    unsigned int zero = 0;
+    clEnqueueFillBuffer(queue, buffers.localSplitsCopy->getBuffer(), &zero, sizeof(unsigned int), 0, sizeof(unsigned int)* (n), 0, NULL, NULL);
+  }
   if (!isBufferUsable(buffers.scannedSplits, sizeof(unsigned int)* (n)))
     buffers.scannedSplits = createBuffer(sizeof(unsigned int)* (n));
 }
