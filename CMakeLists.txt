@@ -57,9 +57,9 @@ SET(SRCS
 
    ./viewer/gl_utils.cpp
    ./viewer/Octree2.cpp
-   ./viewer/main_fit2.cpp
-   ./viewer/main_pgvd2.cpp
-   ./viewer/main_test2.cpp
+   #./viewer/main_fit2.cpp
+   #./viewer/main_pgvd2.cpp
+   #./viewer/main_test2.cpp
 
    ./Karras.cpp
 
@@ -75,7 +75,7 @@ SET(SRCS
    ./opencl/CLWrapper/CLWrapper_Initializers.cpp
    ./opencl/CLWrapper/CLWrapper_Kernels.cpp
    ./opencl/Kernels/KernelBox.cpp
-   ./opencl/BufferCollection/Buffer.cpp
+   #./opencl/BufferCollection/Buffer.cpp
 
    #These are new and may need to be moved...
 

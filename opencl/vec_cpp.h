@@ -15,8 +15,8 @@
 #ifndef __VEC_CPP_H__
 #define __VEC_CPP_H__
 
-#include <stdexcept>
-#include <cmath>
+// #include <stdexcept>
+#include <math.h>
 #include <iostream>
 
 #ifdef __OPEN_CL_SUPPORT__
@@ -94,14 +94,14 @@ typedef float3 floatn;
 typedef double3 doublen;
 #endif
 
-//------------------------------------------------------------
-// PointAndLabel struct
-//------------------------------------------------------------
-struct PointAndLabel {
-  PointAndLabel(const intn& p_, const int l_) : p(p_), l(l_) {}
-  intn p;
-  int l;
-};
+// //------------------------------------------------------------
+// // PointAndLabel struct
+// //------------------------------------------------------------
+// struct PointAndLabel {
+//   PointAndLabel(const intn& p_, const int l_) : p(p_), l(l_) {}
+//   intn p;
+//   int l;
+// };
 
 //------------------------------------------------------------
 // Functions
@@ -537,7 +537,8 @@ inline float length2(const float3 v) {
   return dot(v, v);
 }
 inline int length2(const int3 v) {
-  throw std::logic_error("can't get norm2 of integer type");
+  // throw std::logic_error("can't get norm2 of integer type");
+  return -1;
 }
 inline double length2(const double2 v) {
   return dot(v, v);
@@ -546,7 +547,8 @@ inline float length2(const float2 v) {
   return dot(v, v);
 }
 inline int length2(const int2 v) {
-  throw std::logic_error("can't get norm2 of integer type");
+  // throw std::logic_error("can't get norm2 of integer type");
+  return -1;
 }
 //------------------------------------------------------------
 // length

@@ -2,6 +2,7 @@
 #define __LINE_PROGRAM_H__
 
 #include <assert.h>
+#include <iostream>
 
 #include "./glm/mat4x4.hpp"
 #include "./glm/gtc/type_ptr.hpp"
