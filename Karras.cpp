@@ -27,7 +27,7 @@ using std::shared_ptr;
 
 namespace Karras {
   CLWrapper CL(256, 256);
-
+  bool parallel = true;
 intn z2xyz(BigUnsigned *z, const Resln* resln) {
   intn p = make_intn(0);
 	BigUnsigned temp, tempb;
@@ -141,19 +141,59 @@ inline std::string buToString(BigUnsigned bu) {
   return representation;
 }
 
-vector<OctNode> BuildOctree(
+vector<OctNode> BuildOctreeInParallel(
     const vector<intn>& points, const Resln& resln, const bool verbose) {
   if (points.empty())
     throw logic_error("Zero points not supported");
   vector<OctNode> Octree;
-
-
   int n = points.size();
-  cout << n << endl;
   CL.RadixSort(points, resln.bits, resln.mbits);
   n = CL.UniqueSorted();
   CL.buildBrt(n, resln.mbits);
   CL.BRT2Octree(n, Octree);
+  return Octree;
+}
+
+vector<OctNode> BuildOctreeInSerial(
+  const vector<intn>& points, const Resln& resln, const bool verbose) {
+  if (points.empty())
+    throw logic_error("Zero points not supported");
+  vector<OctNode> Octree;
+  int n = points.size();
+  int nextPowerOfTwo = max((int)pow(2, ceil(log(points.size()) / log(2))), 8);
+  vector<BigUnsigned> mpoints_vec(nextPowerOfTwo);
+
+  for (int i = 0; i < n; ++i) {
+    BigUnsigned temp;
+    xyz2z(&temp, points[i], resln.bits);
+    mpoints_vec.push_back(temp);
+  }
+  for (int i = n; i < nextPowerOfTwo; ++i) {
+    BigUnsigned temp;
+    initBlkBU(&temp, 0);
+    mpoints_vec.push_back(temp);
+  }
+
+  sort(mpoints_vec.rbegin(), mpoints_vec.rend(), lessThanBigUnsigned);
+  n = unique(mpoints_vec.begin(), mpoints_vec.end(), equalsBigUnsigned) - mpoints_vec.begin();
+  BigUnsigned* mpoints = mpoints_vec.data();
+  
+  vector<BrtNode> I_vec(n-1);
+  vector<BrtNode> L_vec(n);
+  BrtNode* I = I_vec.data();
+  BrtNode* L = L_vec.data();
+  BuildBinaryRadixTree_SerialKernel(I, L, mpoints, resln.mbits, n);
+
+  vector<unsigned int> local_splits_vec(n);
+  unsigned int* local_splits = local_splits_vec.data();
+  ComputeLocalSplits_SerialKernel(local_splits, I, n);
+
+  vector<unsigned int> prefix_sums_vec(n);
+  unsigned int* prefix_sums = prefix_sums_vec.data();
+  StreamScan_SerialKernel((Index*)local_splits, (Index*)prefix_sums, n);
+
+  Octree.resize(prefix_sums[n - 1]);
+  brt2octree_kernel(I, Octree.data(), local_splits, prefix_sums, n);
 
   return Octree;
 }

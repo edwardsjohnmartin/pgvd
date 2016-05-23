@@ -30,8 +30,10 @@ std::vector<intn> Quantize(
 
 void sort_points(BigUnsigned* mpoints, const int n);
 
-std::vector<OctNode> BuildOctree(
+std::vector<OctNode> BuildOctreeInParallel(
     const std::vector<intn>& opoints, const Resln& r, const bool verbose=false);
+std::vector<OctNode> BuildOctreeInSerial(
+  const std::vector<intn>& opoints, const Resln& r, const bool verbose = false);
 
 // Debug output
 // void OutputOctree(const std::vector<OctNode>& octree);

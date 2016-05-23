@@ -63,7 +63,7 @@ void CLWrapper::initPlatformIds(){
 void CLWrapper::initDevices(){
   //Here, we're hunting for avalable devices with the last platform avalable. (assumes graphics cards appear later in the list.)
   deviceIdCount = 0;
-  clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_ALL, 0, nullptr, &deviceIdCount);
+  clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_GPU, 0, nullptr, &deviceIdCount);
 
   if (deviceIdCount == 0) {
     std::cerr << "CLWrapper: No OpenCL devices found" << std::endl;
@@ -74,7 +74,7 @@ void CLWrapper::initDevices(){
     std::cout << "CLWrapper: Found " << deviceIdCount << " device(s) for " + getPlatformName(platformIds[0]) << std::endl;
 
   deviceIds.resize(deviceIdCount);
-  clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_ALL, deviceIdCount, deviceIds.data(), nullptr);
+  clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_GPU, deviceIdCount, deviceIds.data(), nullptr);
 
   if (verbose)
   for (cl_uint i = 0; i < deviceIdCount; ++i)

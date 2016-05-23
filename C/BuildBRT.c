@@ -1,7 +1,5 @@
 #ifndef __OPENCL_VERSION__ 
-extern "C" {
-  #include "BuildBRT.h"
-}
+#include "BuildBRT.h"
 #endif
 
 // UTILITY FUNCTIONS
@@ -97,7 +95,6 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
               compute_lcp_length( gid, gid + l_max * d, mpoints, mbits) > lcp_min) 
       {
         l_max = l_max << 1;
-        I[gid].parent1 = l_max;
       }
       // Find the other end using binary search.
       // In some cases, the search can go right off the end of the array.
@@ -148,5 +145,11 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     if (!I[gid].right_leaf) {
       I[right].parent = gid;
     }
+  }
+}
+
+void BuildBinaryRadixTree_SerialKernel(__global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size) {
+  for (int i = 0; i < size; ++i) {
+    BuildBinaryRadixTree(I, L, mpoints, mbits, size, i);
   }
 }

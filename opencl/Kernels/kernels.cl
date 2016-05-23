@@ -15,8 +15,8 @@ __kernel void PointsToMortonKernel(
  } else {
    initBlkBU(&tempBU, 0);
  }
- inputBuffer[gid] = tempBU;
  
+ inputBuffer[gid] = tempBU;
 }
 
 __kernel void BitPredicateKernel( 
@@ -88,6 +88,7 @@ __kernel void BUCompactKernel(
 {
   BUCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
 }
+
 
 //Single Compaction
 __kernel void BUSingleCompactKernel(

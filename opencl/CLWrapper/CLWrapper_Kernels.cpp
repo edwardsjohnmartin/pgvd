@@ -33,8 +33,10 @@ void CLWrapper::RadixSort(const vector<intn>& points, const int bits, const Inde
   if (sizeof(BigUnsigned) > 0 && !(sizeof(BigUnsigned)& (sizeof(BigUnsigned)-1))) {
     initRadixSortBuffers();
 
-    clEnqueueWriteBuffer(queue, buffers.points->getBuffer(), true, 0, points.size() * sizeof(intn), points.data(), 0, NULL, NULL);
-
+    intn* gpuPoints = (intn*)buffers.points->map_buffer();
+    memcpy(gpuPoints, points.data(), points.size() * sizeof(intn));
+    buffers.points->unmap_buffer();
+    
     envokeRadixSortRoutine(points.size(), bits, mBits);
   }
   else 
@@ -46,7 +48,7 @@ size_t CLWrapper::UniqueSorted() {
   
   initUniqueBuffers();
   kernelBox->uniquePredicate(buffers.bigUnsignedInput->getBuffer(), buffers.predicate->getBuffer(), globalSize);
-  kernelBox->streamScan(buffers.predicate->getBuffer(), buffers.intermediate->getBuffer(), buffers.address->getBuffer(), globalSize);
+  kernelBox->streamScan(buffers.predicate->getBuffer(), buffers.intermediate->getBuffer(), buffers.intermediateCopy->getBuffer(), buffers.address->getBuffer(), globalSize);
   
   kernelBox->singleCompact(buffers.bigUnsignedInput->getBuffer(), buffers.bigUnsignedResult->getBuffer(), buffers.predicate->getBuffer(), buffers.address->getBuffer(), globalSize);
   
@@ -72,14 +74,16 @@ void CLWrapper::BRT2Octree(size_t n, vector<OctNode> &octree_vec) {
   initBRT2OctreeBuffers(nextPowerOfTwo);
 
   //compute local splits
-  kernelBox->computeLocalSplits(buffers.localSplits->getBuffer(), buffers.internalNodes->getBuffer(), n, nextPowerOfTwo);
+  kernelBox->computeLocalSplits(buffers.localSplits->getBuffer(), buffers.localSplitsCopy->getBuffer(), buffers.internalNodes->getBuffer(), n, nextPowerOfTwo);
   
   //scan the splits
-  kernelBox->streamScan(buffers.localSplits->getBuffer(), buffers.intermediate->getBuffer(), buffers.scannedSplits->getBuffer(), nextPowerOfTwo);
+  kernelBox->streamScan(buffers.localSplits->getBuffer(), buffers.intermediate->getBuffer(), buffers.intermediateCopy->getBuffer(), buffers.scannedSplits->getBuffer(), nextPowerOfTwo);
 
   //Read in the required octree size
-  int octree_size; //= prefix_sums[n - 1];
-  clEnqueueReadBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, sizeof(int)*(n-2), sizeof(int), &octree_size, 0, NULL, NULL);
+  int* temp = (int*)clEnqueueMapBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, CL_MAP_READ, sizeof(int)*(n - 2), sizeof(int), 0, NULL, NULL, NULL);
+  int octree_size = *temp;//= prefix_sums[n - 1];
+  clEnqueueUnmapMemObject(queue, buffers.scannedSplits->getBuffer(), temp, 0, NULL, NULL);
+  //clEnqueueReadBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, sizeof(int)*(n-2), sizeof(int), &octree_size, 0, NULL, NULL);
   
   //Make it a power of two.
   const int nextOctreeSizePowerOfTwo = max((int)pow(2, ceil(log(octree_size) / log(2))), 8);
@@ -92,7 +96,10 @@ void CLWrapper::BRT2Octree(size_t n, vector<OctNode> &octree_vec) {
   kernelBox->brt2Octree_init(buffers.internalNodes->getBuffer(), buffers.octree->getBuffer(), buffers.localSplits->getBuffer(), buffers.scannedSplits->getBuffer(), n, nextOctreeSizePowerOfTwo);
   kernelBox->brt2Octree(buffers.internalNodes->getBuffer(), buffers.octree->getBuffer(), buffers.localSplits->getBuffer(), buffers.scannedSplits->getBuffer(), n, n);
   octree_vec.resize(octree_size);
-  clEnqueueReadBuffer(queue, buffers.octree->getBuffer(), true, 0, sizeof(OctNode)*(octree_size), octree_vec.data(), 0, NULL, NULL);
+  
+  OctNode* tempOctree = (OctNode*)clEnqueueMapBuffer(queue, buffers.octree->getBuffer(), CL_TRUE, CL_MAP_READ, 0, sizeof(OctNode)*(octree_size), 0, NULL, NULL, NULL);
+  memcpy(octree_vec.data(), tempOctree, sizeof(OctNode)*(octree_size));
+  clEnqueueUnmapMemObject(queue, buffers.octree->getBuffer(), tempOctree, 0, NULL, NULL);
 }
 
 //--PRIVATE--//
@@ -107,10 +114,23 @@ inline void CLWrapper::initRadixSortBuffers(){
     buffers.address = createBuffer(sizeof(Index)*(globalSize));
   if (!isBufferUsable(buffers.bigUnsignedResult, sizeof(BigUnsigned)* (globalSize)))
      buffers.bigUnsignedResult = createBuffer(sizeof(BigUnsigned)*globalSize);
+  if (!isBufferUsable(buffers.bigUnsignedResultCopy, sizeof(BigUnsigned)* (globalSize))) {
+    buffers.bigUnsignedResultCopy = createBuffer(sizeof(BigUnsigned)*globalSize);
+    BigUnsigned zero;
+    initBlkBU(&zero, 0);
+    clEnqueueFillBuffer(queue, buffers.bigUnsignedResultCopy->getBuffer(), &zero, sizeof(BigUnsigned), 0, sizeof(BigUnsigned)* (globalSize), 0, NULL, NULL);
+  }
+
   //get local size from kernel
   size_t streamScanLocalSize = kernelBox->getSteamScanWorkGroupSize(globalSize);
   if (!isBufferUsable(buffers.intermediate, sizeof(cl_int)*(globalSize / streamScanLocalSize)))
     buffers.intermediate = createBuffer(sizeof(cl_int)*(globalSize / streamScanLocalSize));
+  if (!isBufferUsable(buffers.intermediateCopy, sizeof(cl_int)*(globalSize / streamScanLocalSize))) {
+    buffers.intermediateCopy = createBuffer(sizeof(cl_int)*(globalSize / streamScanLocalSize));
+    Index negativeOne = -1;
+    clEnqueueFillBuffer(queue, buffers.intermediateCopy->getBuffer(), &negativeOne, sizeof(Index), 0, sizeof(Index) * globalSize/streamScanLocalSize, 0, NULL, NULL);
+  }
+
 }
 
 
@@ -131,10 +151,10 @@ void CLWrapper::envokeRadixSortRoutine(const int size, const int bits, const Ind
     kernelBox->bitPredicate(buffers.bigUnsignedInput->getBuffer(), buffers.predicate->getBuffer(), index, 1, globalSize);
 
     //Scan the predication buffers.
-    kernelBox->streamScan(buffers.predicate->getBuffer(), buffers.intermediate->getBuffer(), buffers.address->getBuffer(), globalSize);
+    kernelBox->streamScan(buffers.predicate->getBuffer(), buffers.intermediate->getBuffer(), buffers.intermediateCopy->getBuffer(), buffers.address->getBuffer(), globalSize);
 
 	  //Compacting
-    kernelBox->doubleCompact(buffers.bigUnsignedInput->getBuffer(), buffers.bigUnsignedResult->getBuffer(), buffers.predicate->getBuffer(), buffers.address->getBuffer(), globalSize);
+    kernelBox->doubleCompact(buffers.bigUnsignedInput->getBuffer(), buffers.bigUnsignedResult->getBuffer(), buffers.bigUnsignedResultCopy->getBuffer(), buffers.predicate->getBuffer(), buffers.address->getBuffer(), globalSize);
 
     //Swap result with input.
     temp = buffers.bigUnsignedInput;
@@ -163,6 +183,11 @@ inline void CLWrapper::initBrtBuffers() {
 inline void CLWrapper::initBRT2OctreeBuffers(size_t n) {
   if (!isBufferUsable(buffers.localSplits, sizeof(unsigned int)* (n)))
     buffers.localSplits = createBuffer(sizeof(unsigned int)* (n));
+  if (!isBufferUsable(buffers.localSplitsCopy, sizeof(unsigned int)* (n))) {
+    buffers.localSplitsCopy = createBuffer(sizeof(unsigned int)* (n));
+    unsigned int zero = 0;
+    clEnqueueFillBuffer(queue, buffers.localSplitsCopy->getBuffer(), &zero, sizeof(unsigned int), 0, sizeof(unsigned int)* (n), 0, NULL, NULL);
+  }
   if (!isBufferUsable(buffers.scannedSplits, sizeof(unsigned int)* (n)))
     buffers.scannedSplits = createBuffer(sizeof(unsigned int)* (n));
 }

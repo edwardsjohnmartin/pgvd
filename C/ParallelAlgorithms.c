@@ -41,7 +41,7 @@ void AddAll(__local Index* localBuffer, const int lid, const int powerOfTwo)
 
 void HillesSteelScan(__local Index* localBuffer, __local Index* scratch, const int lid, const int powerOfTwo)
 {
-    if (lid >(powerOfTwo - 1))
+    if (lid > (powerOfTwo - 1))
       scratch[lid] = localBuffer[lid] + localBuffer[lid - powerOfTwo];
     else
       scratch[lid] = localBuffer[lid];

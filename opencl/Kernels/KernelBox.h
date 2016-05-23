@@ -37,6 +37,7 @@ private:
   cl_kernel computeLocalSplitsKernel;
   cl_kernel brt2OctreeKernel_init;
   cl_kernel brt2OctreeKernel;
+  int lastNumWorkgroups = 0;
 
 	//Methods
 	void initProgram(std::vector<std::string> fileNames, cl_context context, cl_uint deviceIdCount, std::vector<cl_device_id> deviceIds);
@@ -53,12 +54,12 @@ public:
   void pointsToMorton(cl_mem input, cl_mem points, cl_int size, cl_int bits, size_t globalSize);
 	void bitPredicate(cl_mem input, cl_mem predicate, Index &index, unsigned char compared, size_t globalSize);
   void uniquePredicate(cl_mem input, cl_mem predicate, size_t globalSize);
-	void streamScan(cl_mem input, cl_mem intermediate, cl_mem result, size_t globalSize);
+	void streamScan(cl_mem input, cl_mem intermediate, cl_mem intermediateCopy, cl_mem result, size_t globalSize);
   size_t getSteamScanWorkGroupSize(size_t globalSize);
-  void doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem LPBuffer, cl_mem LABuffer, size_t globalSize);
+  void doubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem resultBufferCopy, cl_mem LPBuffer, cl_mem LABuffer, size_t globalSize);
   void singleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem PBuffer, cl_mem ABuffer, size_t globalSize);
   void buildBinaryRadixTree(cl_mem internalNodes, cl_mem leafNodes, cl_mem mpoints, cl_int mbits, cl_int n, size_t globalSize);
-  void computeLocalSplits(cl_mem localSplits, cl_mem I, size_t size, size_t globalSize);
+  void computeLocalSplits(cl_mem localSplits, cl_mem localSplitsCopy, cl_mem I, size_t size, size_t globalSize);
   void brt2Octree(cl_mem I, cl_mem octree, cl_mem local_splits, cl_mem prefix_sums, cl_int n, size_t globalSize);
   void brt2Octree_init(cl_mem I, cl_mem octree, cl_mem local_splits, cl_mem prefix_sums, cl_int n, size_t globalSize);
 };

@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <math.h>
 #include <fstream>
+#include "../timer.h"
 #define GL_LOG_FILE "gl.log"
 
 #include "gl_utils.h"
@@ -17,8 +18,8 @@
 #include "../Resln.h"
 
 // keep track of window size for things like the viewport and the mouse cursor
-int g_gl_width = 1000;
-int g_gl_height = 1000 ;
+int g_gl_width = 1440;
+int g_gl_height = 1440 ;
 GLFWwindow* g_window = NULL;
 cl_float count1 = 0;
 cl_float count2 = 0;
@@ -129,6 +130,11 @@ void onMouseMove(GLFWwindow* window, double xpos, double ypos) {
   }
 }
 
+void pollEvents() {
+  while (true) {
+  }
+}
+
 int main(int argc, char** argv) {
   using namespace std;
 
@@ -140,10 +146,11 @@ int main(int argc, char** argv) {
   glfwSetKeyCallback(g_window, onKey);
   glfwSetMouseButtonCallback(g_window, onMouse);
   glfwSetCursorPosCallback(g_window, onMouseMove);
+  
+  glfwSetCursor(g_window, arrowCursor);
 
   GLFWcursor* arrowCursor = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
   GLFWcursor* zoomCursor = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-  glfwSetCursor(g_window, arrowCursor);
   // glfwSetCursor(g_window, zoomCursor);
 
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -181,15 +188,17 @@ int main(int argc, char** argv) {
 
   refresh();
 
-  float radius = 0.0;
-  while (!glfwWindowShouldClose(g_window)) {
+  float radius = 1.3;
+  oct::Timer timer("Serial: ");
+  while (!glfwWindowShouldClose(g_window) & radius > 0.0) {
     // Refresh here for animation
     // refresh();
     addpt(radius);
-    radius += .0005;
-    glfwPollEvents ();
+    radius -= .0005;
+    glfwPollEvents();
   }
-	
+  timer.stop();
+  std::getchar();
   glfwTerminate();
   return 0;
 }
