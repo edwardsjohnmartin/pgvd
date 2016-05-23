@@ -1,6 +1,6 @@
 #pragma once
 #include <memory>
-#include "buffer.h"
+#include "Buffer.h"
 using namespace std;
 struct Buffers
 {
