@@ -36,7 +36,7 @@ endif()
 #------------------------------------------------------------
 # Use OpenCL depending on setting
 #------------------------------------------------------------
-OPTION(OPENCL_ACCEL "Use OpenCL acceleration" OFF)
+OPTION(OPENCL_ACCEL "Use OpenCL acceleration" ON)
 if(OPENCL_ACCEL)
   FIND_PACKAGE(OpenCL)
   if (OPENCL_FOUND)
@@ -53,17 +53,32 @@ set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 # Source files
 #------------------------------------------------------------
 SET(SRCS
+    ./Options.cpp
+
    ./viewer/gl_utils.cpp
    ./viewer/Octree2.cpp
+   ./viewer/main_fit2.cpp
+   ./viewer/main_pgvd2.cpp
+   ./viewer/main_test2.cpp
+
    ./Karras.cpp
+
    ./OctreeUtils.cpp
+
    ./C/BuildOctree.c
    ./C/BigUnsigned.c
+   ./C/BuildBRT.c
+   ./C/z_order.c
+   ./C/ParallelAlgorithms.c
+
    ./opencl/Geom.cpp
    ./opencl/CLWrapper/CLWrapper_Initializers.cpp
    ./opencl/CLWrapper/CLWrapper_Kernels.cpp
    ./opencl/Kernels/KernelBox.cpp
-   ./Options.cpp
+   ./opencl/BufferCollection/Buffer.cpp
+
+   #These are new and may need to be moved...
+
 )
 
 SET(PGVD2_SRCS
@@ -71,6 +86,20 @@ SET(PGVD2_SRCS
 
 SET(OCT2_SRCS
 )
+
+
+#------------------------------------------------------------
+# Header include directories
+#------------------------------------------------------------
+SET(INCL
+    ./
+    ./C
+    ./opencl
+    ./opencl/CLWrapper
+    ./opencl/BufferCollection
+    ./opencl/Kernels
+)
+INCLUDE_DIRECTORIES(${INCL})
 
 #------------------------------------------------------------
 # Maximum octree depth. Used for creating the Morton code
