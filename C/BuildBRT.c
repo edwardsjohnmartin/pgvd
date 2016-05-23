@@ -1,7 +1,5 @@
 #ifndef __OPENCL_VERSION__ 
-extern "C" {
-  #include "BuildBRT.h"
-}
+#include "BuildBRT.h"
 #endif
 
 // UTILITY FUNCTIONS
