@@ -1,18 +1,18 @@
-#include "./Karras.h"
+#include "Karras.h"
 
 #include <iostream>
 #include <algorithm>
 #include <memory>
 #include <string>
 
-#include "./BoundingBox.h"
-#include "opencl/CLWrapper/CLWrapper.h"
-// #include "./gpu.h"
+#include "BoundingBox.h"
+#include "CLWrapper.h"
+#include "timer.h"
 
 extern "C" {
-  #include "C/ParallelAlgorithms.h"
-	#include "C/BuildOctree.h"
-  #include "C/BuildBRT.h"
+  #include "ParallelAlgorithms.h"
+	#include "BuildOctree.h"
+  #include "BuildBRT.h"
 }
 using std::cout;
 using std::endl;
@@ -27,7 +27,7 @@ using std::shared_ptr;
 
 namespace Karras {
   CLWrapper CL(256, 256);
-  bool parallel = true;
+  Timer t;
 intn z2xyz(BigUnsigned *z, const Resln* resln) {
   intn p = make_intn(0);
 	BigUnsigned temp, tempb;
@@ -143,14 +143,30 @@ inline std::string buToString(BigUnsigned bu) {
 
 vector<OctNode> BuildOctreeInParallel(
     const vector<intn>& points, const Resln& resln, const bool verbose) {
+  system("cls");
+  if (verbose) {
+    t.restart("Octree build time:");
+    CL.verbose = true;
+  }
+  else {
+    CL.verbose = false;
+  }
   if (points.empty())
     throw logic_error("Zero points not supported");
   vector<OctNode> Octree;
   int n = points.size();
+  //.003 of .036 for writing points
+  //.006 of .036
   CL.RadixSort(points, resln.bits, resln.mbits);
+  //.001 of .036
   n = CL.UniqueSorted();
+  //.015 of .036
   CL.buildBrt(n, resln.mbits);
-  CL.BRT2Octree(n, Octree);
+  //.005 of .036
+  //CL.BRT2Octree(n, Octree);
+  if (verbose) {
+    t.stop();
+  }
   return Octree;
 }
 

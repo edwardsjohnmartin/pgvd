@@ -73,7 +73,7 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
 {
   //n-1 internal nodes.
   if (gid < size-1) {
-    // Determine direction of the range (+1 or -1)
+    // Determine direction of the range (+1 or -1) //78-86 takes about 3ms
     int d;
     if (gid == 0) 
       d = 1;
@@ -88,9 +88,9 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     if (gid == 0) {
       l = size-1;
     } else {
-      const int lcp_min = compute_lcp_length(gid, gid-d, mpoints, mbits);
+      const int lcp_min = compute_lcp_length(gid, gid-d, mpoints, mbits); //1ms
       int l_max = 2;
-      while ( gid + l_max * d >= 0 && 
+      while ( gid + l_max * d >= 0 && //4ms
               gid + l_max * d <= size - 1 && 
               compute_lcp_length( gid, gid + l_max * d, mpoints, mbits) > lcp_min) 
       {
@@ -102,7 +102,7 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
       // since it's a power of 2. So define a max length that we call l_cutoff.
       const int l_cutoff = (d==-1) ? gid : size - gid - 1;
       l = 0;
-      for (int t = l_max >> 1; t >= 1; t >>= 1) {
+      for (int t = l_max >> 1; t >= 1; t >>= 1) { //5ms
         if (l + t <= l_cutoff) {
           if (compute_lcp_length(gid, gid+(l+t)*d, mpoints, mbits) > lcp_min) {
             l = l + t;
@@ -110,15 +110,14 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
         }
       }
     }
-
     // j is the index of the other end of the range. In other words,
     // range = [i, j] or range = [j, i].
     const int j = gid + l * d;
     // Find the split position using binary search
-    const int lcp_node = compute_lcp_length(gid, j, mpoints, mbits);
+    const int lcp_node = compute_lcp_length(gid, j, mpoints, mbits); //1ms
     const int s_cutoff = (d==-1) ? gid - 1 : size - gid - 2;
     int s = 0;
-    for (int den = 2; den < 2*l; den *= 2) {
+    for (int den = 2; den < 2*l; den *= 2) { //5ms
       const int t = (int)((l + (float)den - 1) / den);// ceil(l / (float)den));
       if (s + t <= s_cutoff) {
         if (compute_lcp_length(gid, gid+(s+t)*d, mpoints, mbits) > lcp_node) {
@@ -126,6 +125,7 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
         }
       }
     }
+    /*
     const int split = gid + s * d + MIN(d, 0);
     // Output child pointers
     I[gid].left = split;
@@ -145,6 +145,7 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     if (!I[gid].right_leaf) {
       I[right].parent = gid;
     }
+    */
   }
 }
 

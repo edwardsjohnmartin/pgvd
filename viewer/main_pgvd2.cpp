@@ -18,8 +18,8 @@
 #include "../Resln.h"
 
 // keep track of window size for things like the viewport and the mouse cursor
-int g_gl_width = 1440;
-int g_gl_height = 1440 ;
+int g_gl_width = 512;
+int g_gl_height = 512 ;
 GLFWwindow* g_window = NULL;
 cl_float count1 = 0;
 cl_float count2 = 0;
@@ -99,7 +99,6 @@ void addpt(double radius) {
   count1 += 1;
   count2 += 1;
   lines->addPoint({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
-  rebuild();
 }
 
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
@@ -188,17 +187,17 @@ int main(int argc, char** argv) {
 
   refresh();
 
-  float radius = 1.3;
-  oct::Timer timer("Serial: ");
-  while (!glfwWindowShouldClose(g_window) & radius > 0.0) {
-    // Refresh here for animation
-    // refresh();
+  float radius = 1.0;
+  for (int i = 0; i < 3500; i++) {
+    radius -= .00001;
     addpt(radius);
-    radius -= .0005;
+  }
+  while (!glfwWindowShouldClose(g_window)) {
+  rebuild();
+    // Refresh here for animation
+    refresh();
     glfwPollEvents();
   }
-  timer.stop();
-  std::getchar();
   glfwTerminate();
   return 0;
 }

@@ -37,6 +37,7 @@ class CLWrapper
 	  vector<cl_platform_id> platformIds;
 	  vector<cl_device_id> deviceIds;
 	  KernelBox* kernelBox;
+    Timer timer;
 
 	  //Initializers
 	  void initPlatformIds();

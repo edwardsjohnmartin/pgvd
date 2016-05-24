@@ -1,7 +1,8 @@
 #include "CLWrapper.h"
 
+bool test = true;
 extern "C" {
-#include "../../C/BuildOctree.h"
+#include "BuildOctree.h"
 }
 inline std::string buToString(BigUnsigned bu) {
   std::string representation = "";
@@ -30,19 +31,35 @@ void CLWrapper::RadixSort(const vector<intn>& points, const int bits, const Inde
 
   //LPBuffer: 0. RPBuffer: 1. LABuffer: 2. RABuffer: 3. Result: 4. Intermediate: 5.
   if (sizeof(BigUnsigned) > 0 && !(sizeof(BigUnsigned)& (sizeof(BigUnsigned)-1))) {
+    
+    //takes about .002 of .030 ms
     initRadixSortBuffers();
-
     intn* gpuPoints = (intn*)buffers.points->map_buffer();
     memcpy(gpuPoints, points.data(), points.size() * sizeof(intn));
     buffers.points->unmap_buffer();
-    
+    test = false;
+
+    if (verbose) {
+      timer.restart("Running radix sort:");
+    }
+    //convert points to mpoints.
+    //.001 of .030
+    kernelBox->pointsToMorton(buffers.bigUnsignedInput->getBuffer(), buffers.points->getBuffer(), points.size(), bits, globalSize); 
+
+    //.001
     envokeRadixSortRoutine(points.size(), bits, mBits);
+    if (verbose) {
+      timer.stop();
+    }
   }
   else 
     std::cout << "CLWrapper: Sorry, but BigUnsigned is " << std::to_string(sizeof(BigUnsigned)) 
       <<" bytes, which isn't a power of two and cannot be sorted in parallel." << std::endl;
 };
 size_t CLWrapper::UniqueSorted() {
+  if (verbose) {
+    timer.restart("Running unique:");
+  }
   globalSize = buffers.bigUnsignedInput->getSize()/sizeof(BigUnsigned);
   
   initUniqueBuffers();
@@ -55,34 +72,46 @@ size_t CLWrapper::UniqueSorted() {
   buffers.bigUnsignedInput = buffers.bigUnsignedResult;
   buffers.bigUnsignedResult = temp;
   
+  if (verbose) {
+    timer.stop();
+  }
   Index value;
   clEnqueueReadBuffer(queue, buffers.address->getBuffer(), CL_TRUE, (sizeof(Index)*globalSize-(sizeof(Index))), sizeof(Index), &value, 0, NULL,NULL);
-
   return value;
 }
 void CLWrapper::buildBrt(size_t n, int mbits) {
+  if (verbose) {
+    timer.restart("Running buildBrt:");
+  }
   globalSize = buffers.bigUnsignedInput->getSize() / sizeof(BigUnsigned);
   initBrtBuffers();
   kernelBox->buildBinaryRadixTree(buffers.internalNodes->getBuffer(), buffers.leafNodes->getBuffer(), buffers.bigUnsignedInput->getBuffer(), mbits, n, globalSize);
+  if (verbose) {
+    timer.stop();
+  }
 }
 
 void CLWrapper::BRT2Octree(size_t n, vector<OctNode> &octree_vec) {
+  if (verbose) {
+    timer.restart("Running BRT2Octree:");
+  }
+  
   vector<unsigned int> local_splits_vec(n - 1, 0); // be sure to initialize to zero
   vector<unsigned int> prefix_sums_vec(n);
   int nextPowerOfTwo = max((int)pow(2, ceil(log(n) / log(2))), 8);
   initBRT2OctreeBuffers(nextPowerOfTwo);
-
+  
   //compute local splits
   kernelBox->computeLocalSplits(buffers.localSplits->getBuffer(), buffers.localSplitsCopy->getBuffer(), buffers.internalNodes->getBuffer(), n, nextPowerOfTwo);
-  
   //scan the splits
   kernelBox->streamScan(buffers.localSplits->getBuffer(), buffers.intermediate->getBuffer(), buffers.intermediateCopy->getBuffer(), buffers.scannedSplits->getBuffer(), nextPowerOfTwo);
 
   //Read in the required octree size
-  int* temp = (int*)clEnqueueMapBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, CL_MAP_READ, sizeof(int)*(n - 2), sizeof(int), 0, NULL, NULL, NULL);
+  int* temp = (int*)clEnqueueMapBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, CL_MAP_READ, sizeof(int)*(n - 2), sizeof(int), 0, NULL, NULL, NULL); //SLOW!!!
   int octree_size = *temp;//= prefix_sums[n - 1];
   clEnqueueUnmapMemObject(queue, buffers.scannedSplits->getBuffer(), temp, 0, NULL, NULL);
   //clEnqueueReadBuffer(queue, buffers.scannedSplits->getBuffer(), CL_TRUE, sizeof(int)*(n-2), sizeof(int), &octree_size, 0, NULL, NULL);
+  
   
   //Make it a power of two.
   const int nextOctreeSizePowerOfTwo = max((int)pow(2, ceil(log(octree_size) / log(2))), 8);
@@ -99,6 +128,10 @@ void CLWrapper::BRT2Octree(size_t n, vector<OctNode> &octree_vec) {
   OctNode* tempOctree = (OctNode*)clEnqueueMapBuffer(queue, buffers.octree->getBuffer(), CL_TRUE, CL_MAP_READ, 0, sizeof(OctNode)*(octree_size), 0, NULL, NULL, NULL);
   memcpy(octree_vec.data(), tempOctree, sizeof(OctNode)*(octree_size));
   clEnqueueUnmapMemObject(queue, buffers.octree->getBuffer(), tempOctree, 0, NULL, NULL);
+  
+  if (verbose) {
+    timer.stop();
+  }
 }
 
 //--PRIVATE--//
@@ -141,8 +174,6 @@ void CLWrapper::envokeRadixSortRoutine(const int size, const int bits, const Ind
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
   const size_t localWorkSize[] = { localSize, 0, 0 };
   
-  //convert points to mpoints.
-  kernelBox->pointsToMorton(buffers.bigUnsignedInput->getBuffer(), buffers.points->getBuffer(), size, bits, globalSize);
   shared_ptr<Buffer> temp;
   //For each bit
   for (Index index = 0; index < mbits; index++) {

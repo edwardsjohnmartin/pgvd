@@ -45,7 +45,7 @@ int Octree2::processArgs(int argc, char** argv) {
 
   // resln = Resln(1<<options.max_level);
   resln = make_resln(1 << options.max_level);
-  //resln = make_resln(1 << 2);
+  //resln = make_resln(1 << 8);
 
   // if (options.test > -1)
   //   test(options.test);
@@ -120,7 +120,7 @@ void Octree2::build(const vector<float2>& points,
   }
 
   // Set up vertices on GPU for rendering
-  buildOctVertices();
+ // buildOctVertices();
 }
 
 void Octree2::build(const Polylines& lines,
@@ -166,7 +166,7 @@ void Octree2::build(const Polylines& lines,
       bb(karras_points[i]);
     }
   }
-
+  
   // Karras iterations
   vector<intn> qpoints = Karras::Quantize(karras_points, resln);
   int iterations = 0;
@@ -177,8 +177,9 @@ void Octree2::build(const Polylines& lines,
     }
     extra_qpoints.clear();
     if (qpoints.size() > 1) {
-      octree = Karras::BuildOctreeInParallel(qpoints, resln, false);
-    } else {
+      octree = Karras::BuildOctreeInParallel(qpoints, resln, true);
+    }
+    else {
       octree.clear();
     }
     //FindMultiCells(lines);
@@ -199,7 +200,7 @@ void Octree2::build(const Polylines& lines,
   //cout << "Number of multi-intersection cells: " << count << endl;
 
   // todo: setup vertices on GPU for rendering
-  buildOctVertices();
+  //buildOctVertices();
   
   //------------------
   // Cleanup OpenCL
