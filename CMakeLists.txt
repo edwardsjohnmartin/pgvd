@@ -147,9 +147,6 @@ find_path(GLEW_INCLUDE_DIR GL/glew.h PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew
 find_library(GLEW_LIBRARY NAMES GLEW glew32 glew glew32s PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/lib/Release/Win32 PATH_SUFFIXES lib64 Win32 Release)
 
 
-
-
-
 FIND_PACKAGE(OpenGL)
 FIND_PACKAGE(GLEW)
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -168,6 +165,25 @@ if(BUILD_2D_PGVD)
   ADD_EXECUTABLE(2D_PGVD ${SRCS} ${2D_PGVD_SRCS} viewer/main_pgvd2.cpp)
   set_target_properties (2D_PGVD PROPERTIES COMPILE_DEFINITIONS "OCT2D")
   TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
+
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       		${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD>/opencl/C)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       		${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD>/opencl/Kernels)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy
+                       		${CMAKE_SOURCE_DIR}/opencl/vec_cl.h $<TARGET_FILE_DIR:2D_PGVD>/opencl/vec_cl.h)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy
+                       		${CMAKE_SOURCE_DIR}/opencl/dim.h $<TARGET_FILE_DIR:2D_PGVD>/opencl/dim.h)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy
+                       		${CMAKE_SOURCE_DIR}/OctNode.h $<TARGET_FILE_DIR:2D_PGVD>/opencl/OctNode.h)
+ add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
 endif(BUILD_2D_PGVD)
 
 option(BUILD_TEST2 "Build 2D TEST" OFF)
