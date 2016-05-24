@@ -116,14 +116,15 @@ SET(SRCS
   ./viewer/LinesProgram.h
   ./viewer/Polylines.h
   ./viewer/Octree2.h
-   
-  ./opencl/BufferCollection/Buffer.h
-  ./opencl/BufferCollection/Buffers.h
+  
+  ./opencl/CLWrapper/CLWrapper.h
+  ./opencl/Buffers/Buffer.h
+  ./opencl/Buffers/Buffers.h
   ./opencl/Kernels/KernelBox.h
   ./opencl/vec_cpp.h
 )
 
-SET(PGVD2_SRCS
+SET(2D_PGVD_SRCS
 )
 
 SET(OCT2_SRCS
@@ -162,12 +163,12 @@ IF(APPLE)
   ADD_DEFINITIONS(-D__MAC__ -DAPPLE)
 ENDIF(APPLE)
 
-option(BUILD_PGVD2 "Build 2D PGVD" ON)
-if(BUILD_PGVD2)
-  ADD_EXECUTABLE(pgvd2 ${SRCS} ${PGVD2_SRCS} viewer/main_pgvd2.cpp)
-  set_target_properties (pgvd2 PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES(pgvd2 glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
-endif(BUILD_PGVD2)
+option(BUILD_2D_PGVD "Build 2D PGVD" ON)
+if(BUILD_2D_PGVD)
+  ADD_EXECUTABLE(2D_PGVD ${SRCS} ${2D_PGVD_SRCS} viewer/main_pgvd2.cpp)
+  set_target_properties (2D_PGVD PROPERTIES COMPILE_DEFINITIONS "OCT2D")
+  TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
+endif(BUILD_2D_PGVD)
 
 option(BUILD_TEST2 "Build 2D TEST" OFF)
 if(BUILD_TEST2)
