@@ -50,45 +50,6 @@ endif(OPENCL_ACCEL)
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 
 #------------------------------------------------------------
-# Source files
-#------------------------------------------------------------
-SET(SRCS
-    ./Options.cpp
-
-   ./viewer/gl_utils.cpp
-   ./viewer/Octree2.cpp
-   #./viewer/main_fit2.cpp
-   #./viewer/main_pgvd2.cpp
-   #./viewer/main_test2.cpp
-
-   ./Karras.cpp
-
-   ./OctreeUtils.cpp
-
-   ./C/BuildOctree.c
-   ./C/BigUnsigned.c
-   ./C/BuildBRT.c
-   ./C/z_order.c
-   ./C/ParallelAlgorithms.c
-
-   ./opencl/Geom.cpp
-   ./opencl/CLWrapper/CLWrapper_Initializers.cpp
-   ./opencl/CLWrapper/CLWrapper_Kernels.cpp
-   ./opencl/Kernels/KernelBox.cpp
-   #./opencl/BufferCollection/Buffer.cpp
-
-   #These are new and may need to be moved...
-
-)
-
-SET(PGVD2_SRCS
-)
-
-SET(OCT2_SRCS
-)
-
-
-#------------------------------------------------------------
 # Header include directories
 #------------------------------------------------------------
 SET(INCL
@@ -100,6 +61,73 @@ SET(INCL
     ./opencl/Kernels
 )
 INCLUDE_DIRECTORIES(${INCL})
+
+#------------------------------------------------------------
+# Source files
+#------------------------------------------------------------
+SET(SRCS
+  ./Options.cpp
+
+  ./viewer/gl_utils.cpp
+  ./viewer/Octree2.cpp
+  #./viewer/main_fit2.cpp
+  #./viewer/main_pgvd2.cpp
+  #./viewer/main_test2.cpp
+
+  ./Karras.cpp
+
+  ./OctreeUtils.cpp
+
+  ./C/BuildOctree.c
+  ./C/BigUnsigned.c
+  ./C/BuildBRT.c
+  ./C/z_order.c
+  ./C/ParallelAlgorithms.c
+
+  ./opencl/Geom.cpp
+  ./opencl/CLWrapper/CLWrapper_Initializers.cpp
+  ./opencl/CLWrapper/CLWrapper_Kernels.cpp
+  ./opencl/Kernels/KernelBox.cpp
+  #./opencl/BufferCollection/Buffer.cpp
+
+  #These are new and may need to be moved...
+
+  #headers
+  ./BoundingBox.h
+  ./CellIntersections.h
+  ./Karras.h
+  ./OctCell.h
+  ./OctNode.h
+  ./OctreeUtils.h
+  ./Options.h
+  ./Resln.h
+  ./timer.h
+
+  ./C/BigUnsigned.h
+  ./C/bool.h
+  ./C/BrtNode.h
+  ./C/BuildBRT.h
+  ./C/BuildOctree.h
+  ./C/ParallelAlgorithms.h
+  ./C/z_order.h
+
+  ./viewer/Color.h
+  ./viewer/gl_utils.h
+  ./viewer/LinesProgram.h
+  ./viewer/Polylines.h
+  ./viewer/Octree2.h
+   
+  ./opencl/BufferCollection/Buffer.h
+  ./opencl/BufferCollection/Buffers.h
+  ./opencl/Kernels/KernelBox.h
+  ./opencl/vec_cpp.h
+)
+
+SET(PGVD2_SRCS
+)
+
+SET(OCT2_SRCS
+)
 
 #------------------------------------------------------------
 # Maximum octree depth. Used for creating the Morton code
