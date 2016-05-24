@@ -97,7 +97,6 @@ SET(SRCS
   ./CellIntersections.h
   ./Karras.h
   ./OctCell.h
-  ./OctNode.h
   ./OctreeUtils.h
   ./Options.h
   ./Resln.h
@@ -106,6 +105,7 @@ SET(SRCS
   ./C/BigUnsigned.h
   ./C/bool.h
   ./C/BrtNode.h
+  ./C/OctNode.h
   ./C/BuildBRT.h
   ./C/BuildOctree.h
   ./C/ParallelAlgorithms.h
@@ -173,15 +173,6 @@ if(BUILD_2D_PGVD)
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
                        		${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD>/opencl/Kernels)
   add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy
-                       		${CMAKE_SOURCE_DIR}/opencl/vec_cl.h $<TARGET_FILE_DIR:2D_PGVD>/opencl/vec_cl.h)
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy
-                       		${CMAKE_SOURCE_DIR}/opencl/dim.h $<TARGET_FILE_DIR:2D_PGVD>/opencl/dim.h)
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy
-                       		${CMAKE_SOURCE_DIR}/OctNode.h $<TARGET_FILE_DIR:2D_PGVD>/opencl/OctNode.h)
- add_custom_command(TARGET 2D_PGVD PRE_BUILD
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
                        		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
 endif(BUILD_2D_PGVD)

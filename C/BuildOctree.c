@@ -1,8 +1,11 @@
-#ifndef  __OPENCL_VERSION__ 
-#include "./bool.h"
-#include "BuildOctree.h"
+#ifdef  __OPENCL_VERSION__ 
+#include ".\opencl\C\BuildOctree.h"
+#include ".\opencl\C\ParallelAlgorithms.h"
+#else
+#include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
+#include "BuildOctree.h"
 #include "ParallelAlgorithms.h"
 #endif
 
@@ -41,9 +44,6 @@ void ComputeLocalSplits_SerialKernel(__global unsigned int* local_splits, __glob
 //                                    ^^
 int quadrantInLcp(const BrtNode* brt_node, const int i) {
   const int mask = (DIM == 2) ? 3 : 7;
-  #ifndef __OPENCL_VERSION__ 
-  assert(DIM <= 3);
-  #endif
   /* if (DIM > 3) */
   /*   throw logic_error("BrtNode::oct_nodes not yet supported for D>3"); */
   const int rem = brt_node->lcp_length % DIM;
@@ -105,12 +105,7 @@ void brt2octree( const int brt_i, __global BrtNode* I, __global volatile OctNode
     else {
       oct_parent = prefix_sums[brt_parent-1];
     }
-    #ifndef  __OPENCL_VERSION__ 
-      assert(brt_parent >= 0 && brt_parent < n);           
-      assert(oct_parent >= 0 && oct_parent < octree_size);
-    #else
-      //barrier(CLK_GLOBAL_MEM_FENCE);
-    #endif // ! __OPENCL_VERSION__ 
+
     //set_child(&octree[oct_parent], quadrantInLcp(brt_node, m-1), currentNode);
     int temp = quadrantInLcp(&brt_node, numSplits - 1);
     octree[oct_parent].children[temp] = currentNode;

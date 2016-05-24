@@ -1,15 +1,15 @@
 #ifndef __OCTREE_2_H__
 #define __OCTREE_2_H__
 
-#include "./LinesProgram.h"
-#include "./Polylines.h"
-#include "./gl_utils.h"
-#include "../CellIntersections.h"
-#include "../OctreeUtils.h"
-#include "../BoundingBox.h"
-#include "../Options.h"
-#include "../Resln.h"
-#include "../OctNode.h"
+#include "LinesProgram.h"
+#include "Polylines.h"
+#include "gl_utils.h"
+#include "CellIntersections.h"
+#include "OctreeUtils.h"
+#include "BoundingBox.h"
+#include "Options.h"
+#include "Resln.h"
+#include "OctNode.h"
 
 class Octree2 {
  private:

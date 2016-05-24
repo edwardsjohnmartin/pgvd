@@ -1,3 +1,4 @@
+#include ".\opencl\C\z_order.h"
 __kernel void PointsToMortonKernel(
   __global BigUnsigned *inputBuffer,
   __global intn *points,

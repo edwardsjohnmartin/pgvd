@@ -117,20 +117,10 @@ void CLWrapper::initKernelBox(){
 
   //These files need to be copied relative to the executable...
   std::vector<std::string> files;
-  files.push_back("./opencl/vec_cl.h");
-	files.push_back("./opencl/C/BigUnsigned.h");
   files.push_back("./opencl/C/BigUnsigned.c");
-  files.push_back("./opencl/C/ParallelAlgorithms.h");
   files.push_back("./opencl/C/ParallelAlgorithms.c");
-  files.push_back("./opencl/C/BrtNode.h");
-  files.push_back("./opencl/C/BuildBRT.h");
   files.push_back("./opencl/C/BuildBRT.c");
-  files.push_back("./opencl/dim.h"); 
-  files.push_back("./opencl/OctNode.h");
-  files.push_back("./opencl/C/BuildOctree.h");
   files.push_back("./opencl/C/BuildOctree.c");
-  files.push_back("./opencl/C/z_order.h");
-  files.push_back("./opencl/C/z_order.c");
   files.push_back("./opencl/Kernels/kernels.cl");
   kernelBox = new KernelBox(files, context, queue, deviceIdCount, deviceIds);
 }
