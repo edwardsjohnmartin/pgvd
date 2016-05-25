@@ -9,6 +9,14 @@
 #include "../timer.h"
 #define GL_LOG_FILE "gl.log"
 
+#include "./gl_utils.h"
+
+#ifdef __APPLE__
+#include "OpenCL/opencl.h"
+#else
+#include "CL/cl.h"
+#endif
+
 #include "gl_utils.h"
 
 #include "../opencl/vec.h"

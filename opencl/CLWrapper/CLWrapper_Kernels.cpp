@@ -1,4 +1,5 @@
 #include "CLWrapper.h"
+#include <math.h>
 
 bool test = true;
 extern "C" {

@@ -1,5 +1,10 @@
 #ifndef BIGUNSIGNED_C
 #define BIGUNSIGNED_C
+
+#ifndef __OPENCL_VERSION__
+#include <stdbool.h>
+#endif
+
 #define BIG_INTEGER_SIZE 10 //6 results in 32 byte BUs.
 typedef int Index; // Type for the index of a block in the array
 typedef unsigned char Blk;  // Type for the blocks

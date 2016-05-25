@@ -11,11 +11,12 @@ using namespace std;
 #include <iostream>
 #include <memory>
 #include <algorithm>
-#include "../BufferCollection/Buffers.h"
-#include "../BufferCollection/Buffer.h"
-#include "../../C/BrtNode.h"
-#include "../../OctNode.h"
-#include "../../opencl/vec.h"
+#include "Buffers/Buffers.h"
+#include "Buffers/Buffer.h"
+#include "C/BrtNode.h"
+#include "OctNode.h"
+#include "opencl/vec.h"
+#include "timer.h"
 
 /*
   CLWrapper.

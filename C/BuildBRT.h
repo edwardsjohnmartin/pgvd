@@ -1,9 +1,10 @@
 #ifndef __BUILD_BRT_H__
 #define __BUILD_BRT_H__
 
-#ifndef __OPENCL_VERSION__
-
-#include "../C/BrtNode.h"
+#ifdef __OPENCL_VERSION__
+#include ".\opencl\C\BrtNode.h"
+#else
+#include "..\C\BrtNode.h"
 #define __global
 #define __local
 #endif

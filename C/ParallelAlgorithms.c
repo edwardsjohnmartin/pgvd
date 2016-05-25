@@ -1,7 +1,7 @@
-#ifndef __OPENCL_VERSION__
-extern "C" {
-  #include "ParallelAlgorithms.h"
-}
+#ifdef __OPENCL_VERSION__
+#include "opencl\C\ParallelAlgorithms.h"
+#else
+#include "ParallelAlgorithms.h"
 #endif
 
 //If the bit at the provided index matches compared with, the predicate buffer at n is set to 1. 0 otherwise.
@@ -13,7 +13,7 @@ void BitPredicate( __global BigUnsigned *inputBuffer, __global Index *predicateB
 
 //Unique Predication
 //Requires input be sorted.
-void UniquePredicate( __global BigUnsigned *inputBuffer, __global Index *predicateBuffer, const size_t gid)
+void UniquePredicate( __global BigUnsigned *inputBuffer, __global Index *predicateBuffer, const int gid)
 {
   if (gid == 0) {
     predicateBuffer[gid] = 1;
@@ -49,7 +49,7 @@ void HillesSteelScan(__local Index* localBuffer, __local Index* scratch, const i
 
 //result buffer MUST be initialized as 0!!!
 void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global Index *lPredicateBuffer, 
-	__global Index *leftBuffer, Index size, const size_t gid)
+	__global Index *leftBuffer, Index size, const int gid)
 {
   //Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
   int t = gid - leftBuffer[gid] + (lPredicateBuffer[size - 1] + leftBuffer[size - 2]);

@@ -1,4 +1,6 @@
-#ifndef __OPENCL_VERSION__ 
+#ifdef __OPENCL_VERSION__ 
+#include "opencl\C\BuildBRT.h"
+#else
 #include "BuildBRT.h"
 #endif
 

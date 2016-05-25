@@ -1,5 +1,7 @@
-#ifndef __OPENCL_VERSION__
-#include "./bool.h"
+#ifdef __OPENCL_VERSION__
+#include ".\opencl\C\BigUnsigned.h"
+#else
+#include <stdbool.h>
 #include "BigUnsigned.h"
 #endif
 
