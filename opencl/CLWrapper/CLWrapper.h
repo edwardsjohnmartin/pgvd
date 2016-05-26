@@ -50,11 +50,11 @@ class CLWrapper
 	  //Private helper methods
 	  string getPlatformName(cl_platform_id id);
 	  string getDeviceName(cl_device_id id);
-	  inline void initRadixSortBuffers();
-	  void envokeRadixSortRoutine(const int size, const int bits, const Index mbits);
-	  inline void initUniqueBuffers();
-	  inline void initBrtBuffers();
-    inline void initBRT2OctreeBuffers(size_t n);
+	  void initRadixSortBuffers();
+	  void envokeRadixSortRoutine(const int size, const Index mbits);
+	  void initUniqueBuffers();
+	  void InitBinaryRadixTreeBuffers();
+    void InitBinaryRadixToOctreeBuffers(size_t n);
 	  void checkError(cl_int error);
 
   public:
@@ -70,9 +70,12 @@ class CLWrapper
     bool isBufferUsable(shared_ptr<Buffer> buffer, size_t expectedSizeInBytes);
 	  
     //Kernel Wrappers
-    void RadixSort(const vector<intn>& points, const int bits, const Index mBits);
-    size_t UniqueSorted();
-	  void buildBrt(size_t n, int mbits);
-    void BRT2Octree(size_t n, vector<OctNode> &octree_vec);
+    void UploadPoints(const vector<intn>& points);
+    void DownloadOctree(vector<OctNode> &octree_vec, const int octree_size);
+    void ConvertPointsToMorton(const int size, const int bits);
+    void RadixSort(const int size, const Index mBits);
+    void UniqueSorted(int &newSize);
+	  void BuildBinaryRadixTree(size_t n, int mbits);
+    void BinaryRadixToOctree(size_t n, int &octree_size);
 };
 

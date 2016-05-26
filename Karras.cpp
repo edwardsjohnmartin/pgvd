@@ -155,15 +155,15 @@ vector<OctNode> BuildOctreeInParallel(
     throw logic_error("Zero points not supported");
   vector<OctNode> Octree;
   int n = points.size();
-  //.003 of .036 for writing points
-  //.006 of .036
-  CL.RadixSort(points, resln.bits, resln.mbits);
-  //.001 of .036
-  n = CL.UniqueSorted();
-  //.015 of .036
-  CL.buildBrt(n, resln.mbits);
-  //.005 of .036
-  //CL.BRT2Octree(n, Octree);
+  int octreeSize;
+  CL.UploadPoints(points);
+  CL.ConvertPointsToMorton(n, resln.bits);
+  CL.RadixSort(n, resln.mbits);
+  CL.UniqueSorted(n);
+  CL.BuildBinaryRadixTree(n, resln.mbits);
+  //CL.BinaryRadixToOctree(n, octreeSize);
+  //CL.DownloadOctree(Octree, octreeSize);
+
   if (verbose) {
     t.stop();
   }

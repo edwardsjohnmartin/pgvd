@@ -196,12 +196,12 @@ int main(int argc, char** argv) {
   refresh();
 
   float radius = 1.0;
-  for (int i = 0; i < 3500; i++) {
-    radius -= .00001;
+  for (int i = 0; i < 500000; i++) {
+    radius -= .0005;
     addpt(radius);
   }
   while (!glfwWindowShouldClose(g_window)) {
-  rebuild();
+    rebuild();
     // Refresh here for animation
     refresh();
     glfwPollEvents();

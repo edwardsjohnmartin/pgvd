@@ -45,7 +45,7 @@ int Octree2::processArgs(int argc, char** argv) {
 
   // resln = Resln(1<<options.max_level);
   resln = make_resln(1 << options.max_level);
-  //resln = make_resln(1 << 8);
+  //resln = make_resln(1<<3);
 
   // if (options.test > -1)
   //   test(options.test);
@@ -120,7 +120,7 @@ void Octree2::build(const vector<float2>& points,
   }
 
   // Set up vertices on GPU for rendering
- // buildOctVertices();
+  //buildOctVertices();
 }
 
 void Octree2::build(const Polylines& lines,
