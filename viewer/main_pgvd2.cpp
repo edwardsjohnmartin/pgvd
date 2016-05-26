@@ -196,7 +196,8 @@ int main(int argc, char** argv) {
   refresh();
 
   float radius = 1.0;
-  for (int i = 0; i < 500000; i++) {
+  //500000
+  for (int i = 0; i < 3000; i++) {
     radius -= .0005;
     addpt(radius);
   }

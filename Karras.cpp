@@ -161,8 +161,8 @@ vector<OctNode> BuildOctreeInParallel(
   CL.RadixSort(n, resln.mbits);
   CL.UniqueSorted(n);
   CL.BuildBinaryRadixTree(n, resln.mbits);
-  //CL.BinaryRadixToOctree(n, octreeSize);
-  //CL.DownloadOctree(Octree, octreeSize);
+  CL.BinaryRadixToOctree(n, octreeSize);
+  CL.DownloadOctree(Octree, octreeSize);
 
   if (verbose) {
     t.stop();

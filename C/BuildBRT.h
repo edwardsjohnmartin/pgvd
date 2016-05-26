@@ -11,6 +11,6 @@
 
 void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size, const unsigned int gid);
 void compute_lcp(__global BigUnsigned *lcp, __global BigUnsigned *value, const int length, int mbits);
-int compute_lcp_length(int i, int j, __global BigUnsigned* _mpoints, int mbits);
+int compute_lcp_length(BigUnsigned* a, BigUnsigned* b, int mbits);
 void BuildBinaryRadixTree_SerialKernel(__global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size);
 #endif

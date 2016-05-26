@@ -47,47 +47,7 @@ void compute_lcp(__global BigUnsigned *lcp, __global BigUnsigned *value, const i
   *lcp = privateLcp;
 }
 
-int compute_lcp_length(int i, int j, __global BigUnsigned* _mpoints, int mbits) {
-  BigUnsigned one;
-  initBlkBU(&one, 1);
-  BigUnsigned tempa, tempb, tempc, tempd;
-  BigUnsigned mask;
-  tempc = _mpoints[i];
-  tempd = _mpoints[j];
-
-  for (int k = mbits - 1; k >= 0; --k) {
-    //BigUnsigned mask = one << i;
-    shiftBULeft(&mask, &one, k);
-    //if ((a & mask) != (b & mask)) {
-    tempc = _mpoints[i];
-    tempd = _mpoints[j];
-    andBU(&tempa, &tempc, &mask);
-    andBU(&tempb, &tempd, &mask);
-
-    if (compareBU(&tempa, &tempb) != 0) {
-      return mbits - k - 1;
-    }
-  }
-  return mbits;
-}
-int compute_lcp_length_new(BigUnsigned* a, BigUnsigned* b, int mbits) {
-  //BigUnsigned one;
-  //initBlkBU(&one, 1);
-  //BigUnsigned mask;
-
-  //for (int k = mbits - 1; k >= 0; --k) {
-  //  //BigUnsigned mask = one << i;
-  //  shiftBULeft(&mask, &one, k);
-  //  //if ((a & mask) != (b & mask)) {
-  //  andBU(&tempa, a, &mask);
-  //  andBU(&tempb, b, &mask);
-
-  //  if (compareBU(&tempa, &tempb) != 0) {
-  //    return mbits - k - 1;
-  //  }
-  //}
-  //return mbits;
-
+int compute_lcp_length(BigUnsigned* a, BigUnsigned* b, int mbits) {
   BigUnsigned tempa, tempb;
   unsigned int v = mbits; // compute the next highest power of 2 of 32-bit v
   v--;
@@ -140,8 +100,8 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
       d = 1;
     else {
       left = mpoints[gid - 1];
-      int l_pos = compute_lcp_length_new(&current, &right, mbits);
-      int l_neg = compute_lcp_length_new(&current, &left, mbits);
+      int l_pos = compute_lcp_length(&current, &right, mbits);
+      int l_neg = compute_lcp_length(&current, &left, mbits);
       d = ((l_pos - l_neg > 0) - (l_pos - l_neg < 0)); //sign
     }
 
@@ -150,12 +110,12 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     if (gid == 0) {
       l = size-1;
     } else {
-      const int lcp_min = (d == -1) ? compute_lcp_length_new(&current, &right, mbits) : compute_lcp_length_new(&current, &left, mbits);//1ms
+      const int lcp_min = (d == -1) ? compute_lcp_length(&current, &right, mbits) : compute_lcp_length(&current, &left, mbits);//1ms
       int l_max = 2;
       temp = mpoints[gid + l_max*d];
       while ( gid + l_max * d >= 0 && //4ms
               gid + l_max * d <= size - 1 && 
-              compute_lcp_length_new( &current, &temp, mbits) > lcp_min) 
+              compute_lcp_length( &current, &temp, mbits) > lcp_min) 
       {
         l_max = l_max << 1;
         temp = mpoints[gid + l_max*d];
@@ -169,7 +129,7 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
       for (int t = l_max >> 1; t >= 1; t >>= 1) { //5ms
         if (l + t <= l_cutoff) {
           temp = mpoints[gid + (l + t)*d];
-          if (compute_lcp_length_new(&current, &temp, mbits) > lcp_min) {
+          if (compute_lcp_length(&current, &temp, mbits) > lcp_min) {
             l = l + t;
           }
         }
@@ -180,20 +140,21 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     const int j = gid + l * d;
     // Find the split position using binary search
     temp = mpoints[j];
-    const int lcp_node = compute_lcp_length_new(&current, &temp, mbits); //1ms
+    const int lcp_node = compute_lcp_length(&current, &temp, mbits); //1ms
     const int s_cutoff = (d==-1) ? gid - 1 : size - gid - 2;
     int s = 0;
     for (int den = 2; den < 2*l; den *= 2) { //5ms
       const int t = (int)((l + (float)den - 1) / den);// ceil(l / (float)den));
       if (s + t <= s_cutoff) {
         temp = mpoints[gid + (s + t)*d];
-        if (compute_lcp_length_new(&current, &temp, mbits) > lcp_node) {
+        if (compute_lcp_length(&current, &temp, mbits) > lcp_node) {
           s = s + t;
         }
       }
     }
     
     const int split = gid + s * d + MIN(d, 0);
+
     // Output child pointers
     I[gid].left = split;
     I[gid].left_leaf = (MIN(gid, j) == split);
@@ -212,7 +173,6 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     if (!I[gid].right_leaf) {
       I[right].parent = gid;
     }
-    
   }
 }
 
