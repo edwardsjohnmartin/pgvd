@@ -125,12 +125,7 @@ inline std::string buToString(BigUnsigned bu) {
   std::string representation = "";
   if (bu.len == 0)
   {
-    if (bu.isNULL) {
-      representation += "[NULL]";
-    }
-    else {
-      representation += "[0]";
-    }
+    representation += "[0]";
   }
   else {
     for (int i = bu.len; i > 0; --i) {

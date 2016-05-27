@@ -35,7 +35,7 @@
   int initBUBU(BigUnsigned *result, BigUnsigned *x) {
     if (!result || !x)
       return -1;
-    result->isNULL = x->isNULL;
+    //result->isNULL = x->isNULL;
     result->len = x->len;
     //result->cap = x->cap;
     for (Index i = 0; i < x->len; i++)
@@ -47,7 +47,6 @@
 		if (!result){
       return -1;
     }
-    result->isNULL = false;
     //result->cap = 0;
     result->len = 0;
     return 0;
@@ -60,7 +59,6 @@
       if (x == 0)
         return initBU(result);
       else {
-        result->isNULL = false;
         //result->cap = 1;
         result->len = 1;
         result->blk[0] = x;
@@ -77,7 +75,6 @@
       if (x == 0)
         return initBU(result);
       else {
-        result->isNULL = false;
         //result->cap = 8;
         result->len = 8;
         for (int i = 0; i < 8; ++i){
@@ -92,20 +89,7 @@
   int initMorton(BigUnsigned *result, Blk x) {
     return initBlkBU(result, x);
   }
-  int initNULLBU(BigUnsigned *result){
-    if (!result)
-      return -1;
-    else {
-      int error = initBU(result);
-      if (!error) {
-        result->isNULL = true;
-        return 0;
-      }
-      else
-        return error;
-    }
-  }
-
+  
   //~~BIT/BLOCK ACCESSORS~~//
 	Blk getBUBlock(BigUnsigned *bu, Index i){
     return i >= bu->len ? 0 : bu->blk[i];
@@ -130,19 +114,6 @@
     Blk part1 = (x == 0 || y == 0) ? 0 : (num->blk[x - 1] >> (numBUBits - y));
     Blk part2 = (x == num->len) ? 0 : (num->blk[x] << y);
     return part1 | part2;
-  }
-  Index getBUBitLength(BigUnsigned *bu) {
-    if (isBUZero(bu))
-      return 0;
-    else {
-      Blk leftmostBlock = getBUBlock(bu, bu->len - 1);
-      Index leftmostBlockLen = 0;
-      while (leftmostBlock != 0) {
-        leftmostBlock >>= 1;
-        leftmostBlockLen++;
-      }
-      return leftmostBlockLen + (bu->len - 1) * numBUBits;
-    }
   }
 	bool getBUBit(BigUnsigned *bu, Index bi) {
     Blk b = 1;
@@ -183,6 +154,15 @@
 
   //~~ARITHMATIC OPERATIONS~~//
   int addBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
+    BigUnsigned copy;
+    if (a == result) {
+      initBUBU(&copy, a);
+      a = &copy;
+    }
+    if (b == result) {
+      initBUBU(&copy, b);
+      b = &copy;
+    }
     if (a->len == 0) {
       return initBUBU(result, b); //Copy B, return that.
     }
@@ -241,6 +221,15 @@
     return 0;
   }
   int subtractBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
+    BigUnsigned copy;
+    if (a == result) {
+      initBUBU(&copy, a);
+      a = &copy;
+    }
+    if (b == result) {
+      initBUBU(&copy, b);
+      b = &copy;
+    }
     if (b->len == 0) {
       // If b is zero, copy a.
       return initBUBU(result, a);
@@ -305,6 +294,15 @@
   /* These are straightforward blockwise operations except that they differ in
    * the output length and the necessity of zapLeadingZeros. */
   int andBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
+    BigUnsigned copy;
+    if (a == result) {
+      initBUBU(&copy, a);
+      a = &copy;
+    }
+    if (b == result) {
+      initBUBU(&copy, b);
+      b = &copy;
+    }
     initBU(result);
     // The bitwise & can't be longer than either operand.
     result->len = (a->len >= b->len) ? b->len : a->len;
@@ -314,6 +312,15 @@
     return 0;
   }
   int orBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
+    BigUnsigned copy;
+    if (a == result) {
+      initBUBU(&copy, a);
+      a = &copy;
+    }
+    if (b == result) {
+      initBUBU(&copy, b);
+      b = &copy;
+    }
     Index i;
     BigUnsigned *a2, *b2;
     if (a->len >= b->len) {
@@ -333,6 +340,15 @@
     return 0;
   }
   int xOrBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {
+    BigUnsigned copy;
+    if (a == result) {
+      initBUBU(&copy, a);
+      a = &copy;
+    }
+    if (b == result) {
+      initBUBU(&copy, b);
+      b = &copy;
+    }
     Index i;
     BigUnsigned *a2, *b2;
     if (a->len >= b->len) {
@@ -352,6 +368,11 @@
     return 0;
   }
   int shiftBURight(BigUnsigned *result, BigUnsigned *a, int b) {
+    BigUnsigned copy;
+    if (a == result) {
+      initBUBU(&copy, a);
+      a = &copy;
+    }
     initBU(result);
     if (b < 0) {
       //if (b << 1 == 0)
@@ -375,7 +396,7 @@
 		// Zap possible leading zero
 		if (result->blk[result->len - 1] == 0)
 			result->len--;
-		return result;
+		return 0;
       }
     }
     // This calculation is wacky, but expressing the shift as a left bit shift
@@ -402,6 +423,11 @@
     return 0;
   }
   int shiftBULeft(BigUnsigned *result, BigUnsigned *a, int b) {
+    BigUnsigned copy;
+    if (a == result) {
+      initBUBU(&copy, a);
+      a = &copy;
+    }
     initBU(result);
     if (b < 0) {
       //if (b << 1 == 0)
@@ -423,5 +449,5 @@
     // Zap possible leading zero
     if (result->blk[result->len - 1] == 0)
       result->len--;
-    return result;
+    return 0;
   }

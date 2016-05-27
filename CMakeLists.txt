@@ -59,6 +59,7 @@ SET(INCL
     ./opencl/CLWrapper
     ./opencl/BufferCollection
     ./opencl/Kernels
+    ./tests/
 )
 INCLUDE_DIRECTORIES(${INCL})
 
@@ -124,10 +125,14 @@ SET(SRCS
   ./opencl/vec_cpp.h
 )
 
-SET(2D_PGVD_SRCS
-)
+SET(UNIT_TEST_SOURCES
+    ./tests/catch.hpp
 
-SET(OCT2_SRCS
+    #tests
+    ./tests/C_Tests/BigUnsignedTests.cpp
+    
+    #required sources
+    ./C/BigUnsigned.h
 )
 
 #------------------------------------------------------------
@@ -176,6 +181,25 @@ if(BUILD_2D_PGVD)
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
                        		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
 endif(BUILD_2D_PGVD)
+
+option(BUILD_2D_PGVD_UNIT_TESTS "2D PGVD Unit Tests" ON)
+if(BUILD_2D_PGVD_UNIT_TESTS)
+#Adding files to target
+  ADD_EXECUTABLE(2D_PGVD_UNIT_TESTS ${UNIT_TEST_SOURCES} tests/main.cpp)
+  set_target_properties (2D_PGVD_UNIT_TESTS PROPERTIES COMPILE_DEFINITIONS "OCT2D")
+  TARGET_LINK_LIBRARIES (2D_PGVD_UNIT_TESTS glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
+
+#Custom Build Commands
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/C)
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/Kernels)
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opengl/shaders)
+endif(BUILD_2D_PGVD_UNIT_TESTS)
 
 option(BUILD_TEST2 "Build 2D TEST" OFF)
 if(BUILD_TEST2)
