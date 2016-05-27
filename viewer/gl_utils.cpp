@@ -294,6 +294,11 @@ void clear_errors() {
 
 void print_error(const std::string& prefix, const bool stop) {
   GLenum error = glGetError();
+  print_error(error, prefix, stop);
+}
+
+void print_error(
+    const GLenum error, const std::string& prefix, const bool stop) {
   if (error == GL_NO_ERROR) {
     return;
   }

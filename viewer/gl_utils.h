@@ -85,5 +85,7 @@ bool parse_file_into_str (
 void clear_errors();
 
 void print_error(const std::string& prefix = "", const bool stop = false);
+void print_error(const GLenum error, const std::string& prefix = "",
+                 const bool stop = false);
 
 #endif

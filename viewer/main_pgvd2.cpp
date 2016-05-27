@@ -198,10 +198,13 @@ int main(int argc, char** argv) {
 
   float radius = 1.3;
   oct::Timer timer("Serial: ");
-  while (!glfwWindowShouldClose(g_window) & radius > 0.0) {
+  int cnt = 0;
+  while (!glfwWindowShouldClose(g_window) & (radius > 0.0)) {
     // Refresh here for animation
     // refresh();
     addpt(radius);
+    cnt++;
+    cout << cnt << endl;
     radius -= .0005;
     glfwPollEvents();
   }

@@ -112,15 +112,29 @@ class Polylines {
 		
     program->setPointSize(5.0);
 
+    print_error("Polylines0");
+
     glBindVertexArray(pointsVaoId);
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 
+    print_error("Polylines0.1");
+
     glVertexAttribPointer(
         program->getVertexLoc(), 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    print_error("Polylines0.2");
     glEnableVertexAttribArray(program->getVertexLoc());
+    print_error("Polylines0.3");
 
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-		glLineWidth(5.0);
+    glLineWidth(5.0);
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+      if (error == GL_INVALID_VALUE) {
+        // Line widths of >1 not supported on Mac OS X. No big deal.
+      } else {
+        print_error(error, "Polylines0.4");
+      }
+    }
 
     int first = 0;
     for (int i = 0; i < lasts.size(); ++i) {
@@ -128,9 +142,11 @@ class Polylines {
       program->setColor(i);
       if (options.showObjectVertices) {
         glDrawArrays(GL_POINTS, first, len);
+        print_error("Polylines1");
       }
       if (options.showObjects) {
         glDrawArrays(GL_LINE_STRIP, first, len);
+        print_error("Polylines2");
       }
       first = lasts[i];
     }

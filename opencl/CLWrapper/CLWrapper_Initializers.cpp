@@ -13,6 +13,8 @@ CLWrapper::CLWrapper(size_t defaultGlobalSize, size_t defaultLocalSize)
   initKernelBox();
   globalSize = defaultGlobalSize;
   localSize = defaultLocalSize;
+
+  printInfo(deviceIds[0]);
 }
 CLWrapper::~CLWrapper()
 {
@@ -157,4 +159,159 @@ std::string CLWrapper::getDeviceName(cl_device_id id)
     const_cast<char*> (result.data()), nullptr);
 
   return result;
+}
+
+//----------------------------------------
+// printInfoT
+//----------------------------------------
+template <typename T>
+void printInfoT(
+    const cl_device_id id, const cl_device_info param_name,
+    const std::string& name) {
+
+  size_t size = 0;
+  clGetDeviceInfo(id, param_name, 0, nullptr, &size);
+
+  T result;
+  clGetDeviceInfo(id, param_name, size, &result, nullptr);
+  std::cout << name << ": " << result << endl;
+}
+
+//----------------------------------------
+// printInfoT - char[] version
+//----------------------------------------
+template <>
+void printInfoT<char[]>(
+    const cl_device_id id, const cl_device_info param_name,
+    const std::string& name) {
+
+  size_t size = 0;
+  clGetDeviceInfo(id, param_name, 0, nullptr, &size);
+
+  std::string result;
+  result.resize(size);
+  clGetDeviceInfo(id, param_name, size,
+    const_cast<char*> (result.data()), nullptr);
+  std::cout << name << ": " << result << endl;
+}
+
+//----------------------------------------
+// printInfoT - size_t[] version
+//----------------------------------------
+template <>
+void printInfoT<size_t[]>(
+    const cl_device_id id, const cl_device_info param_name,
+    const std::string& name) {
+
+  size_t size = 0;
+  clGetDeviceInfo(id, param_name, 0, nullptr, &size);
+
+  const int n = size / sizeof(size_t);
+  size_t* result = new size_t[n];
+
+  clGetDeviceInfo(id, param_name, size, result, nullptr);
+  std::cout << name << ": ";
+  for (int i = 0; i < n; ++i) {
+    cout << result[i] << " ";
+  }
+  cout << endl;
+
+  delete [] result;
+}
+
+void CLWrapper::printInfo(const cl_device_id id) const {
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_ADDRESS_BITS, "CL_DEVICE_ADDRESS_BITS");
+  printInfoT<cl_bool>(
+      id, CL_DEVICE_AVAILABLE, "CL_DEVICE_AVAILABLE");
+  printInfoT<cl_bool>(
+      id, CL_DEVICE_COMPILER_AVAILABLE, "CL_DEVICE_COMPILER_AVAILABLE");
+  printInfoT<cl_device_fp_config>(
+      id, CL_DEVICE_DOUBLE_FP_CONFIG, "CL_DEVICE_DOUBLE_FP_CONFIG");
+  printInfoT<cl_bool>(
+      id, CL_DEVICE_ENDIAN_LITTLE, "CL_DEVICE_ENDIAN_LITTLE");
+  printInfoT<cl_bool>(
+      id, CL_DEVICE_ERROR_CORRECTION_SUPPORT,
+      "CL_DEVICE_ERROR_CORRECTION_SUPPORT");
+  printInfoT<cl_device_exec_capabilities>(
+      id, CL_DEVICE_EXECUTION_CAPABILITIES, "CL_DEVICE_EXECUTION_CAPABILITIES");
+  printInfoT<char[]>(
+      id, CL_DEVICE_EXTENSIONS, "CL_DEVICE_EXTENSIONS");
+  printInfoT<cl_ulong>(
+      id, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, "CL_DEVICE_GLOBAL_MEM_CACHE_SIZE");
+  printInfoT<cl_device_mem_cache_type>(
+      id, CL_DEVICE_GLOBAL_MEM_CACHE_TYPE, "CL_DEVICE_GLOBAL_MEM_CACHE_TYPE");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE,
+      "CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE");
+  printInfoT<cl_ulong>(
+      id, CL_DEVICE_GLOBAL_MEM_SIZE, "CL_DEVICE_GLOBAL_MEM_SIZE");
+  printInfoT<cl_device_fp_config>(
+      id, CL_DEVICE_HALF_FP_CONFIG, "CL_DEVICE_HALF_FP_CONFIG");
+  printInfoT<cl_bool>(
+      id, CL_DEVICE_IMAGE_SUPPORT, "CL_DEVICE_IMAGE_SUPPORT");
+  printInfoT<size_t>(
+      id, CL_DEVICE_IMAGE2D_MAX_HEIGHT, "CL_DEVICE_IMAGE2D_MAX_HEIGHT");
+  printInfoT<size_t>(
+      id, CL_DEVICE_IMAGE2D_MAX_WIDTH, "CL_DEVICE_IMAGE2D_MAX_WIDTH");
+  printInfoT<size_t>(
+      id, CL_DEVICE_IMAGE3D_MAX_DEPTH, "CL_DEVICE_IMAGE3D_MAX_DEPTH");
+  printInfoT<size_t>(
+      id, CL_DEVICE_IMAGE3D_MAX_HEIGHT, "CL_DEVICE_IMAGE3D_MAX_HEIGHT");
+  printInfoT<size_t>(
+      id, CL_DEVICE_IMAGE3D_MAX_WIDTH, "CL_DEVICE_IMAGE3D_MAX_WIDTH");
+  printInfoT<cl_ulong>(
+      id, CL_DEVICE_LOCAL_MEM_SIZE, "CL_DEVICE_LOCAL_MEM_SIZE");
+  printInfoT<cl_device_local_mem_type>(
+      id, CL_DEVICE_LOCAL_MEM_TYPE, "CL_DEVICE_LOCAL_MEM_TYPE");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MAX_CLOCK_FREQUENCY, "CL_DEVICE_MAX_CLOCK_FREQUENCY");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MAX_COMPUTE_UNITS, "CL_DEVICE_MAX_COMPUTE_UNITS");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MAX_CONSTANT_ARGS, "CL_DEVICE_MAX_CONSTANT_ARGS");
+  printInfoT<cl_ulong>(
+      id, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE,
+      "CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE");
+  printInfoT<cl_ulong>(
+      id, CL_DEVICE_MAX_MEM_ALLOC_SIZE, "CL_DEVICE_MAX_MEM_ALLOC_SIZE");
+  printInfoT<size_t>(
+      id, CL_DEVICE_MAX_PARAMETER_SIZE, "CL_DEVICE_MAX_PARAMETER_SIZE");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MAX_READ_IMAGE_ARGS, "CL_DEVICE_MAX_READ_IMAGE_ARGS");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MAX_SAMPLERS, "CL_DEVICE_MAX_SAMPLERS");
+  printInfoT<size_t>(
+      id, CL_DEVICE_MAX_WORK_GROUP_SIZE, "CL_DEVICE_MAX_WORK_GROUP_SIZE");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
+      "CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS");
+  printInfoT<size_t[]>(
+      id, CL_DEVICE_MAX_WORK_ITEM_SIZES, "CL_DEVICE_MAX_WORK_ITEM_SIZES");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MAX_WRITE_IMAGE_ARGS, "CL_DEVICE_MAX_WRITE_IMAGE_ARGS");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MEM_BASE_ADDR_ALIGN, "CL_DEVICE_MEM_BASE_ADDR_ALIGN");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE,
+      "CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE");
+  printInfoT<char[]>(
+      id, CL_DEVICE_NAME, "CL_DEVICE_NAME");
+  printInfoT<cl_platform_id>(
+      id, CL_DEVICE_PLATFORM, "CL_DEVICE_PLATFORM");
+  printInfoT<char[]>(
+      id, CL_DEVICE_PROFILE, "CL_DEVICE_PROFILE");
+  printInfoT<size_t>(
+      id, CL_DEVICE_PROFILING_TIMER_RESOLUTION,
+      "CL_DEVICE_PROFILING_TIMER_RESOLUTION");
+  printInfoT<cl_command_queue_properties>(
+      id, CL_DEVICE_QUEUE_PROPERTIES, "CL_DEVICE_QUEUE_PROPERTIES");
+  printInfoT<cl_device_type>(
+      id, CL_DEVICE_TYPE, "CL_DEVICE_TYPE");
+  printInfoT<char[]>(
+      id, CL_DEVICE_VENDOR, "CL_DEVICE_VENDOR");
+  printInfoT<cl_uint>(
+      id, CL_DEVICE_VENDOR_ID, "CL_DEVICE_VENDOR_ID");
+  printInfoT<char[]>(
+      id, CL_DEVICE_VERSION, "CL_DEVICE_VERSION");
 }
