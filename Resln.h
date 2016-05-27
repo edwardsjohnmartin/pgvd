@@ -1,7 +1,7 @@
 #ifndef __RESLN_H__
 #define __RESLN_H__
 
-#include "./opencl/dim.h"
+#include "./C/dim.h"
 
 #ifndef  __OPENCL_VERSION__ 
 #include <assert.h>

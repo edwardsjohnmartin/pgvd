@@ -1,7 +1,7 @@
-#ifndef __OPENCL_VERSION__
-/* extern "C" { */
-  #include "ParallelAlgorithms.h"
-/* } */
+#ifdef __OPENCL_VERSION__
+#include "opencl\C\ParallelAlgorithms.h"
+#else
+#include "ParallelAlgorithms.h"
 #endif
 
 //If the bit at the provided index matches compared with, the predicate buffer at n is set to 1. 0 otherwise.

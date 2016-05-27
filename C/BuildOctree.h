@@ -1,11 +1,14 @@
 #ifndef __BUILD_OCTREE_H__
 #define __BUILD_OCTREE_H__
 
-  #ifndef __OPENCL_VERSION__ 
-  #include "BuildBRT.h"
-  #include "../Resln.h"
-  #include "../OctNode.h"
-  #include "../C/BrtNode.h"
+  #ifdef __OPENCL_VERSION__ 
+    #include ".\opencl\C\BuildBRT.h"
+    #include ".\opencl\C\OctNode.h"
+    #include ".\opencl\C\BrtNode.h"
+  #else
+    #include "BuildBRT.h"
+    #include "OctNode.h"
+    #include "BrtNode.h"
   #endif
 
   #ifndef __OPENCL_VERSION__

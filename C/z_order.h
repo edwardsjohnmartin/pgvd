@@ -1,7 +1,11 @@
-#ifndef __OPENCL_VERSION__
+#ifdef __OPENCL_VERSION__
+#include ".\opencl\C\BigUnsigned.h"
+#include ".\opencl\C\vec_cl.h"
+#include ".\opencl\C\dim.h"
+#else
 #include "BigUnsigned.h"
-#include "../opencl/vec.h"
-#define DIM 2
+#include "vec.h"
+#include "dim.h"
 #endif // !__OPENCL_VERSION__
 
 // BigUnsigned* xyz2z(BigUnsigned *result, intn p, int bits);

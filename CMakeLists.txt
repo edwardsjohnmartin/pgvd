@@ -50,45 +50,6 @@ endif(OPENCL_ACCEL)
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 
 #------------------------------------------------------------
-# Source files
-#------------------------------------------------------------
-SET(SRCS
-    ./Options.cpp
-
-   ./viewer/gl_utils.cpp
-   ./viewer/Octree2.cpp
-   #./viewer/main_fit2.cpp
-   #./viewer/main_pgvd2.cpp
-   #./viewer/main_test2.cpp
-
-   ./Karras.cpp
-
-   ./OctreeUtils.cpp
-
-   ./C/BuildOctree.c
-   ./C/BigUnsigned.c
-   ./C/BuildBRT.c
-   ./C/z_order.c
-   ./C/ParallelAlgorithms.c
-
-   ./opencl/Geom.cpp
-   ./opencl/CLWrapper/CLWrapper_Initializers.cpp
-   ./opencl/CLWrapper/CLWrapper_Kernels.cpp
-   ./opencl/Kernels/KernelBox.cpp
-   #./opencl/BufferCollection/Buffer.cpp
-
-   #These are new and may need to be moved...
-
-)
-
-SET(PGVD2_SRCS
-)
-
-SET(OCT2_SRCS
-)
-
-
-#------------------------------------------------------------
 # Header include directories
 #------------------------------------------------------------
 SET(INCL
@@ -100,6 +61,74 @@ SET(INCL
     ./opencl/Kernels
 )
 INCLUDE_DIRECTORIES(${INCL})
+
+#------------------------------------------------------------
+# Source files
+#------------------------------------------------------------
+SET(SRCS
+  ./Options.cpp
+
+  ./viewer/gl_utils.cpp
+  ./viewer/Octree2.cpp
+  #./viewer/main_fit2.cpp
+  #./viewer/main_pgvd2.cpp
+  #./viewer/main_test2.cpp
+
+  ./Karras.cpp
+
+  ./OctreeUtils.cpp
+
+  ./C/BuildOctree.c
+  ./C/BigUnsigned.c
+  ./C/BuildBRT.c
+  ./C/z_order.c
+  ./C/ParallelAlgorithms.c
+
+  ./opencl/Geom.cpp
+  ./opencl/CLWrapper/CLWrapper_Initializers.cpp
+  ./opencl/CLWrapper/CLWrapper_Kernels.cpp
+  ./opencl/Kernels/KernelBox.cpp
+  #./opencl/BufferCollection/Buffer.cpp
+
+  #These are new and may need to be moved...
+
+  #headers
+  ./BoundingBox.h
+  ./CellIntersections.h
+  ./Karras.h
+  ./OctCell.h
+  ./OctreeUtils.h
+  ./Options.h
+  ./Resln.h
+  ./timer.h
+
+  ./C/BigUnsigned.h
+  ./C/bool.h
+  ./C/BrtNode.h
+  ./C/OctNode.h
+  ./C/BuildBRT.h
+  ./C/BuildOctree.h
+  ./C/ParallelAlgorithms.h
+  ./C/z_order.h
+
+  ./viewer/Color.h
+  ./viewer/gl_utils.h
+  ./viewer/LinesProgram.h
+  ./viewer/Polylines.h
+  ./viewer/Octree2.h
+  
+  ./opencl/CLWrapper/CLWrapper.h
+  ./opencl/Buffers/Buffer.h
+  ./opencl/Buffers/Buffers.h
+  ./opencl/Kernels/KernelBox.h
+  ./opencl/vec_cpp.h
+)
+
+SET(2D_PGVD_SRCS
+)
+
+SET(OCT2_SRCS
+)
 
 #------------------------------------------------------------
 # Maximum octree depth. Used for creating the Morton code
@@ -118,9 +147,6 @@ find_path(GLEW_INCLUDE_DIR GL/glew.h PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew
 find_library(GLEW_LIBRARY NAMES GLEW glew32 glew glew32s PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/lib/Release/Win32 PATH_SUFFIXES lib64 Win32 Release)
 
 
-
-
-
 FIND_PACKAGE(OpenGL)
 FIND_PACKAGE(GLEW)
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -134,12 +160,22 @@ IF(APPLE)
   ADD_DEFINITIONS(-D__MAC__ -DAPPLE)
 ENDIF(APPLE)
 
-option(BUILD_PGVD2 "Build 2D PGVD" ON)
-if(BUILD_PGVD2)
-  ADD_EXECUTABLE(pgvd2 ${SRCS} ${PGVD2_SRCS} viewer/main_pgvd2.cpp)
-  set_target_properties (pgvd2 PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES(pgvd2 glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
-endif(BUILD_PGVD2)
+option(BUILD_2D_PGVD "Build 2D PGVD" ON)
+if(BUILD_2D_PGVD)
+  ADD_EXECUTABLE(2D_PGVD ${SRCS} ${2D_PGVD_SRCS} viewer/main_pgvd2.cpp)
+  set_target_properties (2D_PGVD PROPERTIES COMPILE_DEFINITIONS "OCT2D")
+  TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
+
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       		${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD>/opencl/C)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       		${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD>/opencl/Kernels)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+endif(BUILD_2D_PGVD)
 
 option(BUILD_TEST2 "Build 2D TEST" OFF)
 if(BUILD_TEST2)

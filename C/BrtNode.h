@@ -1,7 +1,9 @@
 #ifndef __BRT_NODE_H__
 #define __BRT_NODE_H__
 
-#ifndef __OPENCL_VERSION__
+#ifdef __OPENCL_VERSION__
+#include ".\opencl\C\BigUnsigned.h"
+#else
 #include "BigUnsigned.h"
 #endif
 
