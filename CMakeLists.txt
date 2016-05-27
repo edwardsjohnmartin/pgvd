@@ -130,9 +130,9 @@ SET(UNIT_TEST_SOURCES
 
     #tests
     ./tests/C_Tests/BigUnsignedTests.cpp
-    
+    ./tests/C_Tests/ParallelAlgorithmsTests.cpp
     #required sources
-    ./C/BigUnsigned.h
+    #./C/BigUnsigned.h
 )
 
 #------------------------------------------------------------

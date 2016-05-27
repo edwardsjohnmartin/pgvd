@@ -24,13 +24,10 @@ void UniquePredicate( __global BigUnsigned *inputBuffer, __global Index *predica
   }
 }
 
-
 void StreamScan_Init(__global Index* buffer, __local Index* localBuffer, __local Index* scratch, const int gid, const int lid)
 {
   localBuffer[lid] = scratch[lid] = buffer[gid];
 }
-
-
 
 void AddAll(__local Index* localBuffer, const int lid, const int powerOfTwo)
 {
