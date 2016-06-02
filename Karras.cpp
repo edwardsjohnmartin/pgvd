@@ -7,6 +7,7 @@
 
 #include "BoundingBox.h"
 #include "CLWrapper.h"
+#include "clfw.hpp"
 #include "timer.h"
 
 extern "C" {
@@ -26,7 +27,6 @@ using std::shared_ptr;
 // static const int kNumBits = 3;
 
 namespace Karras {
-  CLWrapper CL(256, 256);
   Timer t;
 intn z2xyz(BigUnsigned *z, const Resln* resln) {
   intn p = make_intn(0);
@@ -136,34 +136,34 @@ inline std::string buToString(BigUnsigned bu) {
   return representation;
 }
 
-vector<OctNode> BuildOctreeInParallel(
-    const vector<intn>& points, const Resln& resln, const bool verbose) {
-  system("cls");
-  if (verbose) {
-    t.restart("Octree build time:");
-    CL.verbose = true;
-  }
-  else {
-    CL.verbose = false;
-  }
-  if (points.empty())
-    throw logic_error("Zero points not supported");
-  vector<OctNode> Octree;
-  int n = points.size();
-  int octreeSize;
-  CL.UploadPoints(points);
-  CL.ConvertPointsToMorton(n, resln.bits);
-  CL.RadixSort(n, resln.mbits);
-  CL.UniqueSorted(n);
-  CL.BuildBinaryRadixTree(n, resln.mbits);
-  CL.BinaryRadixToOctree(n, octreeSize);
-  CL.DownloadOctree(Octree, octreeSize);
-
-  if (verbose) {
-    t.stop();
-  }
-  return Octree;
-}
+//vector<OctNode> BuildOctreeInParallel(
+//    const vector<intn>& points, const Resln& resln, const bool verbose) {
+//  system("cls");
+//  if (verbose) {
+//    t.restart("Octree build time:");
+//    CLFW::verbose = true;
+//  }
+//  else {
+//    CLFW::verbose = false;
+//  }
+//  if (points.empty())
+//    throw logic_error("Zero points not supported");
+//  vector<OctNode> Octree;
+//  int n = points.size();
+//  int octreeSize;
+//  CL.UploadPoints(points);
+//  CL.ConvertPointsToMorton(n, resln.bits);
+//  CL.RadixSort(n, resln.mbits);
+//  CL.UniqueSorted(n);
+//  CL.BuildBinaryRadixTree(n, resln.mbits);
+//  CL.BinaryRadixToOctree(n, octreeSize);
+//  CL.DownloadOctree(Octree, octreeSize);
+//
+//  if (verbose) {
+//    t.stop();
+//  }
+//  return Octree;
+//}
 
 vector<OctNode> BuildOctreeInSerial(
   const vector<intn>& points, const Resln& resln, const bool verbose) {

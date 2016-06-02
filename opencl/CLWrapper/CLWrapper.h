@@ -11,8 +11,8 @@ using namespace std;
 #include <iostream>
 #include <memory>
 #include <algorithm>
-#include "Buffers/Buffers.h"
-#include "Buffers/Buffer.h"
+#include "Buffers.h"
+#include "Buffer.h"
 #include "C/BrtNode.h"
 #include "OctNode.h"
 #include "opencl/vec.h"

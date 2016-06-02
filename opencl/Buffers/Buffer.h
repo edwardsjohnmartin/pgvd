@@ -3,11 +3,12 @@ using namespace std;
 #ifdef __APPLE__
 #include "OpenCL/opencl.h"
 #else
-#include <CL/cl.hpp>
+#include <CL/opencl.h>
 #endif // __APPLE__
 
 #include <vector>
 #include "../../C/BigUnsigned.h"
+#include <iostream>
 
 /*
   BufferVector. 
@@ -25,8 +26,6 @@ class Buffer
 
   public:
     Buffer(size_t _size, cl_context _context, cl_command_queue _queue) {
-      if ((_size & (_size - 1)))
-        throw std::invalid_argument("Buffer size not a power of two.");
       if (_size == 0)
         throw std::invalid_argument("Buffer size must be greater than 0.");
       context = _context;
@@ -41,6 +40,8 @@ class Buffer
     cl_mem getBuffer() {
       return buffer;
     }
+
+    //TODO remove this function.
     void* map_buffer() {
       cl_int error;
       if (pointer != nullptr)
@@ -51,6 +52,13 @@ class Buffer
       }
       return pointer;
     }
+
+    cl_int map_buffer(void* &pointer) {
+      cl_int error;
+      pointer = clEnqueueMapBuffer(queue, buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, size, 0, NULL, NULL, &error);
+      return error;
+    }
+
     void* map_buffer(size_t givenSize) {
       cl_int error;
       if (pointer != nullptr)
@@ -59,6 +67,8 @@ class Buffer
       //cout << "map_buffer(size) error: " << error << endl;
       return pointer;
     }
+    
+    //TODO remove this function.
     void unmap_buffer() {
       cl_int error;
       if (pointer != nullptr) {
@@ -68,6 +78,12 @@ class Buffer
           cout << "Can't unmap buffer!: " << error << endl;
         }
       }
+    }
+    cl_int unmap_buffer(void* &pointer) {
+      if (!pointer) return CL_INVALID_HOST_PTR;
+      cl_int error = clEnqueueUnmapMemObject(queue, buffer, pointer, 0, NULL, NULL);
+      pointer = nullptr;
+      return error;
     }
     ~Buffer() {
       if (pointer != nullptr) {

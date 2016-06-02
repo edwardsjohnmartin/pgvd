@@ -4,6 +4,7 @@
 #else
 #include <CL/cl.hpp>
 #endif // __APPLE__
+#include "clfw.hpp"
 
 #include <vector>
 #include <fstream>

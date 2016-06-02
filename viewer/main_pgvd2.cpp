@@ -14,8 +14,10 @@
 #ifdef __APPLE__
 #include "OpenCL/opencl.h"
 #else
-#include "CL/cl.h"
+#include "CL/opencl.h"
 #endif
+#include "clfw.hpp"
+#include "Kernels.h"
 
 #include "gl_utils.h"
 
@@ -163,6 +165,17 @@ int main(int argc, char** argv) {
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   glClear (GL_COLOR_BUFFER_BIT);
 
+  cl_int error = 0;
+  error |= CLFW::Initialize(true);
+  error |= CLFW::InitializePlatformList();
+  error |= CLFW::InitializeDeviceList(0, CL_DEVICE_TYPE_GPU);
+  error |= CLFW::InitializeContext(0);
+  error |= CLFW::AddQueue(0);
+  error |= KernelBox::BuildOpenCLProgram();
+  if (error != CL_SUCCESS)
+    cout << "ERROR initializing OpenCL!" << endl;
+
+
   octree = new Octree2();
   octree->processArgs(argc, argv);
   lines = new Polylines();
@@ -195,18 +208,18 @@ int main(int argc, char** argv) {
 
   refresh();
 
-  float radius = 1.0;
-  //500000
-  for (int i = 0; i < 3000; i++) {
-    radius -= .0005;
-    addpt(radius);
-  }
+  //float radius = 1.0;
+  ////500000
+  //for (int i = 0; i < 3000; i++) {
+  //  radius -= .0005;
+  //  addpt(radius);
+  //}
   while (!glfwWindowShouldClose(g_window)) {
-    rebuild();
     // Refresh here for animation
     refresh();
     glfwPollEvents();
   }
   glfwTerminate();
+  CLFW::Terminate();
   return 0;
 }

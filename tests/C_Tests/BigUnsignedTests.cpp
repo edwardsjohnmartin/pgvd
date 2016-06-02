@@ -1,6 +1,4 @@
 #include "catch.hpp"
-
-#include "BigUnsigned.h"
 #include "BigUnsigned.c"
 
 using namespace std;

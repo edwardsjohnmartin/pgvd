@@ -50,6 +50,13 @@ endif(OPENCL_ACCEL)
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 
 #------------------------------------------------------------
+# Build CLFW 
+#------------------------------------------------------------
+
+add_subdirectory(CLFW)
+include_directories(${CLFW_INCLUDE_DIR})
+
+#------------------------------------------------------------
 # Header include directories
 #------------------------------------------------------------
 SET(INCL
@@ -57,7 +64,7 @@ SET(INCL
     ./C
     ./opencl
     ./opencl/CLWrapper
-    ./opencl/BufferCollection
+    ./opencl/Buffers
     ./opencl/Kernels
     ./tests/
 )
@@ -89,6 +96,7 @@ SET(SRCS
   ./opencl/CLWrapper/CLWrapper_Initializers.cpp
   ./opencl/CLWrapper/CLWrapper_Kernels.cpp
   ./opencl/Kernels/KernelBox.cpp
+  ./opencl/Kernels/KernelBox_.cpp
   #./opencl/BufferCollection/Buffer.cpp
 
   #These are new and may need to be moved...
@@ -118,10 +126,11 @@ SET(SRCS
   ./viewer/Polylines.h
   ./viewer/Octree2.h
   
-  ./opencl/CLWrapper/CLWrapper.h
   ./opencl/Buffers/Buffer.h
   ./opencl/Buffers/Buffers.h
+  ./opencl/CLWrapper/CLWrapper.h
   ./opencl/Kernels/KernelBox.h
+  ./opencl/Kernels/KernelBox_.h
   ./opencl/vec_cpp.h
 )
 
@@ -131,8 +140,9 @@ SET(UNIT_TEST_SOURCES
     #tests
     ./tests/C_Tests/BigUnsignedTests.cpp
     ./tests/C_Tests/ParallelAlgorithmsTests.cpp
-    #required sources
-    #./C/BigUnsigned.h
+    ./tests/KernelBoxTests.cpp
+    ./tests/KernelTests.cpp
+    ./tests/clfw_tests.cpp
 )
 
 #------------------------------------------------------------
@@ -169,7 +179,7 @@ option(BUILD_2D_PGVD "Build 2D PGVD" ON)
 if(BUILD_2D_PGVD)
   ADD_EXECUTABLE(2D_PGVD ${SRCS} ${2D_PGVD_SRCS} viewer/main_pgvd2.cpp)
   set_target_properties (2D_PGVD PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
+  TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
 
   add_custom_command(TARGET 2D_PGVD PRE_BUILD
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -187,7 +197,7 @@ if(BUILD_2D_PGVD_UNIT_TESTS)
 #Adding files to target
   ADD_EXECUTABLE(2D_PGVD_UNIT_TESTS ${UNIT_TEST_SOURCES} tests/main.cpp)
   set_target_properties (2D_PGVD_UNIT_TESTS PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES (2D_PGVD_UNIT_TESTS glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
+  TARGET_LINK_LIBRARIES (2D_PGVD_UNIT_TESTS glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
 
 #Custom Build Commands
   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
