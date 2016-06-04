@@ -151,6 +151,31 @@
       return 0;
     }
   }
+  int weakCompareBU(BigUnsigned x, BigUnsigned y) {
+    // A bigger length implies a bigger number.
+    if (x.len < y.len)
+      return 0;
+    /*CmpRes x = less;*/
+    else if (x.len > y.len)
+      return 1;
+    else {
+      // Compare blocks one by one from left to right.
+      Index i = x.len;
+      while (i > 0) {
+        i--;
+        if (x.blk[i] == y.blk[i])
+          continue;
+        else if (x.blk[i] > y.blk[i])
+          return 1;
+        else
+          return 0;
+      }
+      // If no blocks differed, the numbers are equal.
+      return 0;
+    }
+  }
+
+
 
   //~~ARITHMATIC OPERATIONS~~//
   int addBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {

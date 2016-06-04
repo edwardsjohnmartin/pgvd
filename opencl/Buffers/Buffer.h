@@ -40,6 +40,9 @@ class Buffer
     cl_mem getBuffer() {
       return buffer;
     }
+    cl_mem* getBufferPtr() {
+      return &buffer;
+    }
 
     //TODO remove this function.
     void* map_buffer() {

@@ -9,6 +9,7 @@ TEST_CASE("CLFW can fetch a list of available compute platforms") {
     AND_THEN( "at least one platform should be in the list" )
       REQUIRE(CLFW::Platforms.size() > 0);
   }
+  //WARN("Add a current platform field.");
 }
 
 TEST_CASE("CLFW can fetch a list of compute devices for a given platform") {
@@ -31,6 +32,7 @@ TEST_CASE("CLFW can fetch a list of compute devices for a given platform") {
       }
     }
   }
+  //WARN("Add a current device field.");
 }
 
 TEST_CASE("CLFW can create an OpenCL context.") {
@@ -62,4 +64,5 @@ TEST_CASE("CLFW can add and remove an OpenCL queue.") {
         REQUIRE(error == CL_SUCCESS);
     }
   }
+  //WARN("Add a current queue field.");
 }

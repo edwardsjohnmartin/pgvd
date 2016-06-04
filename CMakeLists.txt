@@ -128,6 +128,7 @@ SET(SRCS
   
   ./opencl/Buffers/Buffer.h
   ./opencl/Buffers/Buffers.h
+  ./opencl/Buffers/BufferInitializers.h
   ./opencl/CLWrapper/CLWrapper.h
   ./opencl/Kernels/KernelBox.h
   ./opencl/Kernels/KernelBox_.h

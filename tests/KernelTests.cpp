@@ -65,3 +65,62 @@ SCENARIO("Points can be mapped to a Z-Order curve") {
     }
   }
 }
+
+SCENARIO("Big Unsigneds can be sorted using a parallel radix sort.") {
+  GIVEN("a fully initialized CLFW environment") {
+    if (!CLFW::IsInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+
+    GIVEN("a fully initialized KernelBox") {
+      if (!KernelBox::IsInitialized()) REQUIRE(KernelBox::Initialize() == CL_SUCCESS);
+
+      GIVEN("a couple BigUnsigned numbers.") {
+        using namespace KernelBox;
+        vector<BigUnsigned> hostNumbers(nextPow2(OneMillion));
+        for (int i = 0; i < OneMillion; ++i) {
+          int temp = i%(8*BIG_INTEGER_SIZE);
+          initBlkBU(&hostNumbers[i], 1);
+          shiftBULeft(&hostNumbers[i], &hostNumbers[i], temp);
+        }
+        for (int i = OneMillion; i < hostNumbers.size(); ++i) {
+          initBlkBU(&hostNumbers[i], 0);
+        }
+        GIVEN("an OpenCL buffer that can hold those numbers.") {
+          int globalSize = nextPow2(hostNumbers.size());
+
+          //Create a BU buffer, but only if it hasn't been created in another test.
+          if (!isBufferUsable(buffers.bigUnsignedInput, globalSize*sizeof(BigUnsigned)))
+            REQUIRE(createBuffer(buffers.bigUnsignedInput, globalSize*sizeof(BigUnsigned)) == CL_SUCCESS);
+          
+          GIVEN("those numbers are uploaded sucessfully to the GPU") {
+            void* data;
+            REQUIRE(buffers.bigUnsignedInput->map_buffer(data) == CL_SUCCESS);
+            memcpy(data, hostNumbers.data(), hostNumbers.size()*sizeof(BigUnsigned));
+            REQUIRE(buffers.bigUnsignedInput->unmap_buffer(data) == CL_SUCCESS);
+
+            THEN("we can sort those numbers with a parallel radix sort routine.") {
+              REQUIRE(RadixSortBigUnsigned(hostNumbers.size(), BIG_INTEGER_SIZE*8) == CL_SUCCESS);
+
+              AND_THEN("There are no race conditions.") {
+                std::sort(hostNumbers.begin(), hostNumbers.end(), weakCompareBU);
+
+                REQUIRE(buffers.bigUnsignedInput->map_buffer(data) == CL_SUCCESS);
+                BigUnsigned* GPUNumbers = (BigUnsigned*)data;
+
+                //Compare the serial calculations with the parallel calculations.
+                int compareResult = 0;
+                for (int i = 0; i < globalSize; ++i) {
+                  compareResult = compareBU(&hostNumbers[i], &GPUNumbers[i]);
+                  if (compareResult != 0)
+                    break;
+                }
+                REQUIRE(compareResult == 0);
+
+                REQUIRE(buffers.bigUnsignedInput->unmap_buffer(data) == CL_SUCCESS);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

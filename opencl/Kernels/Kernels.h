@@ -1,14 +1,14 @@
 #pragma once
 #include "KernelBox_.h"
+#include "BufferInitializers.h"
 #include "z_order.h"
 namespace KernelBox {
   cl_int PointsToMorton_p(cl_int size, cl_int bits) {
-    int globalSize = nextPow2(size);
-    if (!isBufferUsable(buffers.bigUnsignedInput, sizeof(BigUnsigned)* (globalSize)))
-      createBuffer(buffers.bigUnsignedInput, sizeof(BigUnsigned)* (globalSize));
-
-    const size_t globalWorkSize[] = { globalSize, 0, 0 };
     cl_int error = 0;
+    const size_t globalSize[] = { nextPow2(size), 0, 0 };
+    if (!isBufferUsable(buffers.bigUnsignedInput, sizeof(BigUnsigned)* (globalSize[0])))
+      error |= createBuffer(buffers.bigUnsignedInput, sizeof(BigUnsigned)* (globalSize[0]));
+
 
     if (!buffers.points) return CL_INVALID_MEM_OBJECT;
     if (!buffers.bigUnsignedInput) return CL_INVALID_MEM_OBJECT;
@@ -18,7 +18,7 @@ namespace KernelBox {
     error |= clSetKernelArg(Kernels.at("PointsToMortonKernel"), 1, sizeof(cl_mem), &clpoints);
     error |= clSetKernelArg(Kernels.at("PointsToMortonKernel"), 2, sizeof(cl_int), &size);
     error |= clSetKernelArg(Kernels.at("PointsToMortonKernel"), 3, sizeof(cl_int), &bits);
-    error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels.at("PointsToMortonKernel"), 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+    error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels.at("PointsToMortonKernel"), 1, 0, globalSize, NULL, 0, nullptr, nullptr);
     return error;
   };
 
@@ -35,21 +35,83 @@ namespace KernelBox {
     return 0;
   }
 
-  /*void BitPredicate(cl_mem input, cl_mem predicate, int &index, unsigned char compared, size_t globalSize) {
-  const size_t globalWorkSize[] = { globalSize, 0, 0 };
-  cl_ulong i = index;
-  unsigned char c = compared;
-  error = clSetKernelArg(bitPredicateKernel, 0, sizeof(cl_mem), &input);
-  error = clSetKernelArg(bitPredicateKernel, 1, sizeof(cl_mem), &predicate);
-  error = clSetKernelArg(bitPredicateKernel, 2, sizeof(Index), &i);
-  error = clSetKernelArg(bitPredicateKernel, 3, sizeof(unsigned char), &c);
-  error = clEnqueueNDRangeKernel(queue, bitPredicateKernel, 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
-  if (error != CL_SUCCESS) {
-  std::cerr << "KernelBox predication: OpenCL call failed with error " << error << std::endl;
-  std::getchar();
-  std::exit;
-  }
+  cl_int BitPredicate(cl_mem input, cl_mem predicate, int &index, unsigned char compared, size_t globalSize) {
+    cl_int error = 0;
+    const size_t globalWorkSize[] = { globalSize, 0, 0 };
+    cl_ulong i = index;
+    unsigned char c = compared;
+    error |= clSetKernelArg(Kernels["BitPredicateKernel"], 0, sizeof(cl_mem), &input);
+    error |= clSetKernelArg(Kernels["BitPredicateKernel"], 1, sizeof(cl_mem), &predicate);
+    error |= clSetKernelArg(Kernels["BitPredicateKernel"], 2, sizeof(Index), &i);
+    error |= clSetKernelArg(Kernels["BitPredicateKernel"], 3, sizeof(unsigned char), &c);
+    error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["BitPredicateKernel"], 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+    return error;
   };
+
+  cl_int StreamScan(cl_mem input, cl_mem intermediate, cl_mem intermediateCopy, cl_mem result, size_t globalSize) {
+    cl_int error = 0;
+    size_t localSize = GetSteamScanWorkGroupSize(globalSize);
+    const size_t globalWorkSize[] = { globalSize, 0, 0 };
+    const size_t localWorkSize[] = { localSize, 0, 0 };
+    
+    int currentNumWorkgroups = (globalSize / localSize);
+    error |= clEnqueueCopyBuffer(CLFW::Queues[0], intermediateCopy, intermediate, 0, 0, sizeof(Index)* currentNumWorkgroups, 0, NULL, NULL);
+
+    error |= clSetKernelArg(Kernels["StreamScanKernel"], 0, sizeof(cl_mem), &input);
+    error |= clSetKernelArg(Kernels["StreamScanKernel"], 1, sizeof(cl_mem), &result);
+    error |= clSetKernelArg(Kernels["StreamScanKernel"], 2, sizeof(cl_mem), &intermediate);
+    error |= clSetKernelArg(Kernels["StreamScanKernel"], 3, localSize * sizeof(Index), NULL);
+    error |= clSetKernelArg(Kernels["StreamScanKernel"], 4, localSize * sizeof(Index), NULL);
+    error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["StreamScanKernel"], 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
+    
+    return error;
+  };
+
+  cl_int DoubleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem resultBufferCopy, cl_mem LPBuffer, cl_mem LABuffer, size_t globalSize) {
+    cl_int error = 0;
+    const size_t globalWorkSize[] = { globalSize, 0, 0 };
+    error |= clSetKernelArg(Kernels["BUCompactKernel"], 0, sizeof(cl_mem), &inputBuffer);
+    error |= clSetKernelArg(Kernels["BUCompactKernel"], 1, sizeof(cl_mem), &resultBuffer);
+    error |= clSetKernelArg(Kernels["BUCompactKernel"], 2, sizeof(cl_mem), &LPBuffer);
+    error |= clSetKernelArg(Kernels["BUCompactKernel"], 3, sizeof(cl_mem), &LABuffer);
+    error |= clSetKernelArg(Kernels["BUCompactKernel"], 4, sizeof(Index), &globalSize);
+
+    BigUnsigned zero;
+    initBlkBU(&zero, 0);
+    error |= clEnqueueCopyBuffer(CLFW::Queues[0], resultBufferCopy, resultBuffer, 0, 0, sizeof(BigUnsigned) * globalSize, 0, NULL, NULL);
+    error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["BUCompactKernel"], 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+    return error;
+  };
+
+  cl_int RadixSortBigUnsigned(cl_int size, cl_int mbits) {
+    cl_int error = 0;
+    const size_t globalSize = nextPow2(size);
+    error |= initRadixSortBuffers(globalSize);
+
+    if (error != CL_SUCCESS) return error;
+
+    shared_ptr<Buffer> temp;
+    //For each bit
+    for (Index index = 0; index < mbits; index++) {
+      //Predicate the 0's and 1's
+      error |= BitPredicate(buffers.bigUnsignedInput->getBuffer(), buffers.predicate->getBuffer(), index, 1, globalSize);
+
+      //Scan the predication buffers.
+      error |= StreamScan(buffers.predicate->getBuffer(), buffers.intermediate->getBuffer(), buffers.intermediateCopy->getBuffer(), buffers.address->getBuffer(), globalSize);
+
+      //Compacting
+      error |= DoubleCompact(buffers.bigUnsignedInput->getBuffer(), buffers.bigUnsignedResult->getBuffer(), buffers.bigUnsignedResultCopy->getBuffer(), buffers.predicate->getBuffer(), buffers.address->getBuffer(), globalSize);
+
+      //Swap result with input.
+      temp = buffers.bigUnsignedInput;
+      buffers.bigUnsignedInput = buffers.bigUnsignedResult;
+      buffers.bigUnsignedResult = temp;
+    }
+
+    return error;
+  }
+
+  /*
   void UniquePredicate(cl_mem input, cl_mem predicate, size_t globalSize) {
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
   error = clSetKernelArg(uniquePredicateKernel, 0, sizeof(cl_mem), &input);
@@ -77,29 +139,7 @@ namespace KernelBox {
   clGetKernelWorkGroupInfo(scanKernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &localSize, NULL);
   return min((int)(localSize), (int)globalSize);
   }
-  void StreamScan(cl_mem input, cl_mem intermediate, cl_mem intermediateCopy, cl_mem result, size_t globalSize) {
-  size_t localSize = getSteamScanWorkGroupSize(globalSize);
-  const size_t globalWorkSize[] = { globalSize, 0, 0 };
-  const size_t localWorkSize[] = { localSize, 0, 0 };
-  //std::cout << localSize << std::endl;
-
-  int currentNumWorkgroups = (globalSize / localSize);
-  clEnqueueCopyBuffer(queue, intermediateCopy, intermediate, 0, 0, sizeof(Index)* currentNumWorkgroups, 0, NULL, NULL);
-
-  clSetKernelArg(scanKernel, 0, sizeof(cl_mem), &input);
-  clSetKernelArg(scanKernel, 1, sizeof(cl_mem), &result);
-  clSetKernelArg(scanKernel, 2, sizeof(cl_mem), &intermediate);
-  clSetKernelArg(scanKernel, 3, localSize * sizeof(Index), NULL);
-  clSetKernelArg(scanKernel, 4, localSize * sizeof(Index), NULL);
-
-  error = clEnqueueNDRangeKernel(queue, scanKernel, 1, 0, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
-  if (error != CL_SUCCESS) {
-  std::cerr << "KernelBox stream scan: OpenCL call failed with error " << error << std::endl;
-  std::getchar();
-  std::exit;
-  }
-  lastNumWorkgroups = currentNumWorkgroups;
-  };
+  
   void SingleCompact(cl_mem inputBuffer, cl_mem resultBuffer, cl_mem PBuffer, cl_mem ABuffer, size_t globalSize) {
   const size_t globalWorkSize[] = { globalSize, 0, 0 };
   clSetKernelArg(singleCompactKernel, 0, sizeof(cl_mem), &inputBuffer);
