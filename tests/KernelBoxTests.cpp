@@ -32,7 +32,3 @@ TEST_CASE("Using an OpenCL program, we can create kernels."){
     }
   }
 }
-
-TEST_CASE("KernelBox can create buffers") {
-  FAIL("Not implemented.");
-}

@@ -84,7 +84,7 @@ typedef MyVec<double, 4> double4;
 //------------------------------------------------------------
 #ifdef OCT2D
 typedef bool2 booln;
-typedef int2 intn;
+typedef cl_int2 intn;
 typedef float2 floatn;
 typedef double2 doublen;
 #else

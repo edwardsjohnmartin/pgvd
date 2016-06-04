@@ -131,6 +131,7 @@ SET(SRCS
   ./opencl/CLWrapper/CLWrapper.h
   ./opencl/Kernels/KernelBox.h
   ./opencl/Kernels/KernelBox_.h
+  ./opencl/Kernels/Kernels.h
   ./opencl/vec_cpp.h
 )
 
