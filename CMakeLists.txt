@@ -139,6 +139,12 @@ SET(SRCS
 SET(UNIT_TEST_SOURCES
     ./tests/catch.hpp
 
+	./C/BuildOctree.c
+	./C/BigUnsigned.c
+	./C/BuildBRT.c
+	./C/z_order.c
+	./C/ParallelAlgorithms.c
+    
     #tests
     ./tests/C_Tests/BigUnsignedTests.cpp
     ./tests/C_Tests/ParallelAlgorithmsTests.cpp

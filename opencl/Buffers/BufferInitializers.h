@@ -4,6 +4,7 @@
 
 namespace KernelBox {
   
+  //should be switched from size_t to int
   size_t GetSteamScanWorkGroupSize(size_t globalSize) {
     using namespace std;
     size_t localSize;
@@ -38,4 +39,12 @@ namespace KernelBox {
     return error;
   }
 
+  cl_int initBinaryRadixTreeBuffers(int globalSize) {
+    cl_int error = 0;
+    if (!isBufferUsable(buffers.internalNodes, sizeof(BrtNode)* (globalSize)))
+      error |= createBuffer(buffers.internalNodes, sizeof(BrtNode)* (globalSize));
+    if (!isBufferUsable(buffers.leafNodes, sizeof(BrtNode)* (globalSize)))
+      error |= createBuffer(buffers.leafNodes, sizeof(BrtNode)* (globalSize));
+    return error;
+  }
 }

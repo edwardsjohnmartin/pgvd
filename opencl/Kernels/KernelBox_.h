@@ -13,6 +13,12 @@
 #include <unordered_map>
 #include <algorithm>
 
+#include "z_order.h"
+extern "C" {
+  #include "BrtNode.h"
+  #include "BuildBRT.h"
+}
+
 using namespace std;
 namespace KernelBox {
   extern const vector<string> Files;

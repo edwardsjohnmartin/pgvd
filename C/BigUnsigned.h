@@ -39,6 +39,7 @@ void setBUBit(BigUnsigned *bu, Index bi, bool newBit);
 //~~COMPARISON~~//
 int compareBU(BigUnsigned *x, BigUnsigned *y);
 int weakCompareBU(BigUnsigned x, BigUnsigned y);
+bool weakEqualsBU(BigUnsigned x, BigUnsigned y);
 
 //~~ARITHMATIC OPERATIONS~~//
 int addBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b);

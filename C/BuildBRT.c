@@ -176,6 +176,7 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
   }
 }
 
+//REMOVE THIS. it has been moved to the Kernels header.
 void BuildBinaryRadixTree_SerialKernel(__global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size) {
   for (int i = 0; i < size; ++i) {
     BuildBinaryRadixTree(I, L, mpoints, mbits, size, i);

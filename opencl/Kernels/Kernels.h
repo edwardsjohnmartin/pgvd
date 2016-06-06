@@ -1,7 +1,7 @@
 #pragma once
 #include "KernelBox_.h"
 #include "BufferInitializers.h"
-#include "z_order.h"
+
 namespace KernelBox {
   cl_int PointsToMorton_p(cl_int size, cl_int bits) {
     cl_int error = 0;
@@ -109,6 +109,30 @@ namespace KernelBox {
     }
 
     return error;
+  }
+
+  //Get rid of leaf buffer. We don't need it and don't use it.
+  cl_int BuildBinaryRadixTree_p(cl_int size, cl_int mbits) {
+    const size_t globalWorkSize[] = { nextPow2(size), 0, 0 };
+    cl_int error = initBinaryRadixTreeBuffers(globalWorkSize[0]);
+
+    error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 0, sizeof(cl_mem), buffers.internalNodes->getBufferPtr());
+    error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 1, sizeof(cl_mem), buffers.leafNodes->getBufferPtr());
+    error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 2, sizeof(cl_mem), buffers.bigUnsignedInput->getBufferPtr());
+    error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 3, sizeof(cl_int), &mbits);
+    error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 4, sizeof(cl_int), &size);
+
+    if (error == CL_SUCCESS)
+      error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["BuildBinaryRadixTreeKernel"], 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
+    
+    return error;
+  }
+
+  cl_int BuildBinaryRadixTree_s(cl_int size, cl_int mbits, BigUnsigned* zpoints, BrtNode* I, BrtNode* L) {
+    for (int i = 0; i < size; ++i) {
+      BuildBinaryRadixTree(I, L, zpoints, mbits, size, i);
+    }
+    return CL_SUCCESS;
   }
 
   /*
