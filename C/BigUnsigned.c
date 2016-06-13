@@ -1,4 +1,4 @@
-#ifdef __OPENCL_VERSION__
+﻿#ifdef __OPENCL_VERSION__
 #include ".\opencl\C\BigUnsigned.h"
 #else
 #include <stdbool.h>
@@ -177,10 +177,10 @@
   bool weakEqualsBU(BigUnsigned x, BigUnsigned y) {
     // A bigger length implies a bigger number.
     if (x.len < y.len)
-      return -1;
+      return 0;
     /*CmpRes x = less;*/
     else if (x.len > y.len)
-      return -1;
+      return 0;
     else {
       // Compare blocks one by one from left to right.
       Index i = x.len;
@@ -189,12 +189,12 @@
         if (x.blk[i] == y.blk[i])
           continue;
         else if (x.blk[i] > y.blk[i])
-          return -1;
+          return 0;
         else
-          return -1;
+          return 0;
       }
       // If no blocks differed, the numbers are equal.
-      return 0;
+      return 1;
     }
   }
 

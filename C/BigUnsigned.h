@@ -1,4 +1,4 @@
-#ifndef BIGUNSIGNED_C
+﻿#ifndef BIGUNSIGNED_C
 #define BIGUNSIGNED_C
 
 #ifndef __OPENCL_VERSION__

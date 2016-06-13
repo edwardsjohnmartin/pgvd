@@ -5,7 +5,7 @@ __kernel void PointsToMortonKernel(
   const unsigned int size,
   const unsigned int bits
   ) 
-{
+ {
  const size_t gid = get_global_id(0);
  const size_t lid = get_local_id(0);
  BigUnsigned tempBU;
@@ -105,13 +105,12 @@ __kernel void BUSingleCompactKernel(
 //Binary Radix Tree Builder
 __kernel void BuildBinaryRadixTreeKernel(
 __global BrtNode *I,
-__global BrtNode* L,
 __global BigUnsigned* mpoints,
 int mbits,
 int size
 ) 
 {
-  BuildBinaryRadixTree(I, L, mpoints, mbits, size, get_global_id(0));
+  BuildBinaryRadixTree(I, mpoints, mbits, size, get_global_id(0));
 }
 
 
@@ -157,6 +156,5 @@ __kernel void BRT2OctreeKernel(
   const int octree_size = prefix_sums[n-2];
   if (gid > 0 && gid < n-1){
     brt2octree( gid, I, octree, local_splits, prefix_sums, n, octree_size);
-    octree[gid-1].pad1 = prefix_sums[gid-1];
   }  
 }

@@ -1,12 +1,10 @@
 #pragma once
 #ifdef __APPLE__
-#include "OpenCL/opencl.h"
+#include "OpenCL/cl.hpp"
 #else
-#include <CL/opencl.h>
+#include <CL/cl.hpp>
 #endif
-#include "clfw.hpp"
-#include "Buffers.h"
-#include "Buffer.h"
+#include "clfw.hpp""
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -17,22 +15,12 @@
 extern "C" {
   #include "BrtNode.h"
   #include "BuildBRT.h"
+  #include "OctNode.h"
+  #include "BuildOctree.h"
+  #include "ParallelAlgorithms.h"
 }
 
 using namespace std;
 namespace KernelBox {
-  extern const vector<string> Files;
-  extern unordered_map<string, cl_kernel> Kernels;
-  extern Buffers buffers;
-  
-  bool IsProgramInitialized();
-  bool IsInitialized();
-
-  cl_int Initialize();
-  cl_int BuildOpenCLProgram(const vector<string> Files);
-  cl_int CreateKernels(cl_program program);
-
-  bool isBufferUsable(shared_ptr<Buffer> buffer, size_t expectedSizeInBytes);
-  cl_int createBuffer(shared_ptr<Buffer> &buffer, size_t size);
   int nextPow2(int num);
 }

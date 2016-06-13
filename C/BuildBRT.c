@@ -4,6 +4,10 @@
 #include "BuildBRT.h"
 #endif
 
+#ifndef __OPENCL_VERSION__
+#define __local
+#define __global
+#endif
 // UTILITY FUNCTIONS
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
@@ -83,7 +87,7 @@ int compute_lcp_length(BigUnsigned* a, BigUnsigned* b, int mbits) {
     return mbits - (offset + 1);
 }
 
-void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size, const unsigned int gid)
+void BuildBinaryRadixTree( __global BrtNode *I, __global BigUnsigned* mpoints, int mbits, int size, const unsigned int gid)
 {
   BigUnsigned current;
   BigUnsigned left;
@@ -117,8 +121,8 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
               gid + l_max * d <= size - 1 && 
               compute_lcp_length( &current, &temp, mbits) > lcp_min) 
       {
-        l_max = l_max << 1;
         temp = mpoints[gid + l_max*d];
+        l_max = l_max << 1; //Not sure if this should be before or after...
       }
       // Find the other end using binary search.
       // In some cases, the search can go right off the end of the array.
@@ -175,10 +179,8 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BrtNode* L, __global Bi
     }
   }
 }
+#ifndef __OPENCL_VERSION__
+#undef __local
+#undef __global
+#endif
 
-//REMOVE THIS. it has been moved to the Kernels header.
-void BuildBinaryRadixTree_SerialKernel(__global BrtNode *I, __global BrtNode* L, __global BigUnsigned* mpoints, int mbits, int size) {
-  for (int i = 0; i < size; ++i) {
-    BuildBinaryRadixTree(I, L, mpoints, mbits, size, i);
-  }
-}

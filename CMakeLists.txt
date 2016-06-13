@@ -126,18 +126,19 @@ SET(SRCS
   ./viewer/Polylines.h
   ./viewer/Octree2.h
   
-  ./opencl/Buffers/Buffer.h
-  ./opencl/Buffers/Buffers.h
-  ./opencl/Buffers/BufferInitializers.h
+  #./opencl/Buffers/Buffer.h
+  #./opencl/Buffers/Buffers.h
+  #./opencl/Buffers/BufferInitializers.h
   ./opencl/CLWrapper/CLWrapper.h
   ./opencl/Kernels/KernelBox.h
   ./opencl/Kernels/KernelBox_.h
-  ./opencl/Kernels/Kernels.h
+  #./opencl/Kernels/Kernels.h
   ./opencl/vec_cpp.h
 )
 
 SET(UNIT_TEST_SOURCES
     ./tests/catch.hpp
+	./opencl/Kernels/KernelBox_.cpp
 
 	./C/BuildOctree.c
 	./C/BigUnsigned.c
@@ -146,11 +147,9 @@ SET(UNIT_TEST_SOURCES
 	./C/ParallelAlgorithms.c
     
     #tests
-    ./tests/C_Tests/BigUnsignedTests.cpp
-    ./tests/C_Tests/ParallelAlgorithmsTests.cpp
-    ./tests/KernelBoxTests.cpp
-    ./tests/KernelTests.cpp
     ./tests/clfw_tests.cpp
+    ./tests/C_Tests/BigUnsignedTests.cpp
+    ./tests/KernelTests.cpp
 )
 
 #------------------------------------------------------------
@@ -190,6 +189,9 @@ if(BUILD_2D_PGVD)
   TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
 
   add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy
+                       		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD>/opencl_sources.txt)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
                        		${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD>/opencl/C)
   add_custom_command(TARGET 2D_PGVD PRE_BUILD
@@ -208,6 +210,9 @@ if(BUILD_2D_PGVD_UNIT_TESTS)
   TARGET_LINK_LIBRARIES (2D_PGVD_UNIT_TESTS glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
 
 #Custom Build Commands
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy
+                       		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl_sources.txt)
   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
                     COMMAND ${CMAKE_COMMAND} -E copy_directory
                           ${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/C)

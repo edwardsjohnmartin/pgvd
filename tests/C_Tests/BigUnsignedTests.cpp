@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include "BigUnsigned.c"
+#include <iostream>
 
 using namespace std;
 inline std::string buToString(BigUnsigned bu) {
@@ -18,6 +19,7 @@ inline std::string buToString(BigUnsigned bu) {
 }
 
 SCENARIO("BigUnsigneds can be constructed in multiple ways.") {
+  cout << "Testing BigUnsigned construction" << endl;
   GIVEN("an uninitialized BigUnsigned struct \"x\",") {
     BigUnsigned x;
     WHEN("initBU initializes the BU") {
@@ -54,6 +56,7 @@ SCENARIO("BigUnsigneds can be constructed in multiple ways.") {
   }
 }
 SCENARIO("BigUnsigneds can be added.") {
+  cout << "Testing BigUnsigned addition" << endl;
   GIVEN("A BU \"x\" containing the value " + to_string((int)pow(2, (sizeof(Blk) * 8))-1)) {
     BigUnsigned x;
     initBlkBU(&x, (unsigned char)pow(2, (sizeof(Blk) * 8))-1);
@@ -97,6 +100,7 @@ SCENARIO("BigUnsigneds can be added.") {
   }
 }
 SCENARIO("BigUnsigneds can be subtracted.") {
+  cout << "Testing BigUnsigned subtraction" << endl;
   GIVEN("A BU \"x\" containing the value [1][0]") {
     BigUnsigned x;
     x.len = 2;
@@ -141,6 +145,7 @@ SCENARIO("BigUnsigneds can be subtracted.") {
   }
 }
 SCENARIO("BigUnsigneds can be &'d together.") { 
+  cout << "Testing BigUnsigned &" << endl;
   GIVEN("Two fully filled BUs") {
     BigUnsigned x;
     x.len = BIG_INTEGER_SIZE;
@@ -167,6 +172,7 @@ SCENARIO("BigUnsigneds can be &'d together.") {
   }
 }
 SCENARIO("BigUnsigneds can be |'d together.") { 
+  cout << "Testing BigUnsigned |" << endl;
   GIVEN("Two fully filled BUs") {
     BigUnsigned x;
     x.len = BIG_INTEGER_SIZE;
@@ -194,6 +200,7 @@ SCENARIO("BigUnsigneds can be |'d together.") {
   }
 }
 SCENARIO("BigUnsigneds can be ^'d together.") { 
+  cout << "Testing BigUnsigned ^" << endl;
   GIVEN("Two fully filled BUs") {
     BigUnsigned x;
     x.len = BIG_INTEGER_SIZE;
@@ -219,6 +226,7 @@ SCENARIO("BigUnsigneds can be ^'d together.") {
   }
 }
 SCENARIO("BigUnsigneds can be >>'d.") { 
+  cout << "Testing BigUnsigned >>" << endl;
   GIVEN("a BU of any block size, say " + to_string(sizeof(Blk) * 8) + " bits.") {
     WHEN("a BU contains a value, say [3][2]") {
       BigUnsigned x;
@@ -237,6 +245,7 @@ SCENARIO("BigUnsigneds can be >>'d.") {
   }
 }
 SCENARIO("BigUnsigneds can be <<'d.") {
+  cout << "Testing BigUnsigned <<" << endl;
   GIVEN("a BU of any block size, say " + to_string(sizeof(Blk)*8) + " bits.") {
     WHEN("that BU contains a number, say " + to_string((1<<(sizeof(Blk)*7))+1)) {
       BigUnsigned x;
@@ -254,6 +263,7 @@ SCENARIO("BigUnsigneds can be <<'d.") {
   }
 }
 SCENARIO("BigUnsigneds can be compared.") {
+  cout << "Testing BigUnsigned comparison" << endl;
   GIVEN("Two fully filled BUs, \"x\" containing a larger number than the other") {
     BigUnsigned x;
     x.len = BIG_INTEGER_SIZE;
@@ -300,6 +310,7 @@ SCENARIO("BigUnsigneds can be compared.") {
   }
 }
 SCENARIO("Bits and blocks within a BigUnsigned can be accessed in a couple ways.") {
+  cout << "Testing BigUnsigned accessors" << endl;
   GIVEN("a fully filled BU") {
     BigUnsigned x;
     x.len = BIG_INTEGER_SIZE;

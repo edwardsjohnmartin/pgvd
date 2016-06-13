@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
   cl_int error = 0;
   error |= CLFW::Initialize(true);
   error |= CLFW::InitializePlatformList();
-  error |= CLFW::InitializeDeviceList(0, CL_DEVICE_TYPE_GPU);
+  error |= CLFW::InitializeDeviceListFromPlatform(0, CL_DEVICE_TYPE_GPU);
   error |= CLFW::InitializeContext(0);
   error |= CLFW::AddQueue(0);
   error |= KernelBox::BuildOpenCLProgram();
