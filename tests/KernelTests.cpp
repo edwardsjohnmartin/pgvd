@@ -9,6 +9,7 @@
 
 static bool brtTestPassed;
 static unsigned int zpointsSize;
+static cl::Buffer internalBRTNodes;
 
 //This should really be in a CPP file...
 inline std::string buToString(BigUnsigned bu) {
@@ -203,112 +204,104 @@ SCENARIO("Sorted BigUnsigneds can be unique'd in parallel.") {
     }
   }
 }
-////
-////SCENARIO("Sorted Z-Order numbers can be used to construct a binary radix tree") {
-////  cout << "Testing BuildBinaryRadixTree kernel" << endl;
-////  brtTestPassed = false;
-////  GIVEN("a fully initialized CLFW environment") {
-////    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
-////
-////    GIVEN("a fully initialized KernelBox") {
-////      if (!KernelBox::IsInitialized()) REQUIRE(KernelBox::Initialize() == CL_SUCCESS);
-////
-////      /* initialize random seed: */
-////      srand(time(NULL));
-////
-////      GIVEN("a couple sorted, uniqued points") {
-////        vector<BigUnsigned> zpoints(OneMillion);
-////        for (int i = 0; i < OneMillion; ++i) {
-////          initBU(&zpoints[i]);
-////          for (int j = 0; j < (mbits); j++) {
-////            setBUBit(&zpoints[i], j, rand());
-////          }
-////          zpoints[i].len = (mbits)/8;
-////          zapLeadingZeros(&zpoints[i]);
-////        }
-////
-////        sort(zpoints.begin(), zpoints.end(), weakCompareBU);
-////
-////        auto last = unique(zpoints.begin(), zpoints.end(), weakEqualsBU);
-////        zpoints.erase(last, zpoints.end());
-////
-////        GIVEN("an OpenCL buffer that can hold those numbers.") {
-////          using namespace KernelBox;
-////          int globalSize = nextPow2(zpoints.size());
-////
-////          //Create a BU buffer, but only if it hasn't been created in another test.
-////          if (!isBufferUsable(buffers.bigUnsignedInput, globalSize*sizeof(BigUnsigned)))
-////            REQUIRE(createBuffer(buffers.bigUnsignedInput, globalSize*sizeof(BigUnsigned)) == CL_SUCCESS);
-////
-////          GIVEN("those points are then uploaded to the GPU") {
-////            void* data;
-////            REQUIRE(buffers.bigUnsignedInput->map_buffer(data) == CL_SUCCESS);
-////            memcpy(data, zpoints.data(), zpoints.size() * sizeof(BigUnsigned));
-////            REQUIRE(buffers.bigUnsignedInput->unmap_buffer(data) == CL_SUCCESS);
-////
-////            THEN("we can build a BRT with those sorted, uniqued points in parallel") {
-////              REQUIRE(BuildBinaryRadixTree_p(zpoints.size(), BIG_INTEGER_SIZE * 8) == CL_SUCCESS);
-////
-////              AND_THEN("we get no race conditions.") {
-////                //Determine what the BRT should look like
-////                vector<BrtNode> I(zpoints.size() - 1);
-////                REQUIRE(BuildBinaryRadixTree_s(zpoints.size(), BIG_INTEGER_SIZE * 8, zpoints.data(), I.data()) == CL_SUCCESS);
-////
-////                //Fetch what the BRT actually looks like.
-////                vector<BrtNode> GPU_I(zpoints.size() - 1);
-////                REQUIRE(buffers.internalNodes->map_buffer(data) == CL_SUCCESS);
-////                memcpy(GPU_I.data(), data, GPU_I.size()*sizeof(BrtNode));
-////                REQUIRE(buffers.internalNodes->unmap_buffer(data) == CL_SUCCESS);
-////
-////                bool compareResult = true;
-////                for (int i = 0; i < I.size(); ++i) {
-////                  compareResult = compareBrtNode(&GPU_I[i], &I[i]);
-////                  if (compareResult == false) {
-////                    break;
-////                  }
-////                }
-////                REQUIRE(compareResult == true);
-////                brtTestPassed = true;
-////                zpointsSize = zpoints.size();
-////              }
-////            }
-////          }
-////        }
-////      }
-////    }
-////  }
-////}
-////
-////SCENARIO("A binary radix tree can be used to construct a Octree/Quadtree") {
-////  cout << "Testing BinaryRadixToOctree kernel" << endl;
-////  //This isn't good practice, but it allows us to skip serializing BRT data.
-////  GIVEN("building the BRT was successful in the previous test.") {
-////    REQUIRE(brtTestPassed);
-////    THEN("we can use the BRT to build an Octree in parallel.") {
-////      using namespace KernelBox;
-////      vector<OctNode> gpuOctree;
-////      REQUIRE(BinaryRadixToOctree_p(zpointsSize, gpuOctree) == CL_SUCCESS);
-////      
-////      AND_THEN("we should get no race conditions.") {
-////        vector<OctNode> hostOctree;
-////        vector<BrtNode> I(zpointsSize-1);
-////        void* data;
-////        REQUIRE(buffers.internalNodes->map_buffer(data) == CL_SUCCESS);
-////        memcpy(I.data(), data, (zpointsSize - 1)*sizeof(BrtNode));
-////        REQUIRE(buffers.internalNodes->unmap_buffer(data) == CL_SUCCESS);
-////
-////        REQUIRE(BinaryRadixToOctree_s(zpointsSize, I, hostOctree) == CL_SUCCESS);
-////        REQUIRE(hostOctree.size() == gpuOctree.size());
-////
-////        bool compareResult = true;
-////        for (int i = 0; i < hostOctree.size(); ++i) {
-////          compareResult = compareOctNode(&gpuOctree[i], &hostOctree[i]);
-////          if (compareResult == false) {
-////            break;
-////          }
-////        }
-////        REQUIRE(compareResult == true);
-////      }
-////    }
-////  }
-////}
+
+SCENARIO("Sorted Z-Order numbers can be used to construct a binary radix tree") {
+  cout << "Testing BuildBinaryRadixTree kernel" << endl;
+  brtTestPassed = false;
+  GIVEN("a fully initialized CLFW environment") {
+    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+
+    /* initialize random seed: */
+    srand(time(NULL));
+
+    GIVEN("a couple sorted, uniqued points") {
+      using namespace KernelBox;
+      vector<BigUnsigned> zpoints(nextPow2(OneMillion));
+      for (int i = 0; i < OneMillion; ++i) {
+        initBU(&zpoints[i]);
+        for (int j = 0; j < (mbits); j++) {
+          setBUBit(&zpoints[i], j, rand() % 2);
+        }
+        zpoints[i].len = (mbits) / 8;
+        zapLeadingZeros(&zpoints[i]);
+      }
+      for (int i = OneMillion; i < zpoints.size(); ++i) {
+        initBlkBU(&zpoints[i], 0);
+      }
+
+      sort(zpoints.begin(), zpoints.end(), weakCompareBU);
+
+      auto last = unique(zpoints.begin(), zpoints.end(), weakEqualsBU);
+      zpoints.erase(last, zpoints.end());
+
+      GIVEN("an OpenCL buffer that can hold those numbers.") {
+        using namespace KernelBox;
+        int globalSize = nextPow2(zpoints.size());
+
+        //Create a BU buffer, but only if it hasn't been created in another test.
+        cl::Buffer zpointsBuffer;
+        REQUIRE(CLFW::get(zpointsBuffer, "zpointsBuffer", globalSize*sizeof(BigUnsigned)) == CL_SUCCESS);
+
+        GIVEN("those points are then uploaded to the GPU") {
+          REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(zpointsBuffer, true, 0, zpoints.size()*sizeof(BigUnsigned), zpoints.data()) == CL_SUCCESS);
+
+          THEN("we can build a BRT with those sorted, uniqued points in parallel") {
+            REQUIRE(BuildBinaryRadixTree_p(zpointsBuffer, internalBRTNodes, zpoints.size(), mbits) == CL_SUCCESS);
+
+            AND_THEN("we get no race conditions.") {
+              //Determine what the BRT should look like
+              vector<BrtNode> I(zpoints.size() - 1);
+              REQUIRE(BuildBinaryRadixTree_s(zpoints.data(), I.data(), zpoints.size(), mbits) == CL_SUCCESS);
+
+              //Fetch what the BRT actually looks like.
+              vector<BrtNode> GPU_I(zpoints.size() - 1);
+              REQUIRE(CLFW::DefaultQueue.enqueueReadBuffer(internalBRTNodes, CL_TRUE, 0, GPU_I.size()*sizeof(BrtNode), GPU_I.data()) == CL_SUCCESS);
+
+              bool compareResult = true;
+              for (int i = 0; i < I.size(); ++i) {
+                compareResult = compareBrtNode(&GPU_I[i], &I[i]);
+                if (compareResult == false) {
+                  break;
+                }
+              }
+              REQUIRE(compareResult == true);
+              brtTestPassed = true;
+              zpointsSize = zpoints.size();
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+SCENARIO("A binary radix tree can be used to construct a Octree/Quadtree") {
+  cout << "Testing BinaryRadixToOctree kernel" << endl;
+  //This isn't good practice, but it allows us to skip serializing BRT data.
+  GIVEN("building the BRT was successful in the previous test.") {
+    REQUIRE(brtTestPassed);
+    THEN("we can use the BRT to build an Octree in parallel.") {
+      using namespace KernelBox;
+      vector<OctNode> gpuOctree;
+      REQUIRE(BinaryRadixToOctree_p(internalBRTNodes, gpuOctree, zpointsSize) == CL_SUCCESS);
+      
+      AND_THEN("we should get no race conditions.") {
+        vector<OctNode> hostOctree;
+        vector<BrtNode> I(zpointsSize-1);
+        REQUIRE(CLFW::DefaultQueue.enqueueReadBuffer(internalBRTNodes, CL_TRUE, 0, (zpointsSize - 1)*sizeof(BrtNode), I.data())==CL_SUCCESS);
+
+        REQUIRE(BinaryRadixToOctree_s(I, hostOctree, zpointsSize) == CL_SUCCESS);
+        REQUIRE(hostOctree.size() == gpuOctree.size());
+
+        bool compareResult = true;
+        for (int i = 0; i < hostOctree.size(); ++i) {
+          compareResult = compareOctNode(&gpuOctree[i], &hostOctree[i]);
+          if (compareResult == false) {
+            break;
+          }
+        }
+        REQUIRE(compareResult == true);
+      }
+    }
+  }
+}

@@ -15,6 +15,7 @@ namespace KernelBox {
     error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(nextPow2(size)), cl::NullRange);
     return error;
   };
+  
   cl_int PointsToMorton_s(cl_int size, cl_int bits, cl_int2* points, BigUnsigned* result) {
     int nextPowerOfTwo = nextPow2(size);
     for (int gid = 0; gid < nextPowerOfTwo; ++gid) {
@@ -78,41 +79,41 @@ namespace KernelBox {
     return error;
   };
 
-  //cl_int StreamScan_s(unsigned int* buffer, unsigned int* result, const int size) {
-  //  int nextPowerOfTwo = (int)pow(2, ceil(log(size) / log(2)));
-  //  int intermediate = -1;
-  //  unsigned int* localBuffer;
-  //  unsigned int* scratch;
-  //  unsigned int sum = 0;
+  cl_int StreamScan_s(unsigned int* buffer, unsigned int* result, const int size) {
+    int nextPowerOfTwo = (int)pow(2, ceil(log(size) / log(2)));
+    int intermediate = -1;
+    unsigned int* localBuffer;
+    unsigned int* scratch;
+    unsigned int sum = 0;
 
-  //  localBuffer = (unsigned int*)malloc(sizeof(unsigned int)* nextPowerOfTwo);
-  //  scratch = (unsigned int*)malloc(sizeof(unsigned int)* nextPowerOfTwo);
-  //  //INIT
-  //  for (int i = 0; i < size; i++)
-  //    StreamScan_Init(buffer, localBuffer, scratch, i, i);
-  //  for (int i = size; i < nextPowerOfTwo; ++i)
-  //    localBuffer[i] = scratch[i] = 0;
+    localBuffer = (unsigned int*)malloc(sizeof(unsigned int)* nextPowerOfTwo);
+    scratch = (unsigned int*)malloc(sizeof(unsigned int)* nextPowerOfTwo);
+    //INIT
+    for (int i = 0; i < size; i++)
+      StreamScan_Init(buffer, localBuffer, scratch, i, i);
+    for (int i = size; i < nextPowerOfTwo; ++i)
+      localBuffer[i] = scratch[i] = 0;
 
-  //  //Add not necessary with only one workgroup.
-  //  //Adjacent sync not necessary with only one workgroup.
+    //Add not necessary with only one workgroup.
+    //Adjacent sync not necessary with only one workgroup.
 
-  //  //SCAN
-  //  for (unsigned int i = 1; i < nextPowerOfTwo; i <<= 1) {
-  //    for (int j = 0; j < nextPowerOfTwo; ++j) {
-  //      HillesSteelScan(localBuffer, scratch, j, i);
-  //    }
-  //    __local unsigned int *tmp = scratch;
-  //    scratch = localBuffer;
-  //    localBuffer = tmp;
-  //  }
-  //  for (int i = 0; i < size; ++i) {
-  //    result[i] = localBuffer[i];
-  //  }
-  //  free(localBuffer);
-  //  free(scratch);
+    //SCAN
+    for (unsigned int i = 1; i < nextPowerOfTwo; i <<= 1) {
+      for (int j = 0; j < nextPowerOfTwo; ++j) {
+        HillesSteelScan(localBuffer, scratch, j, i);
+      }
+      unsigned int *tmp = scratch;
+      scratch = localBuffer;
+      localBuffer = tmp;
+    }
+    for (int i = 0; i < size; ++i) {
+      result[i] = localBuffer[i];
+    }
+    free(localBuffer);
+    free(scratch);
 
-  //  return CL_SUCCESS;
-  //}
+    return CL_SUCCESS;
+  }
 
   cl_int SingleCompact(cl::Buffer &input, cl::Buffer &result, cl::Memory &predicate, cl::Buffer &address, cl_int globalSize) {
     cl::CommandQueue *queue = &CLFW::DefaultQueue;
@@ -170,7 +171,7 @@ namespace KernelBox {
     return error;
   }
 
-  cl_int RadixSortBigUnsigned(cl::Buffer input, cl_int size, cl_int mbits) {
+  cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
     cl_int error = 0;
     const size_t globalSize = nextPow2(size);
 
@@ -199,115 +200,135 @@ namespace KernelBox {
     return error;
   }
 
-  //cl_int BuildBinaryRadixTree_p(cl_int size, cl_int mbits) {
-  //  const size_t globalWorkSize[] = { nextPow2(size), 0, 0 };
-  //  cl_int error = initBinaryRadixTreeBuffers(globalWorkSize[0]);
+  cl_int BuildBinaryRadixTree_p(cl::Buffer &zpoints, cl::Buffer &internalBRTNodes, cl_int size, cl_int mbits) {
+    cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
+    cl::CommandQueue &queue = CLFW::DefaultQueue;
+    cl_int globalSize = nextPow2(size);
 
-  //  error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 0, sizeof(cl_mem), buffers.internalNodes->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 1, sizeof(cl_mem), buffers.bigUnsignedInput->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 2, sizeof(cl_int), &mbits);
-  //  error |= clSetKernelArg(Kernels["BuildBinaryRadixTreeKernel"], 3, sizeof(cl_int), &size);
+    cl_int error = CLFW::get(internalBRTNodes, "internalBRTNodes", sizeof(BrtNode)* (globalSize));
+    
+    error |= kernel.setArg(0, internalBRTNodes);
+    error |= kernel.setArg(1, zpoints);
+    error |= kernel.setArg(2, mbits);
+    error |= kernel.setArg(3, size);
 
-  //  if (error == CL_SUCCESS)
-  //    error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["BuildBinaryRadixTreeKernel"], 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
-  //  
-  //  return error;
-  //}
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    return error;
+  }
 
-  //cl_int BuildBinaryRadixTree_s(cl_int size, cl_int mbits, BigUnsigned* zpoints, BrtNode* I) {
-  //  for (int i = 0; i < size-1; ++i) {
-  //    if (i == size - 1) 
-  //      cout << size;
-  //    BuildBinaryRadixTree(I, zpoints, mbits, size, i);
-  //  }
-  //  return CL_SUCCESS;
-  //}
+  cl_int BuildBinaryRadixTree_s(BigUnsigned* zpoints, BrtNode* internalBRTNodes, cl_int size, cl_int mbits) {
+    for (int i = 0; i < size-1; ++i) {
+      if (i == size - 1) 
+        cout << size;
+      BuildBinaryRadixTree(internalBRTNodes, zpoints, mbits, size, i);
+    }
+    return CL_SUCCESS;
+  }
 
-  //cl_int ComputeLocalSplits_p(cl_int size) {
-  //  const size_t globalWorkSize[] = { nextPow2(size), 0, 0 };
-  //  cl_int error = clSetKernelArg(Kernels["ComputeLocalSplitsKernel"], 0, sizeof(cl_mem), buffers.localSplits->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["ComputeLocalSplitsKernel"], 1, sizeof(cl_mem), buffers.internalNodes->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["ComputeLocalSplitsKernel"], 2, sizeof(cl_int), &size);
-  //  error |= clEnqueueCopyBuffer(CLFW::Queues[0], buffers.localSplitsCopy->getBuffer(), buffers.localSplits->getBuffer(), 
-  //    0, 0, sizeof(unsigned int) * globalWorkSize[0], 0, NULL, NULL);
-  //  error = clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["ComputeLocalSplitsKernel"], 1, 0, globalWorkSize, NULL, 0, NULL, NULL);
-  //  return error;
-  //}
+  cl_int ComputeLocalSplits_p(cl::Buffer internalBRTNodes, cl::Buffer &localSplits, cl_int size) {
+    cl_int globalSize = nextPow2(size);
+    cl::Kernel &kernel = CLFW::Kernels["ComputeLocalSplitsKernel"];
+    cl::CommandQueue &queue = CLFW::DefaultQueue;
 
-  //cl_int ComputeLocalSplits_s(const cl_int size, vector<unsigned int> local_splits, vector<BrtNode> I) {
-  //  if (size > 0) {
-  //    local_splits[0] = 1 + I[0].lcp_length / DIM;
-  //  }
-  //  for (int i = 0; i < size - 1; ++i) {
-  //    ComputeLocalSplits(local_splits.data(), I.data(), i);
-  //  }
-  //  return CL_SUCCESS;
-  //}
-  //
-  //cl_int BinaryRadixToOctree_p(cl_int size, vector<OctNode> octree) {
-  //  vector<unsigned int> localSplits(size - 1, 0);
-  //  vector<unsigned int> prefixSums(size);
-  //  int nextPowerOfTwo = nextPow2(size);
-  //  cl_int error = initBinaryRadixToOctreeBuffers(nextPowerOfTwo);
+    bool isOld;
+    cl::Buffer zeroBuffer;
 
-  //  //compute local splits
-  //  error |= ComputeLocalSplits_p(size);
+    cl_int error  = CLFW::get(localSplits, "localSplits", sizeof(cl_int) * globalSize);
+           error |= CLFW::get(zeroBuffer, "zeroBuffer", sizeof(cl_int) * globalSize, isOld);
 
-  //  //scan the splits
-  //  error |= StreamScan_p(buffers.localSplits->getBuffer(), buffers.intermediate->getBuffer(), buffers.intermediateCopy->getBuffer(), buffers.scannedSplits->getBuffer(), nextPowerOfTwo);
+    //Fill any new zero buffers with zero. Then initialize localSplits with zero.
+    if (!isOld) {
+      cl_int zero = 0;
+      error |= queue.enqueueFillBuffer<cl_int>(zeroBuffer, { zero }, 0, sizeof(cl_int) * globalSize);
+    }
+    error |= queue.enqueueCopyBuffer(zeroBuffer, localSplits, 0, 0, sizeof(cl_int) * globalSize);
 
+    error |= kernel.setArg(0, localSplits);
+    error |= kernel.setArg(1, internalBRTNodes);
+    error |= kernel.setArg(2, size);
 
-  //  //Read in the required octree size
-  //  int* temp = (int*)clEnqueueMapBuffer(CLFW::Queues[0], buffers.scannedSplits->getBuffer(), CL_TRUE, CL_MAP_READ, sizeof(int)*(size - 2), sizeof(int), 0, NULL, NULL, NULL); //SLOW!!!
-  //  int octreeSize = *temp;//= prefix_sums[n - 1];
-  //  error |= clEnqueueUnmapMemObject(CLFW::Queues[0], buffers.scannedSplits->getBuffer(), temp, 0, NULL, NULL);
+    error = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    return error;
+  }
 
-  //  //Make it a power of two.
-  //  int nextOctreeSizePowerOfTwo = nextPow2(octreeSize);
+  cl_int ComputeLocalSplits_s(const cl_int size, vector<unsigned int> local_splits, vector<BrtNode> I) {
+    if (size > 0) {
+      local_splits[0] = 1 + I[0].lcp_length / DIM;
+    }
+    for (int i = 0; i < size - 1; ++i) {
+      ComputeLocalSplits(local_splits.data(), I.data(), i);
+    }
+    return CL_SUCCESS;
+  }
 
-  //  //Create an octree buffer.
-  //  if (!isBufferUsable(buffers.octree, sizeof(OctNode)* (nextOctreeSizePowerOfTwo)))
-  //    error |= createBuffer(buffers.octree, sizeof(OctNode)* (nextOctreeSizePowerOfTwo));
+  cl_int InitOctree(cl::Buffer &internalBRTNodes, cl::Buffer &octree, cl::Buffer &localSplits, cl::Buffer &scannedSplits, cl_int size) {
+    cl_int globalSize = nextPow2(size);
+    cl::Kernel &kernel = CLFW::Kernels["BRT2OctreeKernel_init"];
+    cl::CommandQueue &queue = CLFW::DefaultQueue;
+    cl_int error = 0;
 
-  //  //use the scanned splits & brt to create octree.
-  //  const size_t globalWorkSize[] = { nextPowerOfTwo, 0, 0 };
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel_init"], 0, sizeof(cl_mem), buffers.internalNodes->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel_init"], 1, sizeof(cl_mem), buffers.octree->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel_init"], 2, sizeof(cl_mem), buffers.localSplits->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel_init"], 3, sizeof(cl_mem), buffers.scannedSplits->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel_init"], 4, sizeof(cl_int), &size);
-  //  error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["BRT2OctreeKernel_init"], 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel"], 0, sizeof(cl_mem), buffers.internalNodes->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel"], 1, sizeof(cl_mem), buffers.octree->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel"], 2, sizeof(cl_mem), buffers.localSplits->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel"], 3, sizeof(cl_mem), buffers.scannedSplits->getBufferPtr());
-  //  error |= clSetKernelArg(Kernels["BRT2OctreeKernel"], 4, sizeof(cl_int), &size);
-  //  error |= clEnqueueNDRangeKernel(CLFW::Queues[0], Kernels["BRT2OctreeKernel"], 1, 0, globalWorkSize, NULL, 0, nullptr, nullptr);
-  //  
+    error |= kernel.setArg(0, internalBRTNodes);
+    error |= kernel.setArg(1, octree);
+    error |= kernel.setArg(2, localSplits);
+    error |= kernel.setArg(3, scannedSplits);
+    error |= kernel.setArg(4, size);
 
-  //  octree.resize(octreeSize);
-  //  OctNode* tempOctree = (OctNode*)clEnqueueMapBuffer(CLFW::Queues[0], buffers.octree->getBuffer(), CL_TRUE, CL_MAP_READ, 0, sizeof(OctNode)*(octreeSize), 0, NULL, NULL, NULL);
-  //  memcpy(octree.data(), tempOctree, sizeof(OctNode)*(octreeSize));
-  //  error |= clEnqueueUnmapMemObject(CLFW::Queues[0], buffers.octree->getBuffer(), tempOctree, 0, NULL, NULL);
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
 
-  //  return error;
-  //}
+    return error;
+  }
 
-  //cl_int BinaryRadixToOctree_s(cl_int size, vector<BrtNode> I, vector<OctNode> octree) {
-  //  vector<unsigned int> localSplits(size);
-  //  ComputeLocalSplits_s(size, localSplits, I);
+  cl_int BinaryRadixToOctree_p(cl::Buffer internalBRTNodes, vector<OctNode> octree_vec, cl_int size) {
+    int globalSize = nextPow2(size);
+    cl::Kernel &kernel = CLFW::Kernels["BRT2OctreeKernel"];
+    cl::CommandQueue &queue = CLFW::DefaultQueue;
 
-  //  vector<unsigned int> prefixSums(size);
-  //  StreamScan_s(localSplits.data(), prefixSums.data(), size);
+    cl::Buffer localSplits, scannedSplits, octree;
+    cl_int error = CLFW::get(scannedSplits, "scannedSplits", sizeof(cl_int) * globalSize);
 
-  //  const int octreeSize = prefixSums[prefixSums.size() - 1];
-  //  octree.resize(octreeSize);
+    error |= ComputeLocalSplits_p(internalBRTNodes, localSplits, size);
+    error |= StreamScan_p(localSplits, scannedSplits, globalSize);
 
-  //  for (int i = 0; i < octreeSize; ++i)
-  //    brt2octree_init(i, octree.data());
-  //  for (int brt_i = 1; brt_i < size - 1; ++brt_i)
-  //    brt2octree(brt_i, I.data(), octree.data(), localSplits.data(), prefixSums.data(), size, octreeSize);
-  //  
-  //  return CL_SUCCESS;
-  //}
+    //Read in the required octree size
+    cl_int octreeSize;
+    error |= CLFW::DefaultQueue.enqueueReadBuffer(scannedSplits, CL_TRUE, sizeof(int)*(size - 2), sizeof(int), &octreeSize);
+    cl_int roundOctreeSize = nextPow2(octreeSize);
+
+    //Create an octree buffer.
+    error |= CLFW::get(octree, "octree", sizeof(OctNode) * roundOctreeSize);
+
+    //use the scanned splits & brt to create octree.
+    InitOctree(internalBRTNodes, octree, localSplits, scannedSplits, octreeSize);
+
+    error |= kernel.setArg(0, internalBRTNodes);
+    error |= kernel.setArg(1, octree);
+    error |= kernel.setArg(2, localSplits);
+    error |= kernel.setArg(3, scannedSplits);
+    error |= kernel.setArg(4, size);
+
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange); 
+
+    octree_vec.resize(octreeSize);
+    error |= queue.enqueueReadBuffer(octree, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree_vec.data());
+  
+    return error;
+  }
+
+  cl_int BinaryRadixToOctree_s(vector<BrtNode> internalBRTNodes, vector<OctNode> octree, cl_int size) {
+    vector<unsigned int> localSplits(size);
+    ComputeLocalSplits_s(size, localSplits, internalBRTNodes);
+
+    vector<unsigned int> prefixSums(size);
+    StreamScan_s(localSplits.data(), prefixSums.data(), size);
+
+    const int octreeSize = prefixSums[prefixSums.size() - 1];
+    octree.resize(octreeSize);
+
+    for (int i = 0; i < octreeSize; ++i)
+      brt2octree_init(i, octree.data());
+    for (int brt_i = 1; brt_i < size - 1; ++brt_i)
+      brt2octree(brt_i, internalBRTNodes.data(), octree.data(), localSplits.data(), prefixSums.data(), size, octreeSize);
+    
+    return CL_SUCCESS;
+  }
 }
