@@ -93,13 +93,7 @@ SET(SRCS
   ./C/ParallelAlgorithms.c
 
   ./opencl/Geom.cpp
-  ./opencl/CLWrapper/CLWrapper_Initializers.cpp
-  ./opencl/CLWrapper/CLWrapper_Kernels.cpp
-  ./opencl/Kernels/KernelBox.cpp
-  ./opencl/Kernels/KernelBox_.cpp
-  #./opencl/BufferCollection/Buffer.cpp
-
-  #These are new and may need to be moved...
+  ./opencl/Kernels.cpp
 
   #headers
   ./BoundingBox.h
@@ -126,19 +120,13 @@ SET(SRCS
   ./viewer/Polylines.h
   ./viewer/Octree2.h
   
-  #./opencl/Buffers/Buffer.h
-  #./opencl/Buffers/Buffers.h
-  #./opencl/Buffers/BufferInitializers.h
-  ./opencl/CLWrapper/CLWrapper.h
-  ./opencl/Kernels/KernelBox.h
-  ./opencl/Kernels/KernelBox_.h
-  #./opencl/Kernels/Kernels.h
+  ./opencl/Kernels.h
   ./opencl/vec_cpp.h
 )
 
 SET(UNIT_TEST_SOURCES
     ./tests/catch.hpp
-	./opencl/Kernels/KernelBox_.cpp
+	./opencl/Kernels.cpp
 
 	./C/BuildOctree.c
 	./C/BigUnsigned.c

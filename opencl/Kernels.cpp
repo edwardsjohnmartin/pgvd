@@ -1,8 +1,9 @@
 #pragma once
-#include "KernelBox_.h"
-#include "BufferInitializers.h"
+#include "Kernels.h"
 
-namespace KernelBox {
+namespace Kernels {
+  int nextPow2(int num) { return max((int)pow(2, ceil(log(num) / log(2))), 8); }
+
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits) {
     cl_int error = 0;
     size_t globalSize = nextPow2(size);

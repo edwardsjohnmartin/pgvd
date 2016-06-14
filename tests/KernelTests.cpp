@@ -56,7 +56,7 @@ SCENARIO("Points can be mapped to a Z-Order curve") {
         for (int i = 0; i < OneMillion; i++) points.push_back({ i, i });
           
         GIVEN("an OpenCL buffer that can hold those points.") {
-          using namespace KernelBox;
+          using namespace Kernels;
           int globalSize = nextPow2(points.size());
           cl::Buffer pointsBuffer;
           REQUIRE(CLFW::get(pointsBuffer, "points", globalSize*sizeof(cl_int2)) == CL_SUCCESS);
@@ -97,7 +97,7 @@ SCENARIO("Big Unsigneds can be sorted using a parallel radix sort.") {
     /* initialize random seed: */
     srand(time(NULL));
     GIVEN("a couple BigUnsigned numbers.") {
-      using namespace KernelBox;
+      using namespace Kernels;
       vector<BigUnsigned> hostNumbers(nextPow2(OneMillion));
       for (int i = 0; i < OneMillion; ++i) {
         initBU(&hostNumbers[i]);
@@ -150,7 +150,7 @@ SCENARIO("Sorted BigUnsigneds can be unique'd in parallel.") {
     if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
 
     GIVEN("a couple BigUnsigned numbers.") {
-      using namespace KernelBox;
+      using namespace Kernels;
       vector<BigUnsigned> hostNumbers(nextPow2(OneMillion));
       for (int i = 0; i < OneMillion; ++i) {
         initBU(&hostNumbers[i]);
@@ -215,7 +215,7 @@ SCENARIO("Sorted Z-Order numbers can be used to construct a binary radix tree") 
     srand(time(NULL));
 
     GIVEN("a couple sorted, uniqued points") {
-      using namespace KernelBox;
+      using namespace Kernels;
       vector<BigUnsigned> zpoints(nextPow2(OneMillion));
       for (int i = 0; i < OneMillion; ++i) {
         initBU(&zpoints[i]);
@@ -235,7 +235,7 @@ SCENARIO("Sorted Z-Order numbers can be used to construct a binary radix tree") 
       zpoints.erase(last, zpoints.end());
 
       GIVEN("an OpenCL buffer that can hold those numbers.") {
-        using namespace KernelBox;
+        using namespace Kernels;
         int globalSize = nextPow2(zpoints.size());
 
         //Create a BU buffer, but only if it hasn't been created in another test.
@@ -281,7 +281,7 @@ SCENARIO("A binary radix tree can be used to construct a Octree/Quadtree") {
   GIVEN("building the BRT was successful in the previous test.") {
     REQUIRE(brtTestPassed);
     THEN("we can use the BRT to build an Octree in parallel.") {
-      using namespace KernelBox;
+      using namespace Kernels;
       vector<OctNode> gpuOctree;
       REQUIRE(BinaryRadixToOctree_p(internalBRTNodes, gpuOctree, zpointsSize) == CL_SUCCESS);
       

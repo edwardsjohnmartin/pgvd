@@ -11,13 +11,7 @@
 
 #include "./gl_utils.h"
 
-#ifdef __APPLE__
-#include "OpenCL/opencl.h"
-#else
-#include "CL/opencl.h"
-#endif
 #include "clfw.hpp"
-#include "Kernels.h"
 
 #include "gl_utils.h"
 
@@ -165,16 +159,12 @@ int main(int argc, char** argv) {
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   glClear (GL_COLOR_BUFFER_BIT);
 
-  cl_int error = 0;
-  error |= CLFW::Initialize(true);
-  error |= CLFW::InitializePlatformList();
-  error |= CLFW::InitializeDeviceListFromPlatform(0, CL_DEVICE_TYPE_GPU);
-  error |= CLFW::InitializeContext(0);
-  error |= CLFW::AddQueue(0);
-  error |= KernelBox::BuildOpenCLProgram();
-  if (error != CL_SUCCESS)
+  cl_int error = CLFW::Initialize(true);
+  if (error != CL_SUCCESS) {
     cout << "ERROR initializing OpenCL!" << endl;
-
+    getchar();
+    std::exit(-1);
+  }
 
   octree = new Octree2();
   octree->processArgs(argc, argv);
@@ -220,6 +210,5 @@ int main(int argc, char** argv) {
     glfwPollEvents();
   }
   glfwTerminate();
-  CLFW::Terminate();
   return 0;
 }

@@ -13,6 +13,7 @@
 #else
 #include <CL/cl.hpp>
 #endif
+
 #include <vector>
 #include <string>
 #include <unordered_map>
