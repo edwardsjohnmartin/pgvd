@@ -1,10 +1,11 @@
+#pragma once
 #ifdef __OPENCL_VERSION__
 #include ".\opencl\C\BigUnsigned.h"
 #include ".\opencl\C\vec_cl.h"
 #include ".\opencl\C\dim.h"
 #else
 #include "BigUnsigned.h"
-#include "vec.h"
+#include "vec_cl.h"
 #include "dim.h"
 #endif // !__OPENCL_VERSION__
 

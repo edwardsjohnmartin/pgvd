@@ -226,7 +226,7 @@ namespace Kernels {
     return CL_SUCCESS;
   }
 
-  cl_int ComputeLocalSplits_p(cl::Buffer internalBRTNodes, cl::Buffer &localSplits, cl_int size) {
+  cl_int ComputeLocalSplits_p(cl::Buffer &internalBRTNodes, cl::Buffer &localSplits, cl_int size) {
     cl_int globalSize = nextPow2(size);
     cl::Kernel &kernel = CLFW::Kernels["ComputeLocalSplitsKernel"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
@@ -252,7 +252,7 @@ namespace Kernels {
     return error;
   }
 
-  cl_int ComputeLocalSplits_s(const cl_int size, vector<unsigned int> local_splits, vector<BrtNode> I) {
+  cl_int ComputeLocalSplits_s(const cl_int size, vector<unsigned int> &local_splits, vector<BrtNode> &I) {
     if (size > 0) {
       local_splits[0] = 1 + I[0].lcp_length / DIM;
     }
@@ -279,7 +279,7 @@ namespace Kernels {
     return error;
   }
 
-  cl_int BinaryRadixToOctree_p(cl::Buffer internalBRTNodes, vector<OctNode> octree_vec, cl_int size) {
+  cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, vector<OctNode> &octree_vec, cl_int size) {
     int globalSize = nextPow2(size);
     cl::Kernel &kernel = CLFW::Kernels["BRT2OctreeKernel"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
@@ -315,7 +315,7 @@ namespace Kernels {
     return error;
   }
 
-  cl_int BinaryRadixToOctree_s(vector<BrtNode> internalBRTNodes, vector<OctNode> octree, cl_int size) {
+  cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree, cl_int size) {
     vector<unsigned int> localSplits(size);
     ComputeLocalSplits_s(size, localSplits, internalBRTNodes);
 
@@ -324,7 +324,6 @@ namespace Kernels {
 
     const int octreeSize = prefixSums[prefixSums.size() - 1];
     octree.resize(octreeSize);
-
     for (int i = 0; i < octreeSize; ++i)
       brt2octree_init(i, octree.data());
     for (int brt_i = 1; brt_i < size - 1; ++brt_i)

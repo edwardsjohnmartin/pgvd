@@ -206,7 +206,7 @@ int main(int argc, char** argv) {
   //}
   while (!glfwWindowShouldClose(g_window)) {
     // Refresh here for animation
-    refresh();
+    rebuild();
     glfwPollEvents();
   }
   glfwTerminate();

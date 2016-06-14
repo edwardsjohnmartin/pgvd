@@ -150,20 +150,11 @@ vector<OctNode> BuildOctreeInSerial( const vector<intn>& points, const Resln& re
   vector<BigUnsigned> zpoints(roundNumPoints);
 
   //Points to Z Order
-  for (int i = 0; i < numPoints; ++i) {
-    BigUnsigned temp;
-    xyz2z(&temp, points[i], resln.bits);
-    zpoints.push_back(temp);
-  }
-  for (int i = numPoints; i < roundNumPoints; ++i) {
-    BigUnsigned temp;
-    initBlkBU(&temp, 0);
-    zpoints.push_back(temp);
-  }
+  Kernels::PointsToMorton_s(points.size(), resln.bits, (cl_int2*)points.data(), zpoints.data());
 
   //Sort and unique Z points
-  sort(zpoints.rbegin(), zpoints.rend(), lessThanBigUnsigned);
-  numPoints = unique(zpoints.begin(), zpoints.end(), equalsBigUnsigned) - zpoints.begin();
+  sort(zpoints.rbegin(), zpoints.rend(), weakCompareBU);
+  numPoints = unique(zpoints.begin(), zpoints.end(), weakEqualsBU) - zpoints.begin();
 
   //Build BRT
   vector<BrtNode> I(numPoints-1);
@@ -172,7 +163,6 @@ vector<OctNode> BuildOctreeInSerial( const vector<intn>& points, const Resln& re
   //Build Octree
   vector<OctNode> octree;
   Kernels::BinaryRadixToOctree_s(I, octree, numPoints);
-
   return octree;
 }
 

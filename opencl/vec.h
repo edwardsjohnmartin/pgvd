@@ -39,8 +39,9 @@ inline void set_intn_comp(int i, intn* p, int value) {
     p->z = value;
 #endif
 }
+#else
 
-#else // OPEN_CL
+#ifdef __cplusplus
 #include "./vec_cpp.h"
 inline int intn_comp(int i, intn p) {
   if (i == 0)
@@ -63,6 +64,7 @@ inline void set_intn_comp(int i, intn* p, int value) {
     p->s[2] = value;
 #endif
 }
+#endif
 
 #endif
 

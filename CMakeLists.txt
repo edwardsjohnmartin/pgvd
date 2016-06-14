@@ -121,7 +121,6 @@ SET(SRCS
   ./viewer/Octree2.h
   
   ./opencl/Kernels.h
-  ./opencl/vec_cpp.h
 )
 
 SET(UNIT_TEST_SOURCES

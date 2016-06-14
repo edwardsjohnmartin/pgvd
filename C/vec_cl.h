@@ -14,17 +14,30 @@
 
 #ifndef __VEC_CL_H__
 #define __VEC_CL_H__
-#define OCT2D;
+#define OCT2D
+
 #ifdef OCT2D
-typedef int2 intn;
-typedef float2 floatn;
-#ifndef __OPENCL_VERSION__
-typedef double2 doublen;
-#endif
+  #ifdef __OPENCL_VERSION__
+    typedef int2 intn;
+    typedef float2 floatn;
+    //typedef double2 doublen;
+  #else 
+    #include "CL/cl.h"
+    typedef cl_int2 intn;
+    typedef cl_float2 floatn;
+    //typedef cl_double2 doublen;
+  #endif
 #else
-typedef int3 intn;
-typedef float3 floatn;
-typedef double3 doublen;
+  #ifdef __OPENCL_VERSION__
+    typedef int3 intn;
+    typedef float3 floatn;
+    //typedef double3 doublen;
+  #else 
+    #include "CL/cl.h"
+    typedef cl_int3 intn;
+    typedef cl_float3 floatn;
+    //typedef cl_double3 doublen;
+  #endif
 #endif
 
 #endif
