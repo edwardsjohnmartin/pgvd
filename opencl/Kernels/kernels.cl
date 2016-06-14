@@ -121,12 +121,14 @@ __kernel void ComputeLocalSplitsKernel(
 )
 {
   const size_t gid = get_global_id(0);
-  if (gid <size-1)
-    local_splits[gid] = 0;
-  if (gid == 0 && size > 0) 
+  if (size > 0 && gid == 0) {
     local_splits[0] = 1 + I[0].lcp_length / DIM;
-  if ( gid < size - 1)
+  }
+  barrier(CLK_GLOBAL_MEM_FENCE);
+  if (gid >= 0 && gid < size - 1) {
     ComputeLocalSplits(local_splits, I, gid);
+  }
+  
 }
 
 

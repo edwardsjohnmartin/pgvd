@@ -8,6 +8,7 @@
 #define mbits bits*DIM
 
 static bool brtTestPassed;
+static bool computeSplitsPassed;
 static unsigned int zpointsSize;
 static cl::Buffer internalBRTNodes;
 
@@ -275,11 +276,50 @@ SCENARIO("Sorted Z-Order numbers can be used to construct a binary radix tree") 
   }
 }
 
+SCENARIO("A binary radix tree can be used to calculate a vector of local splits") {
+  computeSplitsPassed = false;
+
+  cout << "Testing ComputeLocalSplits kernel" << endl;
+  GIVEN("building the BRT was successful in the previous test.") {
+    REQUIRE(brtTestPassed);
+    THEN("we can use the BRT to compute local splits in parallel.") {
+      using namespace Kernels;
+      cl::Buffer gpuSplitsBuffer;
+
+      REQUIRE(ComputeLocalSplits_p(internalBRTNodes, gpuSplitsBuffer, zpointsSize) == CL_SUCCESS);
+
+      AND_THEN("we should get no race conditions.") {
+        vector<cl_uint> hostSplits(zpointsSize - 1);
+        vector<cl_uint> gpuSplits(zpointsSize-1);
+        vector<BrtNode> I(zpointsSize - 1);
+        REQUIRE(CLFW::DefaultQueue.enqueueReadBuffer(internalBRTNodes, CL_TRUE, 0, (zpointsSize - 1)*sizeof(BrtNode), I.data()) == CL_SUCCESS);
+
+        REQUIRE(ComputeLocalSplits_s(I, hostSplits, zpointsSize) == CL_SUCCESS);
+        
+        REQUIRE(CLFW::DefaultQueue.enqueueReadBuffer(gpuSplitsBuffer, CL_TRUE, 0, (zpointsSize - 1)*sizeof(cl_uint), gpuSplits.data()) == CL_SUCCESS);
+        
+        bool compareResult = true;
+        for (int i = 0; i < hostSplits.size(); ++i) {
+          compareResult = (hostSplits[i] == gpuSplits[i]);
+          if (compareResult == false) {
+
+            cout<<hostSplits[i] << " vs " << gpuSplits[i] << " number " << i <<endl;
+            break;
+          }
+        }
+        REQUIRE(compareResult == true);
+        computeSplitsPassed = true;
+      }
+    }
+  }
+}
+
 SCENARIO("A binary radix tree can be used to construct a Octree/Quadtree") {
   cout << "Testing BinaryRadixToOctree kernel" << endl;
   //This isn't good practice, but it allows us to skip serializing BRT data.
   GIVEN("building the BRT was successful in the previous test.") {
     REQUIRE(brtTestPassed);
+    REQUIRE(computeSplitsPassed);
     THEN("we can use the BRT to build an Octree in parallel.") {
       using namespace Kernels;
       vector<OctNode> gpuOctree;

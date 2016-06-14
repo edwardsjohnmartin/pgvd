@@ -252,7 +252,7 @@ namespace Kernels {
     return error;
   }
 
-  cl_int ComputeLocalSplits_s(const cl_int size, vector<unsigned int> &local_splits, vector<BrtNode> &I) {
+  cl_int ComputeLocalSplits_s(vector<BrtNode> &I, vector<cl_uint> &local_splits, const cl_int size) {
     if (size > 0) {
       local_splits[0] = 1 + I[0].lcp_length / DIM;
     }
@@ -317,7 +317,7 @@ namespace Kernels {
 
   cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree, cl_int size) {
     vector<unsigned int> localSplits(size);
-    ComputeLocalSplits_s(size, localSplits, internalBRTNodes);
+    ComputeLocalSplits_s(internalBRTNodes, localSplits, size);
 
     vector<unsigned int> prefixSums(size);
     StreamScan_s(localSplits.data(), prefixSums.data(), size);
