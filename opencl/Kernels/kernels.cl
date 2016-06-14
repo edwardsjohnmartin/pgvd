@@ -131,32 +131,30 @@ __kernel void ComputeLocalSplitsKernel(
   
 }
 
-
 //This is dumb and will be merged with the other kernel.
 __kernel void BRT2OctreeKernel_init(
   __global BrtNode *I,
   __global OctNode *octree,
-  __global unsigned int *local_splits,
-  __global unsigned int *prefix_sums,
-  const int n
+  __global unsigned int *localSplits,
+  __global unsigned int *prefixSums,
+  const int size
 ) {
   const size_t gid = get_global_id(0);
-  const int octree_size = prefix_sums[n-2];
+  const int octreeSize = prefixSums[size-1];
 
-  if (gid < octree_size)
-    brt2octree_init( gid, octree);
+  if(gid < octreeSize)
+    brt2octree_init(gid, octree);    
 }
 
 __kernel void BRT2OctreeKernel(
   __global BrtNode *I,
   __global volatile OctNode *octree,
-  __global unsigned int *local_splits,
-  __global unsigned int *prefix_sums,
-  const int n
+  __global unsigned int *localSplits,
+  __global unsigned int *prefixSums,
+  const int size
 ) {
   const int gid = get_global_id(0);
-  const int octree_size = prefix_sums[n-2];
-  if (gid > 0 && gid < n-1){
-    brt2octree( gid, I, octree, local_splits, prefix_sums, n, octree_size);
-  }  
+  const int octreeSize = prefixSums[size-1];
+  if (gid > 0 && gid < size - 1)
+    brt2octree(gid, I, octree, localSplits, prefixSums, size, octreeSize);
 }

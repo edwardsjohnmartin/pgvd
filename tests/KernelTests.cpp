@@ -337,6 +337,9 @@ SCENARIO("A binary radix tree can be used to construct a Octree/Quadtree") {
         for (int i = 0; i < hostOctree.size(); ++i) {
           compareResult = compareOctNode(&gpuOctree[i], &hostOctree[i]);
           if (compareResult == false) {
+            cout << "i " << i << endl;
+            cout << "Host " << hostOctree[i].leaf << " " << hostOctree[i].children[0] << " " << hostOctree[i].children[1] <<" "<< hostOctree[i].children[2] << " " << hostOctree[i].children[3] << endl;
+            cout << "gpu " << gpuOctree[i].leaf << " " << gpuOctree[i].children[0] << " " << gpuOctree[i].children[1] << " " << gpuOctree[i].children[2] << " " << gpuOctree[i].children[3] << endl;
             break;
           }
         }

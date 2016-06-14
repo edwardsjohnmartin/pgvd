@@ -299,7 +299,7 @@ namespace Kernels {
     error |= CLFW::get(octree, "octree", sizeof(OctNode) * roundOctreeSize);
 
     //use the scanned splits & brt to create octree.
-    InitOctree(internalBRTNodes, octree, localSplits, scannedSplits, octreeSize);
+    InitOctree(internalBRTNodes, octree, localSplits, scannedSplits, size);
 
     error |= kernel.setArg(0, internalBRTNodes);
     error |= kernel.setArg(1, octree);
@@ -307,7 +307,7 @@ namespace Kernels {
     error |= kernel.setArg(3, scannedSplits);
     error |= kernel.setArg(4, size);
 
-    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange); 
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
 
     octree_vec.resize(octreeSize);
     error |= queue.enqueueReadBuffer(octree, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree_vec.data());
@@ -322,7 +322,7 @@ namespace Kernels {
     vector<unsigned int> prefixSums(size);
     StreamScan_s(localSplits.data(), prefixSums.data(), size);
 
-    const int octreeSize = prefixSums[prefixSums.size() - 1];
+    const int octreeSize = prefixSums[size - 1];
     octree.resize(octreeSize);
     for (int i = 0; i < octreeSize; ++i)
       brt2octree_init(i, octree.data());
