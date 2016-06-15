@@ -33,7 +33,7 @@ private:
   static void Print(std::string s, int fgcode = defaultFG, int bgcode = defaultBG);
 
   /* Source file management */
-  static void loadFile(const char* name, char** buffer, long* length);
+  static cl_int loadFile(const char* name, char** buffer, long* length);
 
 public:
   static bool verbose;
@@ -72,7 +72,7 @@ public:
   static cl_int get(cl::Program::Sources &sources, std::vector<std::string> &files);
   static cl_int get(cl::Program::Sources &sources);
   static cl_int get(std::unordered_map<std::string, cl::Kernel> &Kernels, cl::Program &program = DefaultProgram);
-  static cl_int get(cl::Buffer &buffer, std::string key, std::size_t size, bool &old = lastBufferOld, cl::Context &context = DefaultContext, int flag = CL_MEM_READ_WRITE);
+  static cl_int get(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old = lastBufferOld, cl::Context &context = DefaultContext, int flag = CL_MEM_READ_WRITE);
   static cl_int getBest(cl::Device &device, int characteristic);
 
   static cl_int Build(cl::Program &program, cl::Program::Sources &sources, cl::Context &context = DefaultContext, cl::Device &device = DefaultDevice);
