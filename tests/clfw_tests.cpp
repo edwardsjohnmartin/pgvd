@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 using namespace std;
-using namespace cl;
+//using namespace cl;
 TEST_CASE("CLFW can fetch a list of available compute platforms") {
   cout << "Testing CLFW platform fetching" << endl;
   WHEN("The list of platforms is initialized") {
@@ -35,7 +35,7 @@ TEST_CASE("CLFW can fetch the best device") {
     REQUIRE(CLFW::get(CLFW::Devices) == CL_SUCCESS);
     int characteristic = CL_DEVICE_MAX_CLOCK_FREQUENCY;
     THEN("the selected device has the best of that characteristic out of all the devices.") {
-      Device x;
+      cl::Device x;
       REQUIRE(CLFW::getBest(x, characteristic) == CL_SUCCESS);
       bool xMoreThanY;
       for (int i = 0; i < CLFW::Devices.size(); ++i) {
@@ -66,9 +66,12 @@ TEST_CASE("Using a vector of filenames, CLFW can create an OpenCL Program") {
       AND_THEN("we can use those sources to build an OpenCL Program.") {
         cl::Program program;
 
+		cl::Device bestDevice;
+		REQUIRE(CLFW::getBest(bestDevice) == CL_SUCCESS);
+
         REQUIRE(CLFW::get(CLFW::Devices) == CL_SUCCESS);
-        REQUIRE(CLFW::get(CLFW::DefaultContext, CLFW::Devices[0]) == CL_SUCCESS);
-        REQUIRE(CLFW::Build(program, sources, CLFW::DefaultContext, CLFW::Devices[0]) == CL_SUCCESS);
+        REQUIRE(CLFW::get(CLFW::DefaultContext, bestDevice) == CL_SUCCESS);
+        REQUIRE(CLFW::Build(program, sources, CLFW::DefaultContext, bestDevice) == CL_SUCCESS);
       }
     }
   }
@@ -81,9 +84,12 @@ TEST_CASE("Using a vector of filenames, CLFW can create an OpenCL Program") {
     THEN("We can use those sources to create an OpenCL program") {
       cl::Program program;
 
+	  cl::Device bestDevice;
+	  REQUIRE(CLFW::getBest(bestDevice) == CL_SUCCESS);
+
       REQUIRE(CLFW::get(CLFW::Devices) == CL_SUCCESS);
-      REQUIRE(CLFW::get(CLFW::DefaultContext, CLFW::Devices[0]) == CL_SUCCESS);
-      REQUIRE(CLFW::Build(program, sources, CLFW::DefaultContext, CLFW::Devices[0]) == CL_SUCCESS);
+      REQUIRE(CLFW::get(CLFW::DefaultContext, bestDevice) == CL_SUCCESS);
+      REQUIRE(CLFW::Build(program, sources, CLFW::DefaultContext, bestDevice) == CL_SUCCESS);
     }
   }
 }
@@ -95,8 +101,12 @@ TEST_CASE("After a program is built, CLFW can use it to create kernels.") {
     cl::Program program;
     REQUIRE(CLFW::get(sources) == CL_SUCCESS);
     REQUIRE(CLFW::get(CLFW::Devices) == CL_SUCCESS);
-    REQUIRE(CLFW::get(CLFW::DefaultContext, CLFW::Devices[0]) == CL_SUCCESS);
-    REQUIRE(CLFW::Build(program, sources, CLFW::DefaultContext, CLFW::Devices[0]) == CL_SUCCESS);
+
+	cl::Device bestDevice;
+	REQUIRE(CLFW::getBest(bestDevice) == CL_SUCCESS);
+
+    REQUIRE(CLFW::get(CLFW::DefaultContext, bestDevice) == CL_SUCCESS);
+    REQUIRE(CLFW::Build(program, sources, CLFW::DefaultContext, bestDevice) == CL_SUCCESS);
 
     THEN("We can create a hashmap of kernels.") {
       unordered_map<string, cl::Kernel> Kernels;

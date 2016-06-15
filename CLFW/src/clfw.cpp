@@ -63,12 +63,12 @@ bool CLFW::IsNotInitialized() {
 }
 
 /* Initializers */
-cl_int CLFW::Initialize(bool _verbose, int characteristic) {
+cl_int CLFW::Initialize(bool _verbose) {
   verbose = _verbose;
   if (verbose) Print("Initializing...", infoFG, infoBG);
   cl_int  error = get(Platforms);
   error |= get(Devices);
-  error |= getBest(DefaultDevice, characteristic);
+  error |= getBest(DefaultDevice);
   Contexts.clear();
   error |= get(DefaultContext);
   Contexts.push_back(DefaultContext);
@@ -202,8 +202,12 @@ cl_int CLFW::getBest(cl::Device &device, int characteristic) {
   int largest = 0;
   int temp;
 
+  const int COMBINED = CL_DEVICE_MAX_CLOCK_FREQUENCY & CL_DEVICE_MAX_COMPUTE_UNITS & CL_DEVICE_MAX_WORK_GROUP_SIZE;
+  
   if (characteristic != CL_DEVICE_MAX_CLOCK_FREQUENCY &&
-      characteristic != CL_DEVICE_MAX_COMPUTE_UNITS)
+      characteristic != CL_DEVICE_MAX_COMPUTE_UNITS &&
+	  characteristic != CL_DEVICE_MAX_WORK_GROUP_SIZE &&
+	  characteristic != COMBINED)
   {
     Print("Device characteristic unrecognized! ", errorFG, errorBG);
     return CL_INVALID_VALUE;
@@ -217,6 +221,11 @@ cl_int CLFW::getBest(cl::Device &device, int characteristic) {
       case CL_DEVICE_MAX_CLOCK_FREQUENCY:
         temp = Devices[i].getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>();
         break;
+	  case CL_DEVICE_MAX_WORK_GROUP_SIZE:
+		  temp = Devices[i].getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+		  break;
+	  case COMBINED:
+		  temp = Devices[i].getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>() * Devices[i].getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>() * Devices[i].getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>();
     }
     if (largest < temp) {
       largest = temp;

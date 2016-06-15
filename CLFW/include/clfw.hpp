@@ -62,7 +62,7 @@ public:
   static bool IsNotInitialized();
 
   /* Initializers */
-  static cl_int Initialize(bool _verbose = false, int characteristic = CL_DEVICE_MAX_COMPUTE_UNITS);
+  static cl_int Initialize(bool _verbose = false);
 
   /* Accessors */
   static cl_int get(std::vector<cl::Platform> &Platforms);
@@ -73,7 +73,6 @@ public:
   static cl_int get(cl::Program::Sources &sources);
   static cl_int get(std::unordered_map<std::string, cl::Kernel> &Kernels, cl::Program &program = DefaultProgram);
   static cl_int get(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old = lastBufferOld, cl::Context &context = DefaultContext, int flag = CL_MEM_READ_WRITE);
-  static cl_int getBest(cl::Device &device, int characteristic);
-
+  static cl_int getBest(cl::Device &device, int characteristic = CL_DEVICE_MAX_CLOCK_FREQUENCY & CL_DEVICE_MAX_COMPUTE_UNITS & CL_DEVICE_MAX_WORK_GROUP_SIZE);
   static cl_int Build(cl::Program &program, cl::Program::Sources &sources, cl::Context &context = DefaultContext, cl::Device &device = DefaultDevice);
 };
