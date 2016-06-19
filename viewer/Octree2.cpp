@@ -179,21 +179,6 @@ void Octree2::build(const Polylines& lines,
     extra_qpoints.clear();
     if (qpoints.size() > 1) {
       octree = Karras::BuildOctreeInParallel(qpoints, resln, true);
-      vector<OctNode> octree2 = Karras::BuildOctreeInSerial(qpoints, resln, true);
-
-      assert(octree.size() == octree2.size());
-      bool compareResult = true;
-      for (int k = 0; k < octree.size(); ++k) {
-        compareResult = compareOctNode(&octree2[k], &octree[k]);
-        if (compareResult == false) {
-          cout << "octnode k " << k << endl;
-          cout << "gpu " << octree[k].leaf << " " << octree[k].children[0] << " " << octree[k].children[1] << " " << octree[k].children[2] << " " << octree[k].children[3] << endl;
-          cout << "host " << octree2[k].leaf << " " << octree2[k].children[0] << " " << octree2[k].children[1] << " " << octree2[k].children[2] << " " << octree2[k].children[3] << endl;
-          break;
-        }
-      }
-      assert(compareResult);
-
     }
     else {
       octree.clear();
