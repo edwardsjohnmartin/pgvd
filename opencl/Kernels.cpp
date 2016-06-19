@@ -292,7 +292,8 @@ namespace Kernels {
     error |= kernel.setArg(3, scannedSplits);
     error |= kernel.setArg(4, size);
 
-    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    //Don't know why, but I need to add 1 to globalSize here to fully initialize the octree.
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize + 1), cl::NullRange);
 
     return error;
   }

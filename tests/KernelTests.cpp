@@ -445,3 +445,47 @@ SCENARIO("An octree can be build using a bunch of points. ") {
     }
   }
 }
+
+TEST_CASE("Parallel octree generation stress test.") {
+  cout << "Octree stress test" << endl;
+  GIVEN("a fully initialized CLFW environment") {
+    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+
+    THEN("Octree generation can be run multiple times in a row with no errors.") {
+      using namespace Kernels;
+      vector<intn> points;
+      bool compareResult = false;
+      for (int i = 0; i < OneThousand; ++i) {
+        //Generate points
+        points.clear();
+        for (int j = 0; j < OneThousand - i; ++j) {
+          cl_int2 test;
+          test.x = rand();
+          test.y = rand();
+          points.push_back(test);
+        }
+
+        vector<OctNode> cpuoctree;
+        vector<OctNode> gpuoctree;
+
+        //Create octree
+        BuildOctree_s(points, gpuoctree, bits, mbits);
+        BuildOctree_p(points, gpuoctree, bits, mbits);
+
+        compareResult = true;
+        for (int k = 0; k < cpuoctree.size(); ++k) {
+          compareResult = compareOctNode(&gpuoctree[k], &cpuoctree[k]);
+          if (compareResult == false) {
+            cout << "octnode k " << k << endl;
+            cout << "Host " << cpuoctree[k].leaf << " " << cpuoctree[k].children[0] << " " << cpuoctree[k].children[1] << " " << cpuoctree[k].children[2] << " " << cpuoctree[k].children[3] << endl;
+            cout << "gpu " << gpuoctree[k].leaf << " " << gpuoctree[k].children[0] << " " << gpuoctree[k].children[1] << " " << gpuoctree[k].children[2] << " " << gpuoctree[k].children[3] << endl;
+            break;
+          }
+        }
+        if (!compareResult) break;
+      }
+
+      REQUIRE(compareResult == true);
+    }
+  }
+}
