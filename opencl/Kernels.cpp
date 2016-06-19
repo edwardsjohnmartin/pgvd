@@ -280,8 +280,8 @@ namespace Kernels {
     return CL_SUCCESS;
   }
 
-  cl_int InitOctree(cl::Buffer &internalBRTNodes, cl::Buffer &octree, cl::Buffer &localSplits, cl::Buffer &scannedSplits, cl_int size) {
-    cl_int globalSize = nextPow2(size);
+  cl_int InitOctree(cl::Buffer &internalBRTNodes, cl::Buffer &octree, cl::Buffer &localSplits, cl::Buffer &scannedSplits, cl_int size, cl_int octreeSize) {
+    cl_int globalSize = nextPow2(octreeSize);
     cl::Kernel &kernel = CLFW::Kernels["BRT2OctreeKernel_init"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
     cl_int error = 0;
@@ -292,8 +292,7 @@ namespace Kernels {
     error |= kernel.setArg(3, scannedSplits);
     error |= kernel.setArg(4, size);
 
-    //Don't know why, but I need to add 1 to globalSize here to fully initialize the octree.
-    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize + 1), cl::NullRange);
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
 
     return error;
   }
@@ -318,7 +317,7 @@ namespace Kernels {
     error |= CLFW::get(octree, "octree", sizeof(OctNode) * roundOctreeSize);
 
     //use the scanned splits & brt to create octree.
-    InitOctree(internalBRTNodes, octree, localSplits, scannedSplits, size);
+    InitOctree(internalBRTNodes, octree, localSplits, scannedSplits, size, octreeSize);
 
     error |= kernel.setArg(0, internalBRTNodes);
     error |= kernel.setArg(1, octree);
