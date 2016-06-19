@@ -4,6 +4,7 @@
 #include <iostream>
 
 #define OneMillion 1000000
+#define OneThousand 1000
 #define bits 30
 #define mbits bits*DIM
 
@@ -124,7 +125,7 @@ SCENARIO("Big Unsigneds can be sorted using a parallel radix sort.") {
             REQUIRE(RadixSortBigUnsigned(buffer, hostNumbers.size(), BIG_INTEGER_SIZE*8) == CL_SUCCESS);
 
             AND_THEN("There are no race conditions.") {
-              std::sort(hostNumbers.begin(), hostNumbers.end(), weakCompareBU);
+              std::sort(hostNumbers.rbegin(), hostNumbers.rend(), weakCompareBU);
 
               vector<BigUnsigned> GPUNumbers(globalSize);
               REQUIRE(CLFW::DefaultQueue.enqueueReadBuffer(buffer, CL_TRUE, 0, globalSize*sizeof(BigUnsigned), GPUNumbers.data()) == CL_SUCCESS);
@@ -165,7 +166,7 @@ SCENARIO("Sorted BigUnsigneds can be unique'd in parallel.") {
         initBlkBU(&hostNumbers[i], 0);
       }
 
-      sort(hostNumbers.begin(), hostNumbers.end(), weakCompareBU);
+      sort(hostNumbers.rbegin(), hostNumbers.rend(), weakCompareBU);
 
       GIVEN("an OpenCL buffer that can hold those numbers.") {
         int globalSize = nextPow2(hostNumbers.size());
@@ -230,7 +231,7 @@ SCENARIO("Sorted Z-Order numbers can be used to construct a binary radix tree") 
         initBlkBU(&zpoints[i], 0);
       }
 
-      sort(zpoints.begin(), zpoints.end(), weakCompareBU);
+      sort(zpoints.rbegin(), zpoints.rend(), weakCompareBU);
 
       auto last = unique(zpoints.begin(), zpoints.end(), weakEqualsBU);
       zpoints.erase(last, zpoints.end());
@@ -344,6 +345,102 @@ SCENARIO("A binary radix tree can be used to construct a Octree/Quadtree") {
           }
         }
         REQUIRE(compareResult == true);
+      }
+    }
+  }
+}
+
+SCENARIO("An octree can be build using a bunch of points. ") {
+  cout << "Testing octree construction" << endl;
+  GIVEN("a fully initialized CLFW environment") {
+    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+    
+    GIVEN("a couple random points") {
+      using namespace Kernels;
+      vector<intn> points(OneMillion);
+      for (int i = 0; i < OneMillion; ++i) {
+        cl_int2 test;
+        test.x = rand();
+        test.y = rand();
+        points.push_back( test );
+      }
+
+      THEN("we can build an octree. ") { //SegFault somewhere in here.
+        vector<OctNode> gpuOctree;
+        int size = points.size();
+        cl_int error = 0;
+        cl::Buffer pointsBuffer, zpoints, internalBRTNodes;
+        error |= Kernels::UploadPoints(points, pointsBuffer);
+        error |= Kernels::PointsToMorton_p(pointsBuffer, zpoints, size, bits);
+        error |= Kernels::RadixSortBigUnsigned(zpoints, size, mbits);
+        error |= Kernels::UniqueSorted(zpoints, size);
+        vector<BigUnsigned> gpuZpoints(nextPow2(size));
+        vector<BrtNode> gpuI(size - 1);
+        CLFW::DefaultQueue.enqueueReadBuffer(zpoints, CL_TRUE, 0, nextPow2(size)*sizeof(BigUnsigned), gpuZpoints.data());
+        //Working up to this point.
+        
+        //Seg faults here
+        Kernels::BuildBinaryRadixTree_p(zpoints, internalBRTNodes, size , mbits);
+       
+        CLFW::DefaultQueue.enqueueReadBuffer(internalBRTNodes, CL_TRUE, 0, gpuI.size()*sizeof(BrtNode), gpuI.data()) == CL_SUCCESS;
+
+        error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, gpuOctree, size);
+        REQUIRE(error == CL_SUCCESS);
+
+        AND_THEN("we should get no race conditions.") {
+          vector<OctNode> hostOctree;
+          int numPoints = points.size();
+          int roundNumPoints = Kernels::nextPow2(points.size());
+          vector<BigUnsigned> zpoints(roundNumPoints);
+          error |= Kernels::PointsToMorton_s(points.size(), bits, (cl_int2*)points.data(), zpoints.data());
+          sort(zpoints.rbegin(), zpoints.rend(), weakCompareBU);
+
+          auto last = unique(zpoints.begin(), zpoints.end(), weakEqualsBU);
+          zpoints.erase(last, zpoints.end());
+          numPoints = zpoints.size();
+          vector<BrtNode> I(numPoints - 1);
+          error |= Kernels::BuildBinaryRadixTree_s(zpoints.data(), I.data(), numPoints, mbits);
+          error |= Kernels::BinaryRadixToOctree_s(I, hostOctree, numPoints);
+          REQUIRE(error == CL_SUCCESS);
+
+          REQUIRE(zpoints.size() == size);
+          //Compare the results
+          bool compareResult = true;
+          for (int i = 0; i < zpoints.size(); ++i) {
+            compareResult = weakEqualsBU(zpoints[i], gpuZpoints[i]);
+            if (compareResult == false) {
+              compareBU(&zpoints[i], &gpuZpoints[i]);
+              cout << "zpoints i " << i << endl;
+              cout << "Host: " << buToString(zpoints[i]) << endl;
+              cout << "GPU: " << buToString(gpuZpoints[i]) << endl;
+              break;
+            }
+          }
+          REQUIRE(compareResult == true);
+
+          REQUIRE(I.size() == gpuI.size());
+          compareResult = true;
+          for (int i = 0; i < I.size(); ++i) {
+            compareResult = compareBrtNode(&I[i], &gpuI[i]);
+            if (compareResult == false) {
+              cout << "brt i " << i << endl;
+              break;
+            }
+          }
+          REQUIRE(compareResult == true);
+          
+          compareResult = true;
+          for (int i = 0; i < hostOctree.size(); ++i) {
+            compareResult = compareOctNode(&gpuOctree[i], &hostOctree[i]);
+            if (compareResult == false) {
+              cout << "octnode i " << i << endl;
+              cout << "Host " << hostOctree[i].leaf << " " << hostOctree[i].children[0] << " " << hostOctree[i].children[1] << " " << hostOctree[i].children[2] << " " << hostOctree[i].children[3] << endl;
+              cout << "gpu " << gpuOctree[i].leaf << " " << gpuOctree[i].children[0] << " " << gpuOctree[i].children[1] << " " << gpuOctree[i].children[2] << " " << gpuOctree[i].children[3] << endl;
+              break;
+            }
+          }
+          REQUIRE(compareResult == true);
+        }
       }
     }
   }

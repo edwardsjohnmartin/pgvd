@@ -188,13 +188,19 @@ cl_int CLFW::get(std::unordered_map<cl::STRING_CLASS, cl::Kernel> &Kernels, cl::
   return CL_SUCCESS;
 }
 cl_int CLFW::get(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old, cl::Context &context, int flag) {
-  if (Buffers[key].getInfo<CL_MEM_SIZE>() != size) {
-    Buffers[key] = cl::Buffer(context, flag, size);
+  cl_int error = 0;
+  old = true;
+  //If the key is not found...
+  if (Buffers.find(key) == Buffers.end()) old = false;
+  else if (Buffers[key].getInfo<CL_MEM_SIZE>() != size) old = false;
+
+  if (old == false) 
+  {
+    Buffers[key] = cl::Buffer(context, flag, size, NULL, &error);
     Print("Created buffer " + key + " of size " + std::to_string(size) + " bytes" , successFG, successBG);
-    old = false;
-  } else old = true;
+  }
   buffer = Buffers[key];
-  return CL_SUCCESS;
+  return error;
 }
 
 cl_int CLFW::getBest(cl::Device &device, int characteristic) {

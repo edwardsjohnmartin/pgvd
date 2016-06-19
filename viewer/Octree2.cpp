@@ -110,7 +110,7 @@ void Octree2::build(const vector<float2>& points,
 
   vector<intn> qpoints = Karras::Quantize(karras_points, resln, &bb);
   if (qpoints.size() > 1) {
-    octree = Karras::BuildOctreeInSerial(qpoints, resln, false);
+    octree = Karras::BuildOctreeInParallel(qpoints, resln, false);
   } else {
     octree.clear();
   }
@@ -120,7 +120,7 @@ void Octree2::build(const vector<float2>& points,
   }
 
   // Set up vertices on GPU for rendering
-  //buildOctVertices();
+  buildOctVertices();
 }
 
 void Octree2::build(const Polylines& lines,
@@ -177,7 +177,8 @@ void Octree2::build(const Polylines& lines,
     }
     extra_qpoints.clear();
     if (qpoints.size() > 1) {
-      octree = Karras::BuildOctreeInSerial(qpoints, resln, true);
+      octree = Karras::BuildOctreeInParallel(qpoints, resln, true);
+      //vector<OctNode> octree2 = Karras::BuildOctreeInParallel'(qpoints, resln, true);
     }
     else {
       octree.clear();
@@ -535,6 +536,7 @@ vector<OctreeUtils::CellIntersection> Octree2::Walk(
   return all_intersections;
 }
 
+bool drawIndicesBufferGenerated = false;
 void Octree2::buildOctVertices() {
   // numVertices = 4;
   // glm::vec3 drawVertices[n];
@@ -564,17 +566,21 @@ void Octree2::buildOctVertices() {
       GL_STATIC_DRAW);
   delete [] drawVertices;
 
-  numIndices = 5;
-  drawIndices[0] = 0;
-  drawIndices[1] = 1;
-  drawIndices[2] = 2;
-  drawIndices[3] = 3;
-  drawIndices[4] = 0;
-  glGenBuffers(1, &drawIndices_vbo);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawIndices_vbo);
-  glBufferData(
+  //This section of code is causing memory leaks.
+  if (drawIndicesBufferGenerated == false) {
+    numIndices = 5;
+    drawIndices[0] = 0;
+    drawIndices[1] = 1;
+    drawIndices[2] = 2;
+    drawIndices[3] = 3;
+    drawIndices[4] = 0;
+    glGenBuffers(1, &drawIndices_vbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawIndices_vbo);
+    glBufferData(
       GL_ELEMENT_ARRAY_BUFFER, numIndices*sizeof(GLuint), drawIndices,
       GL_STATIC_DRAW);
+    drawIndicesBufferGenerated = true;
+  }
 }
 
 // length is the length of the parent

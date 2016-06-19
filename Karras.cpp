@@ -113,56 +113,15 @@ inline std::string buToString(BigUnsigned bu) {
   return representation;
 }
 
-//vector<OctNode> BuildOctreeInParallel(
-//    const vector<intn>& points, const Resln& resln, const bool verbose) {
-//  system("cls");
-//  if (verbose) {
-//    t.restart("Octree build time:");
-//    CLFW::verbose = true;
-//  }
-//  else {
-//    CLFW::verbose = false;
-//  }
-//  if (points.empty())
-//    throw logic_error("Zero points not supported");
-//  vector<OctNode> Octree;
-//  int n = points.size();
-//  int octreeSize;
-//  CL.UploadPoints(points);
-//  CL.ConvertPointsToMorton(n, resln.bits);
-//  CL.RadixSort(n, resln.mbits);
-//  CL.UniqueSorted(n);
-//  CL.BuildBinaryRadixTree(n, resln.mbits);
-//  CL.BinaryRadixToOctree(n, octreeSize);
-//  CL.DownloadOctree(Octree, octreeSize);
-//
-//  if (verbose) {
-//    t.stop();
-//  }
-//  return Octree;
-//}
+vector<OctNode> BuildOctreeInParallel( const vector<intn>& points, const Resln& resln, const bool verbose) {
+  vector<OctNode> octree;
+  Kernels::BuildOctree_p(points, octree, resln.bits, resln.mbits);
+  return octree;
+}
 
 vector<OctNode> BuildOctreeInSerial( const vector<intn>& points, const Resln& resln, const bool verbose) {
-  if (points.empty())
-    throw logic_error("Zero points not supported");
-  int numPoints = points.size();
-  int roundNumPoints = Kernels::nextPow2(points.size());
-  vector<BigUnsigned> zpoints(roundNumPoints);
-
-  //Points to Z Order
-  Kernels::PointsToMorton_s(points.size(), resln.bits, (cl_int2*)points.data(), zpoints.data());
-
-  //Sort and unique Z points
-  sort(zpoints.rbegin(), zpoints.rend(), weakCompareBU);
-  numPoints = unique(zpoints.begin(), zpoints.end(), weakEqualsBU) - zpoints.begin();
-
-  //Build BRT
-  vector<BrtNode> I(numPoints-1);
-  Kernels::BuildBinaryRadixTree_s(zpoints.data(), I.data(), numPoints, resln.mbits);
-
-  //Build Octree
   vector<OctNode> octree;
-  Kernels::BinaryRadixToOctree_s(I, octree, numPoints);
+  Kernels::BuildOctree_s(points, octree, resln.bits, resln.mbits);
   return octree;
 }
 

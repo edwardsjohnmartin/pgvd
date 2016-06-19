@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
 
   program = new LinesProgram();
 	
-  for (const string& f : options.filenames) {
+  /*for (const string& f : options.filenames) {
     ifstream in(f.c_str());
     bool first = true;
     while (!in.eof()) {
@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
   rebuild();
 
   refresh();
-
+*/
   //float radius = 1.0;
   ////500000
   //for (int i = 0; i < 3000; i++) {

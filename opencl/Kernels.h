@@ -18,11 +18,13 @@ extern "C" {
   #include "OctNode.h"
   #include "BuildOctree.h"
   #include "ParallelAlgorithms.h"
+  #include "./Resln.h"
 }
 
 using namespace std;
 namespace Kernels {
   int nextPow2(int num);
+  cl_int UploadPoints(const vector<intn> &points, cl::Buffer &pointsBuffer);
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits);
   cl_int PointsToMorton_s(cl_int size, cl_int bits, cl_int2* points, BigUnsigned* result);
   cl_int BitPredicate(cl::Buffer &input, cl::Buffer &predicate, unsigned int &index, unsigned char compared, cl_int globalSize);
@@ -40,4 +42,6 @@ namespace Kernels {
   cl_int InitOctree(cl::Buffer &internalBRTNodes, cl::Buffer &octree, cl::Buffer &localSplits, cl::Buffer &scannedSplits, cl_int size);
   cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, vector<OctNode> &octree_vec, cl_int size);
   cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree, cl_int size);
+  cl_int BuildOctree_s(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
+  cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
 }
