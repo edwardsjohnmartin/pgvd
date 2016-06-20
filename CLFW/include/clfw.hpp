@@ -30,7 +30,7 @@ private:
   static const int infoBG = 47;
   static const int defaultFG = 39;
   static const int defaultBG = 49;
-  static void Print(std::string s, int fgcode = defaultFG, int bgcode = defaultBG);
+  static void Print(std::string s, int fgcode = defaultFG, int bgcode = defaultBG, bool verbose = verbose);
 
   /* Source file management */
   static cl_int loadFile(const char* name, char** buffer, long* length);
@@ -62,7 +62,7 @@ public:
   static bool IsNotInitialized();
 
   /* Initializers */
-  static cl_int Initialize(bool _verbose = false);
+  static cl_int Initialize(bool _verbose = false, bool queryMode = false);
 
   /* Accessors */
   static cl_int get(std::vector<cl::Platform> &Platforms);
@@ -74,5 +74,6 @@ public:
   static cl_int get(std::unordered_map<std::string, cl::Kernel> &Kernels, cl::Program &program = DefaultProgram);
   static cl_int get(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old = lastBufferOld, cl::Context &context = DefaultContext, int flag = CL_MEM_READ_WRITE);
   static cl_int getBest(cl::Device &device, int characteristic = CL_DEVICE_MAX_COMPUTE_UNITS);
+  static cl_int query(cl::Device &device);
   static cl_int Build(cl::Program &program, cl::Program::Sources &sources, cl::Context &context = DefaultContext, cl::Device &device = DefaultDevice);
 };

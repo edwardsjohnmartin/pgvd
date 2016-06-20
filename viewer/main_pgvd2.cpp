@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   glClear (GL_COLOR_BUFFER_BIT);
 
-  cl_int error = CLFW::Initialize(true);
+  cl_int error = CLFW::Initialize(false, true);
   if (error != CL_SUCCESS) {
     cout << "ERROR initializing OpenCL!" << endl;
     getchar();
@@ -203,6 +203,8 @@ int main(int argc, char** argv) {
   //for (int i = 0; i < 3000; i++) {
   //  radius -= .0005;
   //  addpt(radius);
+  //  rebuild();
+
   //}
   while (!glfwWindowShouldClose(g_window)) {
     // Refresh here for animation

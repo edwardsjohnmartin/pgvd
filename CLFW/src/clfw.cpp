@@ -6,9 +6,27 @@
 /* Verbose things */
 bool CLFW::verbose = true;
 bool CLFW::lastBufferOld = false;
-void CLFW::Print(std::string s, int fgcode, int bgcode) {
-  if (verbose || ((fgcode == errorFG) && (bgcode = errorBG))) 
-    printf("\033[%d;%dmCLFW: %-74s\033[0m\n",fgcode, bgcode, s.c_str());
+
+
+#if defined(_MSC_VER)
+extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent();
+#endif
+
+void CLFW::Print(std::string s, int fgcode, int bgcode, bool _verbose) {
+  
+#ifdef _MSC_VER
+  if (IsDebuggerPresent()) {
+    if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG)))
+      printf("CLFW: %-70s\n", s.c_str());
+  }
+  else {
+    if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG)))
+      printf("\033[%d;%dmCLFW: %-70s\033[0m\n", fgcode, bgcode, s.c_str());
+  }
+#else
+  if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG))) 
+    printf("\033[%d;%dmCLFW: %-70s\033[0m\n",fgcode, bgcode, s.c_str());
+#endif // _MSC_VER
 }
 
 /* Source file management */
@@ -63,12 +81,18 @@ bool CLFW::IsNotInitialized() {
 }
 
 /* Initializers */
-cl_int CLFW::Initialize(bool _verbose) {
+cl_int CLFW::Initialize(bool _verbose, bool queryMode) {
   verbose = _verbose;
   if (verbose) Print("Initializing...", infoFG, infoBG);
   cl_int  error = get(Platforms);
   error |= get(Devices);
-  error |= getBest(DefaultDevice);
+
+  if (queryMode == false) {
+    error |= getBest(DefaultDevice);
+  }
+  else {
+    error |= query(DefaultDevice);
+  }
   Contexts.clear();
   error |= get(DefaultContext);
   Contexts.push_back(DefaultContext);
@@ -239,6 +263,26 @@ cl_int CLFW::getBest(cl::Device &device, int characteristic) {
     }
   }
   Print("Selected " + device.getInfo<CL_DEVICE_NAME>(), successFG, successBG);
+  return CL_SUCCESS;
+}
+
+cl_int CLFW::query(cl::Device &device) {
+  cl_int error;
+  Print("Which device would you like to use? (enter a number between 0 and " + std::to_string(Devices.size()-1) + ")", infoFG, infoBG, true);
+
+  for (cl_uint i = 0; i < Devices.size(); ++i)
+    Print("[" + std::to_string(i) + "] : " + Devices[i].getInfo<CL_DEVICE_NAME>(), infoFG, infoBG, true);
+
+  int selection;
+  do {
+    while (!(std::cin >> selection)) {
+      std::cin.clear();
+      while (std::cin.get() != '\n') continue;
+    }
+  } while (selection >= Devices.size());
+
+  device = Devices[selection];
+  Print("Selected " + device.getInfo<CL_DEVICE_NAME>(), successFG, successBG, true);
   return CL_SUCCESS;
 }
 
