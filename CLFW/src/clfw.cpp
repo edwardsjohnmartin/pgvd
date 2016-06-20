@@ -6,8 +6,6 @@
 /* Verbose things */
 bool CLFW::verbose = true;
 bool CLFW::lastBufferOld = false;
-
-
 #if defined(_MSC_VER)
 extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent();
 #endif
@@ -268,6 +266,8 @@ cl_int CLFW::getBest(cl::Device &device, int characteristic) {
 
 cl_int CLFW::query(cl::Device &device) {
   cl_int error;
+  if (Devices.size() == 0) return CL_INVALID_ARG_SIZE;
+
   Print("Which device would you like to use? (enter a number between 0 and " + std::to_string(Devices.size()-1) + ")", infoFG, infoBG, true);
 
   for (cl_uint i = 0; i < Devices.size(); ++i)

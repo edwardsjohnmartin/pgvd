@@ -1,6 +1,22 @@
 #pragma once
 #include "Kernels.h"
 namespace Kernels {
+
+  bool benchmarking = false;
+  Timer timer;
+
+  void startBenchmark(string benchmarkName) {
+    if (benchmarking) {
+      timer.restart(benchmarkName);
+    }
+  }
+  void stopBenchmark() {
+    if (benchmarking) {
+      timer.stop();
+      CLFW::DefaultQueue.finish();
+    }
+  }
+
   int nextPow2(int num) { return max((int)pow(2, ceil(log(num) / log(2))), 8); }
 
   inline std::string buToString(BigUnsigned bu) {
@@ -19,14 +35,17 @@ namespace Kernels {
   }
 
   cl_int UploadPoints(const vector<intn> &points, cl::Buffer &pointsBuffer) {
+    startBenchmark("Uploading points");
     cl_int error = 0;
     cl_int roundSize = nextPow2(points.size());
     error |= CLFW::get(pointsBuffer, "pointsBuffer", sizeof(intn)*roundSize);
     error |= CLFW::DefaultQueue.enqueueWriteBuffer(pointsBuffer, CL_TRUE, 0, sizeof(cl_int2) * points.size(), points.data());
+    stopBenchmark();
     return error;
   }
 
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits) {
+    startBenchmark("PointsToMorton_p");
     cl_int error = 0;
     size_t globalSize = nextPow2(size);
     error |= CLFW::get(zpoints, "zpoints", globalSize * sizeof(BigUnsigned));
@@ -36,10 +55,12 @@ namespace Kernels {
     error |= kernel.setArg(2, size);
     error |= kernel.setArg(3, bits);
     error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(nextPow2(size)), cl::NullRange);
+    stopBenchmark();
     return error;
   };
   
   cl_int PointsToMorton_s(cl_int size, cl_int bits, cl_int2* points, BigUnsigned* result) {
+    startBenchmark("PointsToMorton_s");
     int nextPowerOfTwo = nextPow2(size);
     for (int gid = 0; gid < nextPowerOfTwo; ++gid) {
       if (gid < size) {
@@ -49,6 +70,7 @@ namespace Kernels {
         initBlkBU(&result[gid], 0);
       }
     }
+    stopBenchmark();
     return 0;
   }
 
@@ -175,6 +197,7 @@ namespace Kernels {
   };
 
   cl_int UniqueSorted(cl::Buffer &input, cl_int &size) {
+    startBenchmark("UniqueSorted");
     int globalSize = nextPow2(size);
     cl_int error = 0;
     
@@ -190,10 +213,12 @@ namespace Kernels {
     input = result;
     
     error |= CLFW::DefaultQueue.enqueueReadBuffer(address, CL_TRUE, (sizeof(cl_int)*globalSize - (sizeof(cl_int))), sizeof(cl_int), &size);
+    stopBenchmark();
     return error;
   }
 
   cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
+    startBenchmark("RadixSortBigUnsigned");
     cl_int error = 0;
     const size_t globalSize = nextPow2(size);
 
@@ -219,10 +244,12 @@ namespace Kernels {
       input = bigUnsignedTemp;
       bigUnsignedTemp = temp;
     }
+    stopBenchmark();
     return error;
   }
 
   cl_int BuildBinaryRadixTree_p(cl::Buffer &zpoints, cl::Buffer &internalBRTNodes, cl_int size, cl_int mbits) {
+    startBenchmark("BuildBinaryRadixTree_p");
     cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
     cl_int globalSize = nextPow2(size);
@@ -234,17 +261,21 @@ namespace Kernels {
     error |= kernel.setArg(2, mbits);
     error |= kernel.setArg(3, size);
     error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    stopBenchmark();
     return error;
   }
 
   cl_int BuildBinaryRadixTree_s(BigUnsigned* zpoints, BrtNode* internalBRTNodes, cl_int size, cl_int mbits) {
+    startBenchmark("BuildBinaryRadixTree_s");
     for (int i = 0; i < size-1; ++i) {
       BuildBinaryRadixTree(internalBRTNodes, zpoints, mbits, size, i);
     }
+    stopBenchmark();
     return CL_SUCCESS;
   }
 
   cl_int ComputeLocalSplits_p(cl::Buffer &internalBRTNodes, cl::Buffer &localSplits, cl_int size) {
+    startBenchmark("ComputeLocalSplits_p");
     cl_int globalSize = nextPow2(size);
     cl::Kernel &kernel = CLFW::Kernels["ComputeLocalSplitsKernel"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
@@ -267,20 +298,24 @@ namespace Kernels {
     error |= kernel.setArg(2, size);
 
     error = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    stopBenchmark();
     return error;
   }
 
   cl_int ComputeLocalSplits_s(vector<BrtNode> &I, vector<cl_uint> &local_splits, const cl_int size) {
+    startBenchmark("ComputeLocalSplits_s");
     if (size > 0) {
       local_splits[0] = 1 + I[0].lcp_length / DIM;
     }
     for (int i = 0; i < size - 1; ++i) {
       ComputeLocalSplits(local_splits.data(), I.data(), i);
     }
+    stopBenchmark();
     return CL_SUCCESS;
   }
 
   cl_int InitOctree(cl::Buffer &internalBRTNodes, cl::Buffer &octree, cl::Buffer &localSplits, cl::Buffer &scannedSplits, cl_int size, cl_int octreeSize) {
+    startBenchmark("InitOctree");
     cl_int globalSize = nextPow2(octreeSize);
     cl::Kernel &kernel = CLFW::Kernels["BRT2OctreeKernel_init"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
@@ -293,11 +328,12 @@ namespace Kernels {
     error |= kernel.setArg(4, size);
 
     error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
-
+    stopBenchmark();
     return error;
   }
 
   cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, vector<OctNode> &octree_vec, cl_int size) {
+    startBenchmark("BinaryRadixToOctree_p");
     int globalSize = nextPow2(size);
     cl::Kernel &kernel = CLFW::Kernels["BRT2OctreeKernel"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
@@ -329,11 +365,12 @@ namespace Kernels {
 
     octree_vec.resize(octreeSize);
     error |= queue.enqueueReadBuffer(octree, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree_vec.data());
-  
+    stopBenchmark();
     return error;
   }
 
   cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree, cl_int size) {
+    startBenchmark("BinaryRadixToOctree_s");
     vector<unsigned int> localSplits(size);
     ComputeLocalSplits_s(internalBRTNodes, localSplits, size);
 
@@ -346,7 +383,7 @@ namespace Kernels {
       brt2octree_init(i, octree.data());
     for (int brt_i = 1; brt_i < size - 1; ++brt_i)
       brt2octree(brt_i, internalBRTNodes.data(), octree.data(), localSplits.data(), prefixSums.data(), size, octreeSize);
-    
+    stopBenchmark();
     return CL_SUCCESS;
   }
 
@@ -376,6 +413,7 @@ namespace Kernels {
   }
 
   cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits) {
+    system("cls");
     if (points.empty())
       throw logic_error("Zero points not supported");
 
