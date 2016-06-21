@@ -413,7 +413,8 @@ namespace Kernels {
   }
 
   cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits) {
-    system("cls");
+    if (benchmarking)
+      system("cls");
     if (points.empty())
       throw logic_error("Zero points not supported");
 
