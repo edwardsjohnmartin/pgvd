@@ -1,15 +1,20 @@
 #ifdef  __OPENCL_VERSION__ 
-#include ".\opencl\C\BuildOctree.h"
-#include ".\opencl\C\ParallelAlgorithms.h"
+  #include ".\opencl\C\BuildOctree.h"
+  #include ".\opencl\C\ParallelAlgorithms.h"
 #else
-#include <stdbool.h>
-#include <stdio.h>
-#include <math.h>
-#include "BuildOctree.h"
-#include "ParallelAlgorithms.h"
+  #include <stdbool.h>
+  #include <stdio.h>
+  #include <math.h>
+  #include "BuildOctree.h"
+  #include "ParallelAlgorithms.h"
 #endif
 
-void ComputeLocalSplits(__global int* local_splits, __global BrtNode* I, const int gid) {
+#ifndef __OPENCL_VERSION__
+#define __local
+#define __global
+#endif
+
+void ComputeLocalSplits(__global unsigned int* local_splits, __global BrtNode* I, const int gid) {
   const int _local = I[gid].lcp_length / DIM;
   const int left = I[gid].left;
   const int right = left+1;
@@ -65,7 +70,7 @@ int quadrantInLcp(const BrtNode* brt_node, const int i) {
 void brt2octree_end(const int brt_i, __global BrtNode* I, __global OctNode* octree, __global unsigned int* local_splits, __global unsigned int* prefix_sums, const int n, const int octree_size) {
 
 }
-void brt2octree( const int brt_i, __global BrtNode* I, __global volatile OctNode* octree, __global unsigned int* local_splits, __global int* prefix_sums, const int n, const int octree_size) {
+void brt2octree( const int brt_i, __global BrtNode* I, __global volatile OctNode* octree, __global unsigned int* local_splits, __global unsigned int* prefix_sums, const int n, const int octree_size) {
   if (local_splits[brt_i] > 0) {
     // m = number of local splits
     const int numSplits = local_splits[brt_i];
@@ -140,3 +145,9 @@ void brt2octree_kernel(__global BrtNode* I, __global OctNode* octree, __global u
   for (int brt_i = 1; brt_i < n-1; ++brt_i)
     brt2octree( brt_i, I, octree, local_splits, prefix_sums, n, octree_size);
 }
+
+#ifndef __OPENCL_VERSION__
+#undef __local
+#undef __global
+#endif
+

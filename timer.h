@@ -20,10 +20,13 @@
 #include <string>
 #include <iostream>
 
-namespace oct {
-
 class Timer {
  public:
+  Timer() 
+    : _msg(""), _id(""), _t(clock()), _active(true), _output(true), _alive(true)
+  {
+    
+  }
   Timer(const std::string& msg, const std::string& id = "",
         bool initial_msg = false)
       : _msg(msg), _id(id), _t(clock()), _active(true),
@@ -102,7 +105,5 @@ class Timer {
   bool _output;
   bool _alive;
 };
-
-}  // end namespace
 
 #endif

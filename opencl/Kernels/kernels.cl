@@ -5,7 +5,7 @@ __kernel void PointsToMortonKernel(
   const unsigned int size,
   const unsigned int bits
   ) 
-{
+ {
  const size_t gid = get_global_id(0);
  const size_t lid = get_local_id(0);
  BigUnsigned tempBU;
@@ -105,13 +105,12 @@ __kernel void BUSingleCompactKernel(
 //Binary Radix Tree Builder
 __kernel void BuildBinaryRadixTreeKernel(
 __global BrtNode *I,
-__global BrtNode* L,
 __global BigUnsigned* mpoints,
 int mbits,
 int size
 ) 
 {
-  BuildBinaryRadixTree(I, L, mpoints, mbits, size, get_global_id(0));
+  BuildBinaryRadixTree(I, mpoints, mbits, size, get_global_id(0));
 }
 
 
@@ -122,41 +121,40 @@ __kernel void ComputeLocalSplitsKernel(
 )
 {
   const size_t gid = get_global_id(0);
-  if (gid <size-1)
-    local_splits[gid] = 0;
-  if (gid == 0 && size > 0) 
+  if (size > 0 && gid == 0) {
     local_splits[0] = 1 + I[0].lcp_length / DIM;
-  if ( gid < size - 1)
+  }
+  barrier(CLK_GLOBAL_MEM_FENCE);
+  if (gid >= 0 && gid < size - 1) {
     ComputeLocalSplits(local_splits, I, gid);
+  }
+  
 }
-
 
 //This is dumb and will be merged with the other kernel.
 __kernel void BRT2OctreeKernel_init(
   __global BrtNode *I,
   __global OctNode *octree,
-  __global unsigned int *local_splits,
-  __global unsigned int *prefix_sums,
-  const int n
+  __global unsigned int *localSplits,
+  __global unsigned int *prefixSums,
+  const int size
 ) {
   const size_t gid = get_global_id(0);
-  const int octree_size = prefix_sums[n-2];
+  const int octreeSize = prefixSums[size-1];
 
-  if (gid < octree_size)
-    brt2octree_init( gid, octree);
+  if(gid < octreeSize)
+    brt2octree_init(gid, octree);    
 }
 
 __kernel void BRT2OctreeKernel(
   __global BrtNode *I,
   __global volatile OctNode *octree,
-  __global unsigned int *local_splits,
-  __global unsigned int *prefix_sums,
-  const int n
+  __global unsigned int *localSplits,
+  __global unsigned int *prefixSums,
+  const int size
 ) {
   const int gid = get_global_id(0);
-  const int octree_size = prefix_sums[n-2];
-  if (gid > 0 && gid < n-1){
-    brt2octree( gid, I, octree, local_splits, prefix_sums, n, octree_size);
-    octree[gid-1].pad1 = prefix_sums[gid-1];
-  }  
+  const int octreeSize = prefixSums[size-1];
+  if (gid > 0 && gid < size - 1)
+    brt2octree(gid, I, octree, localSplits, prefixSums, size, octreeSize);
 }

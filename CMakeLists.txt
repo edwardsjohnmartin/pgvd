@@ -50,6 +50,13 @@ endif(OPENCL_ACCEL)
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 
 #------------------------------------------------------------
+# Build CLFW 
+#------------------------------------------------------------
+
+add_subdirectory(CLFW)
+include_directories(${CLFW_INCLUDE_DIR})
+
+#------------------------------------------------------------
 # Header include directories
 #------------------------------------------------------------
 SET(INCL
@@ -57,8 +64,9 @@ SET(INCL
     ./C
     ./opencl
     ./opencl/CLWrapper
-    ./opencl/BufferCollection
+    ./opencl/Buffers
     ./opencl/Kernels
+    ./tests/
 )
 INCLUDE_DIRECTORIES(${INCL})
 
@@ -85,12 +93,7 @@ SET(SRCS
   ./C/ParallelAlgorithms.c
 
   ./opencl/Geom.cpp
-  ./opencl/CLWrapper/CLWrapper_Initializers.cpp
-  ./opencl/CLWrapper/CLWrapper_Kernels.cpp
-  ./opencl/Kernels/KernelBox.cpp
-  #./opencl/BufferCollection/Buffer.cpp
-
-  #These are new and may need to be moved...
+  ./opencl/Kernels.cpp
 
   #headers
   ./BoundingBox.h
@@ -117,17 +120,23 @@ SET(SRCS
   ./viewer/Polylines.h
   ./viewer/Octree2.h
   
-  ./opencl/CLWrapper/CLWrapper.h
-  ./opencl/Buffers/Buffer.h
-  ./opencl/Buffers/Buffers.h
-  ./opencl/Kernels/KernelBox.h
-  ./opencl/vec_cpp.h
+  ./opencl/Kernels.h
 )
 
-SET(2D_PGVD_SRCS
-)
+SET(UNIT_TEST_SOURCES
+    ./tests/catch.hpp
+	./opencl/Kernels.cpp
 
-SET(OCT2_SRCS
+	./C/BuildOctree.c
+	./C/BigUnsigned.c
+	./C/BuildBRT.c
+	./C/z_order.c
+	./C/ParallelAlgorithms.c
+    
+    #tests
+    ./tests/clfw_tests.cpp
+    ./tests/C_Tests/BigUnsignedTests.cpp
+    ./tests/KernelTests.cpp
 )
 
 #------------------------------------------------------------
@@ -164,8 +173,11 @@ option(BUILD_2D_PGVD "Build 2D PGVD" ON)
 if(BUILD_2D_PGVD)
   ADD_EXECUTABLE(2D_PGVD ${SRCS} ${2D_PGVD_SRCS} viewer/main_pgvd2.cpp)
   set_target_properties (2D_PGVD PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
+  TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
 
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy
+                       		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD>/opencl_sources.txt)
   add_custom_command(TARGET 2D_PGVD PRE_BUILD
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
                        		${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD>/opencl/C)
@@ -176,6 +188,28 @@ if(BUILD_2D_PGVD)
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
                        		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
 endif(BUILD_2D_PGVD)
+
+option(BUILD_2D_PGVD_UNIT_TESTS "2D PGVD Unit Tests" ON)
+if(BUILD_2D_PGVD_UNIT_TESTS)
+#Adding files to target
+  ADD_EXECUTABLE(2D_PGVD_UNIT_TESTS ${UNIT_TEST_SOURCES} tests/main.cpp)
+  set_target_properties (2D_PGVD_UNIT_TESTS PROPERTIES COMPILE_DEFINITIONS "OCT2D")
+  TARGET_LINK_LIBRARIES (2D_PGVD_UNIT_TESTS glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
+
+#Custom Build Commands
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                   	COMMAND ${CMAKE_COMMAND} -E copy
+                       		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl_sources.txt)
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/C)
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/Kernels)
+  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opengl/shaders)
+endif(BUILD_2D_PGVD_UNIT_TESTS)
 
 option(BUILD_TEST2 "Build 2D TEST" OFF)
 if(BUILD_TEST2)

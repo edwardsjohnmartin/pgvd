@@ -11,11 +11,7 @@
 
 #include "./gl_utils.h"
 
-#ifdef __APPLE__
-#include "OpenCL/opencl.h"
-#else
-#include "CL/cl.h"
-#endif
+#include "clfw.hpp"
 
 #include "gl_utils.h"
 
@@ -26,8 +22,8 @@
 #include "../Resln.h"
 
 // keep track of window size for things like the viewport and the mouse cursor
-int g_gl_width = 1440;
-int g_gl_height = 1440 ;
+int g_gl_width = 512;
+int g_gl_height = 512 ;
 GLFWwindow* g_window = NULL;
 cl_float count1 = 0;
 cl_float count2 = 0;
@@ -107,7 +103,6 @@ void addpt(double radius) {
   count1 += 1;
   count2 += 1;
   lines->addPoint({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
-  rebuild();
 }
 
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
@@ -164,13 +159,20 @@ int main(int argc, char** argv) {
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   glClear (GL_COLOR_BUFFER_BIT);
 
+  cl_int error = CLFW::Initialize(false, true);
+  if (error != CL_SUCCESS) {
+    cout << "ERROR initializing OpenCL!" << endl;
+    getchar();
+    std::exit(-1);
+  }
+
   octree = new Octree2();
   octree->processArgs(argc, argv);
   lines = new Polylines();
 
   program = new LinesProgram();
 	
-  for (const string& f : options.filenames) {
+  /*for (const string& f : options.filenames) {
     ifstream in(f.c_str());
     bool first = true;
     while (!in.eof()) {
@@ -196,20 +198,20 @@ int main(int argc, char** argv) {
 
   refresh();
 
-  float radius = 1.3;
-  oct::Timer timer("Serial: ");
-  int cnt = 0;
-  while (!glfwWindowShouldClose(g_window) & (radius > 0.0)) {
+*/
+  //float radius = 1.0;
+  ////500000
+  //for (int i = 0; i < 3000; i++) {
+  //  radius -= .0005;
+  //  addpt(radius);
+  //  rebuild();
+
+  //}
+  while (!glfwWindowShouldClose(g_window)) {
     // Refresh here for animation
-    // refresh();
-    addpt(radius);
-    cnt++;
-    cout << cnt << endl;
-    radius -= .0005;
+    rebuild();
     glfwPollEvents();
   }
-  timer.stop();
-  std::getchar();
   glfwTerminate();
   return 0;
 }

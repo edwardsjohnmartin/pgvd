@@ -1,18 +1,17 @@
-#ifndef BIGUNSIGNED_C
+﻿#ifndef BIGUNSIGNED_C
 #define BIGUNSIGNED_C
 
 #ifndef __OPENCL_VERSION__
 #include <stdbool.h>
 #endif
 
-#define BIG_INTEGER_SIZE 10 //6 results in 32 byte BUs.
+#define BIG_INTEGER_SIZE 11 //6 results in 32 byte BUs.
 typedef int Index; // Type for the index of a block in the array
 typedef unsigned char Blk;  // Type for the blocks
 
 // BigUnsigned allows storing integers larger than a long using an array of blk.
 typedef struct {
 	Index len;                                      // Actual length of the value stored (in blocks)
-	bool isNULL;
 	Blk blk[BIG_INTEGER_SIZE];
 } BigUnsigned;
 
@@ -29,18 +28,18 @@ int initBlkBU(BigUnsigned *result, Blk x);
 //ASSUMES sizeof Blk = sizeof unsigned char!!!
 int initLongLongBU(BigUnsigned *result, long long x);
 int initMorton(BigUnsigned *result, Blk x);
-int initNULLBU(BigUnsigned *result);
 
 //~~BIT/BLOCK ACCESSORS~~//
 Blk getBUBlock(BigUnsigned *bu, Index i);
 void setBUBlock(BigUnsigned *bu, Index i, Blk newBlock);
 Blk getShiftedBUBlock(BigUnsigned *num, Index x, unsigned int y);
-Index getBUBitLength(BigUnsigned *bu);
 bool getBUBit(BigUnsigned *bu, Index bi);
 void setBUBit(BigUnsigned *bu, Index bi, bool newBit);
 
 //~~COMPARISON~~//
 int compareBU(BigUnsigned *x, BigUnsigned *y);
+int weakCompareBU(BigUnsigned x, BigUnsigned y);
+bool weakEqualsBU(BigUnsigned x, BigUnsigned y);
 
 //~~ARITHMATIC OPERATIONS~~//
 int addBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b);

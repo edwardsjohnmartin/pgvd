@@ -1,0 +1,5 @@
+./opencl/C/BigUnsigned.c
+./opencl/C/ParallelAlgorithms.c
+./opencl/C/BuildBRT.c
+./opencl/C/BuildOctree.c
+./opencl/Kernels/kernels.cl

@@ -58,14 +58,14 @@ OctCell FindLeaf(
   ofstream out("find.err");
   out << p << endl;
   //out << resln << endl;
-  out << octree << endl;
+//  out << octree << endl;
   out.close();
 
   cerr << "Didn't find leaf node" << endl;
   cerr << "p = " << p << endl;
   //cerr << "resln = " << resln << endl;
   // cerr << "octree = " << octree.size() << " " << octree.back() << endl;
-  cerr << "octree = " << octree << endl;
+  //cerr << "octree = " << octree << endl;
 
   throw logic_error("Didn't find leaf node");
 }
