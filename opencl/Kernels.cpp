@@ -217,6 +217,37 @@ namespace Kernels {
     return error;
   }
 
+  cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
+    startBenchmark("RadixSortBigUnsigned");
+    cl_int error = 0;
+    const size_t globalSize = nextPow2(size);
+
+    cl::Buffer predicate, address, bigUnsignedTemp, temp;
+    error |= CLFW::get(address, "address", sizeof(cl_int)*(globalSize));
+    error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
+
+    if (error != CL_SUCCESS) return error;
+
+    //For each bit
+    for (unsigned int index = 0; index < mbits; index++) {
+      //Predicate the 0's and 1's
+      error |= BitPredicate(input, predicate, index, 0, globalSize);
+
+      //Scan the predication buffers.
+      error |= StreamScan_p(predicate, address, globalSize);
+
+      //Compacting
+      error |= DoubleCompact(input, bigUnsignedTemp, predicate, address, globalSize);
+
+      //Swap result with input.
+      temp = input;
+      input = bigUnsignedTemp;
+      bigUnsignedTemp = temp;
+    }
+    stopBenchmark();
+    return error;
+  }
+
   cl_int BuildBinaryRadixTree_p(cl::Buffer &zpoints, cl::Buffer &internalBRTNodes, cl_int size, cl_int mbits) {
     startBenchmark("BuildBinaryRadixTree_p");
     cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
