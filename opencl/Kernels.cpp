@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Kernels.h"
 namespace Kernels {
 
@@ -217,6 +217,25 @@ namespace Kernels {
     return error;
   }
 
+  cl_int checkOrder(cl::Buffer &input, cl_bool &inOrder) {
+    //Allocate shared memory for each thread block
+    //  //Compute elements id
+    //  id ← threadIdx.x + threadIdx.y ∗ blockSize
+    //  for all threads inside thread block do
+    //    //Reading one value per thread to the shared memory
+    //    shared[threadIdx.x] ← data[tid];
+    //if threadIdx.x = 0 then
+    //  Read the next element to the last data inside block
+    //  end if
+    //  end for
+    //  //Wait for all threads to finish reading
+    //  syncthreads()
+    //  //Perform order checking
+    //  shared[id] ←(shared[i] > shared[i + 1]);
+    //Perform optimized reduction on shared array
+    //  Write out reduction result to global array
+  }
+
   cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
     startBenchmark("RadixSortBigUnsigned");
     cl_int error = 0;
@@ -246,6 +265,65 @@ namespace Kernels {
     }
     stopBenchmark();
     return error;
+  }
+
+  cl_int fourWayScanWithShuffle() {
+    //Allocate 4 counting arrays, cnt[4]
+    //  Read data in to shared - memory block s_data
+    //  for all threadId in thread block do
+    //    Extract 2 bits combination from the input data[id]
+    //    for b = 0 to 3 do
+    //      cnt[b][threadId] ← (b == extract_bits)
+    //      end for
+    //      Built four way sum tree, Algorithm 5
+    //      Clear the last element of each counting array
+    //      Down sweep the tree, scan in place Algorithm 6
+    //      synchthread
+    //      Shuffle data in the shared memory
+    //      s_data[cnt[extract_bits][threadId]] ← data
+    //      synchthread
+    //      Output local sorted data to global memory
+    //      end for
+  }
+
+  cl_int getBlockSumArray() {
+
+  }
+
+  cl_int FourWayRadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
+    cl_int error = 0; 
+    cl_bool inOrder = false;
+
+    //set blocksize
+    cl_int globalSize = nextPow2(size);
+    cl_int localSize = min(globalSize, 256);
+
+    //Allocate and initialize 4 block-sum array on GPU
+    cl::Buffer blockSum;
+    error |= CLFW::get(blockSum, "blockSum", sizeof(cl_int)*(globalSize));
+
+    for (unsigned int bit = 0; bit < mbits; bit += 2) {
+      //Perform order checking
+      error |= checkOrder(input, inOrder);
+      if (inOrder) break;
+
+      //Perform shared-memory 4-way local scan.
+      fourWayScanWithShuffle();
+      
+      //Output total number of each scan path to block sum array
+      getBlockSumArray();
+
+      //Perform scan prefix sum on the block sum array
+      //scan(blockSum);
+
+      //Compute addresses
+      //computeAddresses();
+
+      //Map element to the right position.
+     // mapElements();
+    }
+
+    return CL_SUCCESS;
   }
 
   cl_int BuildBinaryRadixTree_p(cl::Buffer &zpoints, cl::Buffer &internalBRTNodes, cl_int size, cl_int mbits) {
