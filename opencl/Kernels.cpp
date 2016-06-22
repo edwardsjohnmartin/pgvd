@@ -2,7 +2,7 @@
 #include "Kernels.h"
 namespace Kernels {
 
-  bool benchmarking = false;
+  bool benchmarking = true;
   Timer timer;
 
   void startBenchmark(string benchmarkName) {
@@ -462,6 +462,11 @@ namespace Kernels {
 
     //Each thread processes 2 items.
     int globalSize = size/2;
+
+    //Brent's theorem
+    int itemsPerThread = nextPow2(log(globalSize));
+    globalSize /= itemsPerThread;
+
     int suggestedLocal = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice);
     int localSize = std::min(globalSize, suggestedLocal);
 
@@ -488,4 +493,46 @@ namespace Kernels {
     stopBenchmark();
     return error;
   }
+
+  cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size) {
+    startBenchmark("CheckOrder kernel");
+    cl_int nextPowerOfTwo = nextPow2(size);
+    cl::Kernel &kernel = CLFW::Kernels["CheckOrder"];
+    cl::CommandQueue &queue = CLFW::DefaultQueue;
+
+    //Each thread processes 2 items in the reduce.
+    int globalSize = nextPowerOfTwo / 2;
+
+    //Brent's theorem
+    int itemsPerThread = nextPow2(log(globalSize));
+    globalSize /= itemsPerThread;
+
+    int suggestedLocal = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice);
+    int localSize = std::min(globalSize, suggestedLocal);
+
+    cl::Buffer reduceResult;
+    cl_int resultSize = nextPow2(nextPowerOfTwo / localSize);
+    cl_int error = CLFW::get(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
+
+    error |= kernel.setArg(0, numbers);
+    error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+    error |= kernel.setArg(2, size);
+    error |= kernel.setArg(3, nextPowerOfTwo);
+    error |= kernel.setArg(4, reduceResult);
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
+
+    //If multiple workgroups ran, we need to do a second level reduction.
+    if (suggestedLocal <= globalSize) {
+      cl::Kernel &kernel = CLFW::Kernels["reduce"];
+      error |= kernel.setArg(0, reduceResult);
+      error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+      error |= kernel.setArg(2, resultSize);
+      error |= kernel.setArg(3, reduceResult);
+      error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(localSize / 2), cl::NDRange(localSize / 2));
+    }
+    error |= queue.enqueueReadBuffer(reduceResult, CL_TRUE, 0, sizeof(cl_uint), &gpuSum);
+    stopBenchmark();
+    return error;
+  }
+
 }

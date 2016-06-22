@@ -50,4 +50,5 @@ namespace Kernels {
   cl_int BuildOctree_s(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
   cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
   cl_int AddAll(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
+  cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
 }

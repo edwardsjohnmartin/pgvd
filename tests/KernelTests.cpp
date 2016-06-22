@@ -52,6 +52,58 @@ SCENARIO("Unsigned integers can be added together in parallel.") {
   }
 }
 
+SCENARIO("We can check to see if BigUnsigneds are in order.") {
+  cout << "Testing CheckOrder kernel" << endl;
+  GIVEN("a fully initialized CLFW environment") {
+    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+    GIVEN("A couple in order BigUnsigneds") {
+      int size = Kernels::nextPow2(OneMillion);
+      vector<BigUnsigned> buVec(size);
+
+      for (int i = 0; i < OneMillion; ++i) {
+        initLongLongBU(&buVec[i], i);
+      }
+
+
+      WHEN("We upload those numbers to the GPU") {
+        cl::Buffer BigUnsignedNumbers;
+        REQUIRE(CLFW::get(BigUnsignedNumbers, "BigUnsignedNumbers", size*sizeof(BigUnsigned)) == CL_SUCCESS);
+        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(BigUnsignedNumbers, CL_TRUE, 0, OneMillion*sizeof(BigUnsigned), buVec.data()) == CL_SUCCESS);
+        THEN("We can check the order of those numbers in parallel.") {
+          unsigned int gpuSum;
+          REQUIRE(Kernels::CheckOrder(BigUnsignedNumbers, gpuSum, OneMillion) == CL_SUCCESS);
+          AND_THEN("the result should be calculated correctly.") {
+            REQUIRE(gpuSum == 0);
+          }
+        }
+      }
+    }
+    GIVEN("A couple out of order BigUnsigneds") {
+      int size = Kernels::nextPow2(OneMillion);
+      vector<BigUnsigned> buVec(size);
+
+      for (int i = 0; i < OneMillion; ++i) {
+        initLongLongBU(&buVec[i], i);
+      }
+
+      initBlkBU(&buVec[42], 0);
+
+      WHEN("We upload those numbers to the GPU") {
+        cl::Buffer BigUnsignedNumbers;
+        REQUIRE(CLFW::get(BigUnsignedNumbers, "BigUnsignedNumbers", size*sizeof(BigUnsigned)) == CL_SUCCESS);
+        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(BigUnsignedNumbers, CL_TRUE, 0, OneMillion*sizeof(BigUnsigned), buVec.data()) == CL_SUCCESS);
+        THEN("We can check the order of those numbers in parallel.") {
+          unsigned int gpuSum;
+          REQUIRE(Kernels::CheckOrder(BigUnsignedNumbers, gpuSum, OneMillion) == CL_SUCCESS);
+          AND_THEN("the result should be calculated correctly.") {
+            REQUIRE(gpuSum != 0);
+          }
+        }
+      }
+    }
+  }
+}
+
 //SCENARIO("Points can be uploaded to the GPU.") {
 //  cout << "Testing PointsToMorton kernel" << endl;
 //  GIVEN("a fully initialized CLFW environment") {
