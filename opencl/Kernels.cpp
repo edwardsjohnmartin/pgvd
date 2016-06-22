@@ -453,21 +453,39 @@ namespace Kernels {
     return error;
   }
 
-  cl_int AddAll(cl::Buffer &numbers, cl_uint gpuSum, cl_int size) {
+  cl_int AddAll(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size) {
+    startBenchmark("AddAll kernel");
     cl_int nextPowerOfTwo = nextPow2(size);
+    if (nextPowerOfTwo != size) return CL_INVALID_ARG_SIZE;
+    cl::Kernel &kernel = CLFW::Kernels["reduce"];
+    cl::CommandQueue &queue = CLFW::DefaultQueue;
+
+    //Each thread processes 2 items.
+    int globalSize = size/2;
+    int suggestedLocal = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice);
+    int localSize = std::min(globalSize, suggestedLocal);
+
     cl::Buffer reduceResult;
-    if (nextPowerOfTwo != size) {
-      //pad with 0's
+    cl_int resultSize = nextPow2(size / localSize);
+    cl_int error = CLFW::get(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
+
+    error |= kernel.setArg(0, numbers);
+    error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+    error |= kernel.setArg(2, nextPowerOfTwo);
+    error |= kernel.setArg(3, reduceResult);
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
+
+    //If multiple workgroups ran, we need to do a second level reduction.
+    if (suggestedLocal <= globalSize) {
+      error |= kernel.setArg(0, reduceResult);
+      error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+      error |= kernel.setArg(2, resultSize);
+      error |= kernel.setArg(3, reduceResult);
+      error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(localSize / 2), cl::NDRange(localSize / 2));
     }
 
-    //set args
-
-    //call reduce kernel
-    
-    //set newer args
-    //call it again
-
-
-    //read result
+    error |= queue.enqueueReadBuffer(reduceResult, CL_TRUE, 0, sizeof(cl_uint), &gpuSum);
+    stopBenchmark();
+    return error;
   }
 }

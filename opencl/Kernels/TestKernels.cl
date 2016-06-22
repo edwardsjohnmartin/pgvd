@@ -1,8 +1,8 @@
 __kernel
 void reduce(__global unsigned int* buffer,
-                __local unsigned int* scratch,
-                __const int length,
-                __global unsigned int* result) 
+            __local unsigned int* scratch,
+            __const int length,
+            __global unsigned int* result) 
 {
     //InitReduce
     int global_index = get_global_id(0);
