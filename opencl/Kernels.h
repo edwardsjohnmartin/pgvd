@@ -38,6 +38,7 @@ namespace Kernels {
   cl_int SingleCompact(cl::Buffer &input, cl::Buffer &result, cl::Memory &predicate, cl::Buffer &address, cl_int globalSize);
   cl_int DoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize);
   cl_int UniqueSorted(cl::Buffer &input, cl_int &size);
+  cl_int CheckOrder_s(cl::Buffer &input, cl_int &size);
   cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits);
   cl_int BuildBinaryRadixTree_p(cl::Buffer &zpoints, cl::Buffer &internalBRTNodes, cl_int size, cl_int mbits);
   cl_int BuildBinaryRadixTree_s(BigUnsigned* zpoints, BrtNode* internalBRTNodes, cl_int size, cl_int mbits);
@@ -48,4 +49,5 @@ namespace Kernels {
   cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree, cl_int size);
   cl_int BuildOctree_s(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
   cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
+  cl_int AddAll(cl::Buffer &numbers, cl_uint gpuSum);
 }

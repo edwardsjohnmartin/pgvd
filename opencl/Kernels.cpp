@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Kernels.h"
 namespace Kernels {
 
@@ -217,6 +217,30 @@ namespace Kernels {
     return error;
   }
 
+  cl_int CheckOrder_s(cl::Buffer &input, cl_int &size) {
+    int nextPowerOfTwo = (int)pow(2, ceil(log(size) / log(2)));
+    cl_bool *predicate;
+
+    //Allocate shared memory for each thread block.
+    predicate = (cl_bool*)malloc(sizeof(cl_bool) * size);
+
+    //compute elements id
+    for (cl_int id = 0; id < nextPowerOfTwo; ++id) {
+
+    }
+
+    //sync threads
+    for (cl_int id = 0; id < nextPowerOfTwo; ++id) {
+
+    }
+
+    //Perform optimized reduction on shared array (algorithm by Harris)
+    //Write out reduction result to global array
+
+    free(predicate);
+    return CL_SUCCESS;
+  }
+
   cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
     startBenchmark("RadixSortBigUnsigned");
     cl_int error = 0;
@@ -427,5 +451,23 @@ namespace Kernels {
     error |= Kernels::BuildBinaryRadixTree_p(zpoints, internalBRTNodes, size, mbits);
     error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, octree, size);
     return error;
+  }
+
+  cl_int AddAll(cl::Buffer &numbers, cl_uint gpuSum, cl_int size) {
+    cl_int nextPowerOfTwo = nextPow2(size);
+    cl::Buffer reduceResult;
+    if (nextPowerOfTwo != size) {
+      //pad with 0's
+    }
+
+    //set args
+
+    //call reduce kernel
+    
+    //set newer args
+    //call it again
+
+
+    //read result
   }
 }

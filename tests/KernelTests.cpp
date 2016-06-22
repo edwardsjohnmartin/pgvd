@@ -29,6 +29,29 @@ inline std::string buToString(BigUnsigned bu) {
   return representation;
 }
 
+SCENARIO("Unsigned integers can be added together in parallel.") {
+  cout << "Testing reduce kernel" << endl;
+  GIVEN("a fully initialized CLFW environment") {
+    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+    GIVEN("A couple unsigned integers") {
+      int size = Kernels::nextPow2(OneMillion);
+      vector<unsigned int> numbers_vec(size, 1);
+      WHEN("We upload those numbers to the GPU") {
+        cl::Buffer numbers;
+        REQUIRE(CLFW::get(numbers, "numbers", size*sizeof(unsigned int)) == CL_SUCCESS);
+        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(numbers, CL_TRUE, 0, size*sizeof(unsigned int), numbers_vec.data()) == CL_SUCCESS);
+        THEN("We can add those numbers in parallel.") {
+          unsigned int gpuSum;
+          REQUIRE(Kernels::AddAll(numbers, gpuSum) == CL_SUCCESS);
+          AND_THEN("the result should be calculated correctly.") {
+            REQUIRE(gpuSum == size);
+          }
+        }
+      }
+    }
+  }
+}
+
 SCENARIO("Points can be uploaded to the GPU.") {
   cout << "Testing PointsToMorton kernel" << endl;
   GIVEN("a fully initialized CLFW environment") {

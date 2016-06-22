@@ -3,3 +3,4 @@
 ./opencl/C/BuildBRT.c
 ./opencl/C/BuildOctree.c
 ./opencl/Kernels/kernels.cl
+./opencl/Kernels/TestKernels.cl
