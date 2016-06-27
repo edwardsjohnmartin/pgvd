@@ -12,8 +12,8 @@ namespace Kernels {
   }
   void stopBenchmark() {
     if (benchmarking) {
-      timer.stop();
       CLFW::DefaultQueue.finish();
+      timer.stop();
     }
   }
 
@@ -45,7 +45,6 @@ namespace Kernels {
   }
 
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits) {
-    startBenchmark("PointsToMorton_p");
     cl_int error = 0;
     size_t globalSize = nextPow2(size);
     error |= CLFW::get(zpoints, "zpoints", globalSize * sizeof(BigUnsigned));
@@ -54,6 +53,7 @@ namespace Kernels {
     error |= kernel.setArg(1, points);
     error |= kernel.setArg(2, size);
     error |= kernel.setArg(3, bits);
+    startBenchmark("PointsToMorton_p");
     error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(nextPow2(size)), cl::NullRange);
     stopBenchmark();
     return error;
@@ -84,7 +84,6 @@ namespace Kernels {
     error |= kernel->setArg(1, predicate);
     error |= kernel->setArg(2, index);
     error |= kernel->setArg(3, compared);
-
     error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
     return error;
   };
@@ -242,7 +241,6 @@ namespace Kernels {
   }
 
   cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
-    startBenchmark("RadixSortBigUnsigned");
     cl_int error = 0;
     const size_t globalSize = nextPow2(size);
 
@@ -251,18 +249,18 @@ namespace Kernels {
     error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
 
     if (error != CL_SUCCESS) return error;
-
     //For each bit
+    startBenchmark("RadixSortBigUnsigned");
     for (unsigned int index = 0; index < mbits; index++) {
       //Predicate the 0's and 1's
       error |= BitPredicate(input, predicate, index, 0, globalSize);
 
       //Scan the predication buffers.
       error |= StreamScan_p(predicate, address, globalSize);
-
+      
       //Compacting
       error |= DoubleCompact(input, bigUnsignedTemp, predicate, address, globalSize);
-
+      
       //Swap result with input.
       temp = input;
       input = bigUnsignedTemp;
@@ -437,7 +435,8 @@ namespace Kernels {
   }
 
   cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits) {
-    system("cls");
+    if (benchmarking)
+      system("cls");
     if (points.empty())
       throw logic_error("Zero points not supported");
 

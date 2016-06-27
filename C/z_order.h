@@ -19,9 +19,6 @@ inline BigUnsigned* xyz2z(BigUnsigned *result, intn p, int bits) {
   initBlkBU(&tempb, 0);
   
   for (int i = 0; i < bits; ++i) {
-    if (i > 40) {
-      printf("");
-    }
     //x
     if (p.x & (1 << i)) {
       initBlkBU(&temp, 1);

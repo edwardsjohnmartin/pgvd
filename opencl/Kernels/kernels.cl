@@ -17,6 +17,7 @@ __kernel void PointsToMortonKernel(
    initBlkBU(&tempBU, 0);
  }
  
+ barrier(CLK_GLOBAL_MEM_FENCE);
  inputBuffer[gid] = tempBU;
 }
 

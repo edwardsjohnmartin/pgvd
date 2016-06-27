@@ -116,8 +116,9 @@
     return part1 | part2;
   }
 	bool getBUBit(BigUnsigned *bu, Index bi) {
-    Blk b = 1;
-    return (getBUBlock(bu, bi / numBUBits) & (b << (bi % numBUBits))) != 0;
+    Blk blockIndex = bi / numBUBits;
+    Blk bitIndex = bi % numBUBits;
+    return (getBUBlock(bu, blockIndex) & (1 << bitIndex)) != 0;
   }
   void setBUBit(BigUnsigned *bu, Index bi, bool newBit) {
     Index blockI = bi / numBUBits;

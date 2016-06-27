@@ -74,7 +74,7 @@ int compute_lcp_length(BigUnsigned* a, BigUnsigned* b, int mbits) {
   }
   shiftBURight(&tempa, a, offset);
   shiftBURight(&tempb, b, offset);
-
+  
   if (compareBU(&tempa, &tempb) == 0) {
     shiftBURight(&tempa, a, offset-1);
     shiftBURight(&tempb, b, offset-1);
@@ -117,7 +117,7 @@ void BuildBinaryRadixTree( __global BrtNode *I, __global BigUnsigned* mpoints, i
       const int lcp_min = (d == -1) ? compute_lcp_length(&current, &right, mbits) : compute_lcp_length(&current, &left, mbits);//1ms
       int l_max = 2;
       temp = mpoints[gid + l_max*d];
-      while ( gid + l_max * d >= 0 && //4ms
+      while ( gid + l_max * d >= 0 &&
               gid + l_max * d <= size - 1 && 
               compute_lcp_length( &current, &temp, mbits) > lcp_min) 
       {
