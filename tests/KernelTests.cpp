@@ -12,7 +12,6 @@ static bool brtTestPassed;
 static bool computeSplitsPassed;
 static unsigned int zpointsSize;
 static cl::Buffer internalBRTNodes;
-
 //This should really be in a CPP file...
 inline std::string buToString(BigUnsigned bu) {
   std::string representation = "";

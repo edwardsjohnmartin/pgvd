@@ -13,7 +13,8 @@
 void BitPredicate( __global BigUnsigned *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, const int gid)
 {
   BigUnsigned self = inputBuffer[gid];
-  predicateBuffer[gid] = (getBUBit(&self, index) == comparedWith) ? 1:0;
+   unsigned int x = (getBUBit(&self, index) == comparedWith);
+   predicateBuffer[gid] = x;
 }
 
 //Unique Predication
@@ -53,9 +54,19 @@ void HillesSteelScan(__local unsigned int* localBuffer, __local unsigned int* sc
 void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global unsigned int *lPredicateBuffer, 
 	__global unsigned int *leftBuffer, unsigned int size, const int gid)
 {
+  int a = leftBuffer[gid];
+  int b = leftBuffer[size-2];
+  int c = lPredicateBuffer[gid];
+  int e = lPredicateBuffer[size - 1];
+
   //Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
-  int t = gid - leftBuffer[gid] + (lPredicateBuffer[size - 1] + leftBuffer[size - 2]);
-  int d = (!lPredicateBuffer[gid]) ? t : leftBuffer[gid] - 1;
+  int t = gid - a + (e + b);
+  int d = (!c) ? t : a - 1;
+
+  //This really suffers from poor coalescing
+#ifdef __OPENCL_VERSION__
+  barrier(CLK_GLOBAL_MEM_FENCE);
+#endif
   resultBuffer[d] = inputBuffer[gid];
 }
 
