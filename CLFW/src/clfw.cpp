@@ -82,8 +82,11 @@ bool CLFW::IsNotInitialized() {
 cl_int CLFW::Initialize(bool _verbose, bool queryMode) {
   verbose = _verbose;
   if (verbose) Print("Initializing...", infoFG, infoBG);
+  
   cl_int  error = get(Platforms);
   error |= get(Devices);
+  if (error != CL_SUCCESS)
+	  return error;
 
   if (queryMode == false) {
     error |= getBest(DefaultDevice);
@@ -91,14 +94,29 @@ cl_int CLFW::Initialize(bool _verbose, bool queryMode) {
   else {
     error |= query(DefaultDevice);
   }
+  if (error != CL_SUCCESS)
+	  return error;
+
   Contexts.clear();
   error |= get(DefaultContext);
+  if (error != CL_SUCCESS)
+	  return error;
+
   Contexts.push_back(DefaultContext);
   Queues.clear();
   error |= get(DefaultQueue);
+  if (error != CL_SUCCESS)
+	  return error;
+
   Queues.push_back(DefaultQueue);
   error |= get(DefaultSources);
+  if (error != CL_SUCCESS)
+	  return error;
+
   error |= Build(DefaultProgram, DefaultSources);
+  if (error != CL_SUCCESS)
+	  return error;
+
   error |= get(Kernels);
   
   return error;
@@ -177,7 +195,11 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
   sources.clear();
   char* text = 0;
   long temp;
-  loadFile("./opencl_sources.txt", &text, &temp);
+  cl_int error =  loadFile("./opencl_sources.txt", &text, &temp);
+  if (error != CL_SUCCESS) {
+	  Print("./opencl_sources.txt not found. ");
+	  return error;
+  }
   char* file = strtok(text, "\n\r\n\0");
   do {
     Print("adding " + std::string(file) + " to sources.", infoFG, infoBG);
@@ -189,6 +211,7 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
   } while (file != NULL);
   return CL_SUCCESS;
 }
+
 cl_int CLFW::get(std::unordered_map<cl::STRING_CLASS, cl::Kernel> &Kernels, cl::Program &program) {
   Kernels.clear();
   std::vector<cl::Kernel> tempKernels;
