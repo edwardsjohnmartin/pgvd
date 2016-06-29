@@ -113,6 +113,31 @@ namespace Kernels {
     return CL_SUCCESS;
   }
 
+  cl_int GetFourWayPrefixSum_p(cl::Buffer &input, cl::Buffer &masks, unsigned int index, unsigned char compared, cl_int size)
+  {
+    return -1;
+  }
+
+  cl_int GetFourWayPrefixSum_s(BigUnsigned* input, unsigned int *fourWayPrefix, unsigned int index, unsigned char compared, cl_int size)
+  {
+    vector<unsigned int> masks(size * 4);
+
+    for (int i = 0; i < size; ++i) {
+      GetTwoBitMask(input, masks.data(), index, compared, i);
+    }
+
+    fourWayPrefix[0] = fourWayPrefix[1] = fourWayPrefix[2] = fourWayPrefix[3] = 0;
+    for (int i = 1; i < size; ++i) 
+    {
+      fourWayPrefix[i * 4] = masks[(i - 1) * 4] + fourWayPrefix[(i - 1) * 4];
+      fourWayPrefix[i * 4 + 1] = masks[(i - 1) * 4 + 1] + fourWayPrefix[(i - 1) * 4 + 1];
+      fourWayPrefix[i * 4 + 2] = masks[(i - 1) * 4 + 2] + fourWayPrefix[(i - 1) * 4 + 2];
+      fourWayPrefix[i * 4 + 3] = masks[(i - 1) * 4 + 3] + fourWayPrefix[(i - 1) * 4 + 3];
+    }
+    
+    return CL_SUCCESS;
+  }
+
   cl_int UniquePredicate(cl::Buffer &input, cl::Buffer &predicate, cl_int globalSize) {
     cl::CommandQueue *queue = &CLFW::DefaultQueue;
     cl::Kernel *kernel = &CLFW::Kernels["UniquePredicateKernel"];

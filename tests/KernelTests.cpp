@@ -116,8 +116,60 @@ inline std::string buToString(BigUnsigned bu) {
 //  }
 //}
 
-SCENARIO("We can get a 2 bit mask of a couple BigUnsigneds.") {
-  cout << "Testing GetTwoBitMask kernel" << endl;
+//SCENARIO("We can get a 2 bit mask of a couple BigUnsigneds.") {
+//  cout << "Testing GetTwoBitMask kernel" << endl;
+//  GIVEN("a fully initialized CLFW environment") {
+//    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+//    srand(time(NULL));
+//    GIVEN("a couple BigUnsigned numbers.") {
+//      using namespace Kernels;
+//      vector<BigUnsigned> hostNumbers(nextPow2(TenThousand));
+//      for (int i = 0; i < TenThousand; ++i) {
+//        initBU(&hostNumbers[i]);
+//        for (int j = 0; j < (mbits); j++) {
+//          setBUBit(&hostNumbers[i], j, rand() % 2);
+//        }
+//        hostNumbers[i].len = (mbits) / 8;
+//        zapLeadingZeros(&hostNumbers[i]);
+//      }
+//      for (int i = TenThousand; i < hostNumbers.size(); ++i) {
+//        initBlkBU(&hostNumbers[i], 0);
+//      }
+//      GIVEN("an OpenCL buffer that can hold those numbers.") {
+//        int globalSize = nextPow2(hostNumbers.size());
+//
+//        cl::Buffer buffer;
+//        REQUIRE(CLFW::get(buffer, "buffer", globalSize*sizeof(BigUnsigned)) == CL_SUCCESS);
+//
+//        GIVEN("those numbers are uploaded sucessfully to the GPU") {
+//          REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(buffer, CL_TRUE, 0, hostNumbers.size()*sizeof(BigUnsigned), hostNumbers.data()) == CL_SUCCESS);
+//        
+//          THEN("We can calculate the 2 bit mask for all the big unsigneds in parallel") {
+//            cl::Buffer masks;
+//            REQUIRE(Kernels::GetTwoBitMask_p(buffer, masks, 1, 1, hostNumbers.size()) == CL_SUCCESS);
+//
+//            AND_THEN("We should get the correct results") {
+//              vector<unsigned int> gpuMasks(hostNumbers.size()*4);
+//              vector<unsigned int> cpuMasks(hostNumbers.size()*4);
+//              CLFW::DefaultQueue.enqueueReadBuffer(masks, CL_TRUE, 0, hostNumbers.size() * 4 * sizeof(unsigned int), gpuMasks.data());
+//
+//              REQUIRE(Kernels::GetTwoBitMask_s(hostNumbers.data(), cpuMasks.data(), 1, 1, hostNumbers.size()) == CL_SUCCESS);
+//              bool compareResult = true;
+//              for (int i = 0; i < cpuMasks.size(); ++i) {
+//                compareResult = cpuMasks[i] == gpuMasks[i];
+//                if (!compareResult) break;
+//              }
+//              REQUIRE(compareResult == true);
+//            }
+//          }
+//        }
+//      }
+//    }
+//  }
+//}
+
+SCENARIO("We can get a four way prefix sum of a couple BigUnsigneds.") {
+  cout << "Testing GetFourWayPrefixSum kernel" << endl;
   GIVEN("a fully initialized CLFW environment") {
     if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
     srand(time(NULL));
@@ -143,20 +195,24 @@ SCENARIO("We can get a 2 bit mask of a couple BigUnsigneds.") {
 
         GIVEN("those numbers are uploaded sucessfully to the GPU") {
           REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(buffer, CL_TRUE, 0, hostNumbers.size()*sizeof(BigUnsigned), hostNumbers.data()) == CL_SUCCESS);
-        
-          THEN("We can calculate the 2 bit mask for all the big unsigneds in parallel") {
+
+          THEN("We can calculate the 4 way prefix sum for all the big unsigneds in parallel") {
             cl::Buffer masks;
-            REQUIRE(Kernels::GetTwoBitMask_p(buffer, masks, 1, 1, hostNumbers.size()) == CL_SUCCESS);
+            //REQUIRE(Kernels::GetFourWayPrefixSum_p(buffer, masks, 1, 1, hostNumbers.size()) == CL_SUCCESS);
 
             AND_THEN("We should get the correct results") {
-              vector<unsigned int> gpuMasks(hostNumbers.size()*4);
-              vector<unsigned int> cpuMasks(hostNumbers.size()*4);
-              CLFW::DefaultQueue.enqueueReadBuffer(masks, CL_TRUE, 0, hostNumbers.size() * 4 * sizeof(unsigned int), gpuMasks.data());
+              vector<unsigned int> gpuSums(hostNumbers.size() * 4);
+              vector<unsigned int> cpuSums(hostNumbers.size() * 4);
+              CLFW::DefaultQueue.enqueueReadBuffer(masks, CL_TRUE, 0, hostNumbers.size() * 4 * sizeof(unsigned int), gpuSums.data());
 
-              REQUIRE(Kernels::GetTwoBitMask_s(hostNumbers.data(), cpuMasks.data(), 1, 1, hostNumbers.size()) == CL_SUCCESS);
+              REQUIRE(Kernels::GetFourWayPrefixSum_s(hostNumbers.data(), cpuSums.data(), 1, 1, hostNumbers.size()) == CL_SUCCESS);
+              for (int i = 0; i < hostNumbers.size(); ++i) {
+                cout<< cpuSums[(i * 4)] << " " << cpuSums[(i * 4) + 1] << " " << cpuSums[(i * 4) + 2] << " " << cpuSums[(i * 4) + 3] <<endl;
+              }
+
               bool compareResult = true;
-              for (int i = 0; i < cpuMasks.size(); ++i) {
-                compareResult = cpuMasks[i] == gpuMasks[i];
+              for (int i = 0; i < cpuSums.size(); ++i) {
+                compareResult = cpuSums[i] == gpuSums[i];
                 if (!compareResult) break;
               }
               REQUIRE(compareResult == true);
