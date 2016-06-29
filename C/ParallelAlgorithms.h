@@ -10,6 +10,7 @@
 #define __global
 #endif
 
+  void GetTwoBitMask(__local BigUnsigned *inputBuffer, __local unsigned int *masks, const unsigned int index, const unsigned char comparedWith, const int lid);
 	void BitPredicate( __global BigUnsigned *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, const int gid);
 	void UniquePredicate( __global BigUnsigned *inputBuffer, __global unsigned int *predicateBuffer, const int gid);
   void AddAll(__local unsigned int* localBuffer, const int lid, const int powerOfTwo);

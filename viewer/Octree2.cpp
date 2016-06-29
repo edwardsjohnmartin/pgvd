@@ -201,7 +201,7 @@ void Octree2::build(const Polylines& lines,
   //cout << "Number of multi-intersection cells: " << count << endl;
 
   // todo: setup vertices on GPU for rendering
-  buildOctVertices();
+  //buildOctVertices();
   
   //------------------
   // Cleanup OpenCL

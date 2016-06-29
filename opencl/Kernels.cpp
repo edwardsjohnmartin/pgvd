@@ -88,6 +88,31 @@ namespace Kernels {
     return error;
   };
 
+  cl_int GetTwoBitMask_p(cl::Buffer &input, cl::Buffer &masks, unsigned int index, unsigned char compared, cl_int size) {
+    cl::CommandQueue *queue = &CLFW::DefaultQueue;
+    cl::Kernel *kernel = &CLFW::Kernels["GetTwoBitMaskKernel"];
+    int globalSize = nextPow2(size);
+    int localSize = std::min((int)kernel->getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), globalSize);
+
+    cl_int error = CLFW::get(masks, "masks", sizeof(cl_int) * (globalSize) * 4);
+
+    error |= kernel->setArg(0, input);
+    error |= kernel->setArg(1, masks);
+    error |= kernel->setArg(2, cl::__local(localSize*sizeof(BigUnsigned)));
+    error |= kernel->setArg(3, cl::__local(localSize *4*sizeof(cl_int)));
+    error |= kernel->setArg(4, index);
+    error |= kernel->setArg(5, compared);
+    error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    return error;
+  }
+  
+  cl_int GetTwoBitMask_s(BigUnsigned* input, unsigned int *masks, unsigned int index, unsigned char compared, cl_int size) {
+    for (int i = 0; i < size; ++i) {
+      GetTwoBitMask(input, masks, index, compared, i);
+    }
+    return CL_SUCCESS;
+  }
+
   cl_int UniquePredicate(cl::Buffer &input, cl::Buffer &predicate, cl_int globalSize) {
     cl::CommandQueue *queue = &CLFW::DefaultQueue;
     cl::Kernel *kernel = &CLFW::Kernels["UniquePredicateKernel"];
@@ -249,9 +274,14 @@ namespace Kernels {
     error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
 
     if (error != CL_SUCCESS) return error;
+    cl_uint test;
     //For each bit
     startBenchmark("RadixSortBigUnsigned");
     for (unsigned int index = 0; index < mbits; index++) {
+      CheckOrder(input, test, globalSize);
+     /* if (test == 0) {
+        break;
+      }*/
       //Predicate the 0's and 1's
       error |= BitPredicate(input, predicate, index, 0, globalSize);
 
@@ -446,9 +476,21 @@ namespace Kernels {
     error |= Kernels::UploadPoints(points, pointsBuffer);
     error |= Kernels::PointsToMorton_p(pointsBuffer, zpoints, size, bits);
     error |= Kernels::RadixSortBigUnsigned(zpoints, size, mbits);
-    error |= Kernels::UniqueSorted(zpoints, size);
-    error |= Kernels::BuildBinaryRadixTree_p(zpoints, internalBRTNodes, size, mbits);
-    error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, octree, size);
+
+    vector<BigUnsigned> zpoints_vec(nextPow2(size));
+    CLFW::DefaultQueue.enqueueReadBuffer(zpoints, CL_TRUE, 0, nextPow2(size)*sizeof(BigUnsigned), zpoints_vec.data());
+    
+    //for (int i = 0; i < zpoints_vec.size(); ++i) {
+    //  if (i != 0) {
+    //    if (compareBU(&zpoints_vec[i], &zpoints_vec[i - 1]) == -1) {
+    //      cout << "Error" << endl;
+    //    }
+    //  }
+    //}
+
+    //error |= Kernels::UniqueSorted(zpoints, size);
+    //error |= Kernels::BuildBinaryRadixTree_p(zpoints, internalBRTNodes, size, mbits);
+    //error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, octree, size);
     return error;
   }
 
@@ -494,8 +536,13 @@ namespace Kernels {
   }
 
   cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size) {
-    startBenchmark("CheckOrder kernel");
-    cl_int nextPowerOfTwo = nextPow2(size);
+    if (size < 0) return CL_INVALID_ARG_SIZE;
+    else if (size < 2) {
+      gpuSum = 0;
+      return CL_SUCCESS;
+    }
+    //startBenchmark("CheckOrder kernel");
+    cl_int nextPowerOfTwo = pow(2, ceil(log(size) / log(2)));
     cl::Kernel &kernel = CLFW::Kernels["CheckOrder"];
     cl::CommandQueue &queue = CLFW::DefaultQueue;
 
@@ -503,8 +550,10 @@ namespace Kernels {
     int globalSize = nextPowerOfTwo / 2;
 
     //Brent's theorem
-    int itemsPerThread = nextPow2(log(globalSize));
-    globalSize /= itemsPerThread;
+   /* int itemsPerThread = pow(2, ceil(log(log(globalSize)) / log(2)));
+    if ((itemsPerThread < globalSize) && itemsPerThread != 0) {
+      globalSize /= itemsPerThread;
+    }*/
 
     int suggestedLocal = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice);
     int localSize = std::min(globalSize, suggestedLocal);
@@ -530,8 +579,7 @@ namespace Kernels {
       error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(localSize / 2), cl::NDRange(localSize / 2));
     }
     error |= queue.enqueueReadBuffer(reduceResult, CL_TRUE, 0, sizeof(cl_uint), &gpuSum);
-    stopBenchmark();
+   // stopBenchmark();
     return error;
   }
-
 }

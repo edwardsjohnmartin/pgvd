@@ -67,3 +67,24 @@ void CheckOrder(
         result[get_group_id(0)] = scratch[0];
     }
 }
+
+__kernel void GetTwoBitMaskKernel(
+__global BigUnsigned *inputBuffer,
+__global int *masks,
+__local BigUnsigned *localBUBuffer,
+__local int *localBoolBuffer,
+unsigned int index,
+unsigned char compared
+)
+{
+  const size_t gid = get_global_id(0);
+  const size_t lid = get_local_id(0);
+
+  localBUBuffer[lid] = inputBuffer[gid];
+  GetTwoBitMask(localBUBuffer, localBoolBuffer, index, compared, lid);
+
+  masks[gid*4] = localBoolBuffer[lid*4];
+  masks[gid*4 + 1] = localBoolBuffer[lid*4 + 1];
+  masks[gid*4 + 2] = localBoolBuffer[lid*4 + 2];
+  masks[gid*4 + 3] = localBoolBuffer[lid*4 + 3];
+}

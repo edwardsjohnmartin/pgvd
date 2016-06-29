@@ -32,6 +32,9 @@ namespace Kernels {
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits);
   cl_int PointsToMorton_s(cl_int size, cl_int bits, cl_int2* points, BigUnsigned* result);
   cl_int BitPredicate(cl::Buffer &input, cl::Buffer &predicate, unsigned int &index, unsigned char compared, cl_int globalSize);
+  cl_int GetTwoBitMask_p(cl::Buffer &input, cl::Buffer &masks, unsigned int index, unsigned char compared, cl_int size);
+  cl_int GetTwoBitMask_s(BigUnsigned* input, unsigned int *masks, unsigned int index, unsigned char compared, cl_int size);
+  cl_int GetFourWayPrefixSum_s() {
   cl_int UniquePredicate(cl::Buffer &input, cl::Buffer &predicate, cl_int globalSize);
   cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize);
   cl_int StreamScan_s(unsigned int* buffer, unsigned int* result, const int size);

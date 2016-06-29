@@ -4,6 +4,7 @@
 #include <iostream>
 
 #define OneMillion 1000000
+#define TenThousand 10000
 #define OneThousand 1000
 #define bits 30
 #define mbits bits*DIM
@@ -27,82 +28,145 @@ inline std::string buToString(BigUnsigned bu) {
 
   return representation;
 }
+//
+//SCENARIO("Unsigned integers can be added together in parallel.") {
+//  cout << "Testing reduce kernel" << endl;
+//  GIVEN("a fully initialized CLFW environment") {
+//    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+//    GIVEN("A couple unsigned integers") {
+//      int size = Kernels::nextPow2(OneMillion);
+//      vector<unsigned int> numbers_vec(size, 1);
+//      WHEN("We upload those numbers to the GPU") {
+//        cl::Buffer numbers;
+//        REQUIRE(CLFW::get(numbers, "numbers", size*sizeof(unsigned int)) == CL_SUCCESS);
+//        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(numbers, CL_TRUE, 0, size*sizeof(unsigned int), numbers_vec.data()) == CL_SUCCESS);
+//        THEN("We can add those numbers in parallel.") {
+//          unsigned int gpuSum;
+//          REQUIRE(Kernels::AddAll(numbers, gpuSum, size) == CL_SUCCESS);
+//          AND_THEN("the result should be calculated correctly.") {
+//            REQUIRE(gpuSum == size);
+//          }
+//        }
+//      }
+//    }
+//  }
+//}
+//
+//SCENARIO("We can check to see if BigUnsigneds are in order.") {
+//  cout << "Testing CheckOrder kernel" << endl;
+//  GIVEN("a fully initialized CLFW environment") {
+//    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
+//    GIVEN("A couple in order BigUnsigneds") {
+//      int size = Kernels::nextPow2(OneMillion);
+//      vector<BigUnsigned> buVec(size);
+//
+//      for (int i = 0; i < OneMillion; ++i) {
+//        initLongLongBU(&buVec[i], i);
+//      }
+//
+//
+//      WHEN("We upload those numbers to the GPU") {
+//        cl::Buffer BigUnsignedNumbers;
+//        REQUIRE(CLFW::get(BigUnsignedNumbers, "BigUnsignedNumbers", size*sizeof(BigUnsigned)) == CL_SUCCESS);
+//        
+//        THEN("We can determine if numbers are sorted.") {
+//          REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(BigUnsignedNumbers, CL_TRUE, 0, OneMillion*sizeof(BigUnsigned), buVec.data()) == CL_SUCCESS);
+//          unsigned int gpuSum;
+//          REQUIRE(Kernels::CheckOrder(BigUnsignedNumbers, gpuSum, OneMillion) == CL_SUCCESS);
+//          AND_THEN("the result should be calculated correctly.") {
+//            REQUIRE(gpuSum == 0);
+//          }
+//        }
+//        THEN("We can determine how many numbers are unsorted") {
+//          for (int i = 0; i < OneMillion; i+=2) {
+//            initLongLongBU(&buVec[i], OneMillion - i);
+//          }
+//          REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(BigUnsignedNumbers, CL_TRUE, 0, OneMillion*sizeof(BigUnsigned), buVec.data()) == CL_SUCCESS);
+//          unsigned int gpuSum;
+//          REQUIRE(Kernels::CheckOrder(BigUnsignedNumbers, gpuSum, OneMillion) == CL_SUCCESS);
+//          AND_THEN("the result should be calculated correctly.") {
+//            REQUIRE(gpuSum == (OneMillion/2) - 1);
+//          }
+//        }
+//      }
+//    }
+//    GIVEN("A couple out of order BigUnsigneds") {
+//      int size = Kernels::nextPow2(OneMillion);
+//      vector<BigUnsigned> buVec(size);
+//
+//      for (int i = 0; i < OneMillion; ++i) {
+//        initLongLongBU(&buVec[i], i);
+//      }
+//
+//      initBlkBU(&buVec[42], 0);
+//
+//      WHEN("We upload those numbers to the GPU") {
+//        cl::Buffer BigUnsignedNumbers;
+//        REQUIRE(CLFW::get(BigUnsignedNumbers, "BigUnsignedNumbers", size*sizeof(BigUnsigned)) == CL_SUCCESS);
+//        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(BigUnsignedNumbers, CL_TRUE, 0, OneMillion*sizeof(BigUnsigned), buVec.data()) == CL_SUCCESS);
+//        THEN("We can check the order of those numbers in parallel.") {
+//          unsigned int gpuSum;
+//          REQUIRE(Kernels::CheckOrder(BigUnsignedNumbers, gpuSum, OneMillion) == CL_SUCCESS);
+//          AND_THEN("the result should be calculated correctly.") {
+//            REQUIRE(gpuSum != 0);
+//          }
+//        }
+//      }
+//    }
+//  }
+//}
 
-SCENARIO("Unsigned integers can be added together in parallel.") {
-  cout << "Testing reduce kernel" << endl;
+SCENARIO("We can get a 2 bit mask of a couple BigUnsigneds.") {
+  cout << "Testing GetTwoBitMask kernel" << endl;
   GIVEN("a fully initialized CLFW environment") {
     if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
-    GIVEN("A couple unsigned integers") {
-      int size = Kernels::nextPow2(OneMillion);
-      vector<unsigned int> numbers_vec(size, 1);
-      WHEN("We upload those numbers to the GPU") {
-        cl::Buffer numbers;
-        REQUIRE(CLFW::get(numbers, "numbers", size*sizeof(unsigned int)) == CL_SUCCESS);
-        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(numbers, CL_TRUE, 0, size*sizeof(unsigned int), numbers_vec.data()) == CL_SUCCESS);
-        THEN("We can add those numbers in parallel.") {
-          unsigned int gpuSum;
-          REQUIRE(Kernels::AddAll(numbers, gpuSum, size) == CL_SUCCESS);
-          AND_THEN("the result should be calculated correctly.") {
-            REQUIRE(gpuSum == size);
+    srand(time(NULL));
+    GIVEN("a couple BigUnsigned numbers.") {
+      using namespace Kernels;
+      vector<BigUnsigned> hostNumbers(nextPow2(TenThousand));
+      for (int i = 0; i < TenThousand; ++i) {
+        initBU(&hostNumbers[i]);
+        for (int j = 0; j < (mbits); j++) {
+          setBUBit(&hostNumbers[i], j, rand() % 2);
+        }
+        hostNumbers[i].len = (mbits) / 8;
+        zapLeadingZeros(&hostNumbers[i]);
+      }
+      for (int i = TenThousand; i < hostNumbers.size(); ++i) {
+        initBlkBU(&hostNumbers[i], 0);
+      }
+      GIVEN("an OpenCL buffer that can hold those numbers.") {
+        int globalSize = nextPow2(hostNumbers.size());
+
+        cl::Buffer buffer;
+        REQUIRE(CLFW::get(buffer, "buffer", globalSize*sizeof(BigUnsigned)) == CL_SUCCESS);
+
+        GIVEN("those numbers are uploaded sucessfully to the GPU") {
+          REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(buffer, CL_TRUE, 0, hostNumbers.size()*sizeof(BigUnsigned), hostNumbers.data()) == CL_SUCCESS);
+        
+          THEN("We can calculate the 2 bit mask for all the big unsigneds in parallel") {
+            cl::Buffer masks;
+            REQUIRE(Kernels::GetTwoBitMask_p(buffer, masks, 1, 1, hostNumbers.size()) == CL_SUCCESS);
+
+            AND_THEN("We should get the correct results") {
+              vector<unsigned int> gpuMasks(hostNumbers.size()*4);
+              vector<unsigned int> cpuMasks(hostNumbers.size()*4);
+              CLFW::DefaultQueue.enqueueReadBuffer(masks, CL_TRUE, 0, hostNumbers.size() * 4 * sizeof(unsigned int), gpuMasks.data());
+
+              REQUIRE(Kernels::GetTwoBitMask_s(hostNumbers.data(), cpuMasks.data(), 1, 1, hostNumbers.size()) == CL_SUCCESS);
+              bool compareResult = true;
+              for (int i = 0; i < cpuMasks.size(); ++i) {
+                compareResult = cpuMasks[i] == gpuMasks[i];
+                if (!compareResult) break;
+              }
+              REQUIRE(compareResult == true);
+            }
           }
         }
       }
     }
   }
 }
-
-SCENARIO("We can check to see if BigUnsigneds are in order.") {
-  cout << "Testing CheckOrder kernel" << endl;
-  GIVEN("a fully initialized CLFW environment") {
-    if (CLFW::IsNotInitialized()) REQUIRE(CLFW::Initialize() == CL_SUCCESS);
-    GIVEN("A couple in order BigUnsigneds") {
-      int size = Kernels::nextPow2(OneMillion);
-      vector<BigUnsigned> buVec(size);
-
-      for (int i = 0; i < OneMillion; ++i) {
-        initLongLongBU(&buVec[i], i);
-      }
-
-
-      WHEN("We upload those numbers to the GPU") {
-        cl::Buffer BigUnsignedNumbers;
-        REQUIRE(CLFW::get(BigUnsignedNumbers, "BigUnsignedNumbers", size*sizeof(BigUnsigned)) == CL_SUCCESS);
-        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(BigUnsignedNumbers, CL_TRUE, 0, OneMillion*sizeof(BigUnsigned), buVec.data()) == CL_SUCCESS);
-        THEN("We can check the order of those numbers in parallel.") {
-          unsigned int gpuSum;
-          REQUIRE(Kernels::CheckOrder(BigUnsignedNumbers, gpuSum, OneMillion) == CL_SUCCESS);
-          AND_THEN("the result should be calculated correctly.") {
-            REQUIRE(gpuSum == 0);
-          }
-        }
-      }
-    }
-    GIVEN("A couple out of order BigUnsigneds") {
-      int size = Kernels::nextPow2(OneMillion);
-      vector<BigUnsigned> buVec(size);
-
-      for (int i = 0; i < OneMillion; ++i) {
-        initLongLongBU(&buVec[i], i);
-      }
-
-      initBlkBU(&buVec[42], 0);
-
-      WHEN("We upload those numbers to the GPU") {
-        cl::Buffer BigUnsignedNumbers;
-        REQUIRE(CLFW::get(BigUnsignedNumbers, "BigUnsignedNumbers", size*sizeof(BigUnsigned)) == CL_SUCCESS);
-        REQUIRE(CLFW::DefaultQueue.enqueueWriteBuffer(BigUnsignedNumbers, CL_TRUE, 0, OneMillion*sizeof(BigUnsigned), buVec.data()) == CL_SUCCESS);
-        THEN("We can check the order of those numbers in parallel.") {
-          unsigned int gpuSum;
-          REQUIRE(Kernels::CheckOrder(BigUnsignedNumbers, gpuSum, OneMillion) == CL_SUCCESS);
-          AND_THEN("the result should be calculated correctly.") {
-            REQUIRE(gpuSum != 0);
-          }
-        }
-      }
-    }
-  }
-}
-
 //SCENARIO("Points can be uploaded to the GPU.") {
 //  cout << "Testing PointsToMorton kernel" << endl;
 //  GIVEN("a fully initialized CLFW environment") {

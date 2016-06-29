@@ -17,6 +17,25 @@ void BitPredicate( __global BigUnsigned *inputBuffer, __global unsigned int *pre
    predicateBuffer[gid] = x;
 }
 
+void GetTwoBitMask( __local BigUnsigned *inputBuffer, __local unsigned int *masks, const unsigned int index, const unsigned char comparedWith, const int lid) {
+  BigUnsigned self;
+  unsigned char x = 0;
+  int offset = lid * 4;
+
+  masks[offset] = masks[offset + 1] = masks[offset + 2] = masks[offset + 3] = 0;
+  self = inputBuffer[lid];
+  unsigned int numBUBits = self.len*sizeof(Blk)*8;
+  if (numBUBits > index)
+    x  = (getBUBit(&self, index) == comparedWith);
+  if (numBUBits  > index + 1)
+    x |= (getBUBit(&self, index + 1) == comparedWith) << 1;
+
+#ifdef __OPENCL_VERSION__
+  barrier(CLK_LOCAL_MEM_FENCE);
+#endif
+  masks[offset + x] = 1;
+}
+
 //Unique Predication
 //Requires input be sorted.
 void UniquePredicate( __global BigUnsigned *inputBuffer, __global unsigned int *predicateBuffer, const int gid)
