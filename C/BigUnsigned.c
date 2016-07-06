@@ -355,7 +355,7 @@
     result->len = (a->len >= b->len) ? b->len : a->len;
     for (Index i = 0; i < result->len; i++)
       result->blk[i] = a->blk[i] & b->blk[i];
-    zapLeadingZeros(result);
+    //zapLeadingZeros(result);
     return 0;
   }
   int orBU(BigUnsigned *result, BigUnsigned *a, BigUnsigned *b) {

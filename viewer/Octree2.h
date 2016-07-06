@@ -1,6 +1,7 @@
 #ifndef __OCTREE_2_H__
 #define __OCTREE_2_H__
 
+#include "clfw.hpp"
 #include "LinesProgram.h"
 #include "Polylines.h"
 #include "gl_utils.h"
@@ -10,6 +11,7 @@
 #include "Options.h"
 #include "Resln.h"
 #include "OctNode.h"
+#include "Line.h"
 
 class Octree2 {
  private:
@@ -17,6 +19,8 @@ class Octree2 {
   std::vector<CellIntersections> cell_intersections;
   std::vector<floatn> intersections;
   std::vector<floatn> karras_points;
+  std::vector<intn> qpoints;
+  std::vector<Line> lines;
   std::vector<intn> extra_qpoints;
   BoundingBox<float2> bb;
   vector<floatn> _origins;
@@ -40,7 +44,7 @@ class Octree2 {
   void build(const PolyLines& lines, const BoundingBox<float2>* customBB = 0);
   void render(LinesProgram* program);
   void renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength);
-  void renderBoundingBox(LinesProgram* program, const PolyLines& lines);
+  void renderBoundingBox(LinesProgram* program);
 
   void set(std::vector<OctNode>& octree_, const BoundingBox<float2>& bb_) {
     octree = octree_;

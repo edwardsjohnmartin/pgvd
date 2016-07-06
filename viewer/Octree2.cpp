@@ -128,7 +128,7 @@ void Octree2::build(const vector<float2>& points,
  // buildOctVertices();
 }
 
-void Octree2::build(const PolyLines& lines,
+void Octree2::build(const PolyLines& polyLines,
                     const BoundingBox<float2>* customBB) {
   using namespace std;
 
@@ -137,7 +137,7 @@ void Octree2::build(const PolyLines& lines,
   extra_qpoints.clear();
   octree.clear();
 
-  const vector<vector<float2>>& polygons = lines.getPolygons();
+  const vector<vector<float2>>& polygons = polyLines.getPolygons();
   if (polygons.empty()) {
     buildOctVertices();
     return;
@@ -162,7 +162,8 @@ void Octree2::build(const PolyLines& lines,
   }
   
   // Karras iterations
-  vector<intn> qpoints = Karras::Quantize(karras_points, resln);
+  qpoints.clear();
+  qpoints = Karras::Quantize(karras_points, resln);
   int iterations = 0;
   do {
     qpoints.insert(qpoints.end(), extra_qpoints.begin(), extra_qpoints.end());
@@ -196,6 +197,9 @@ void Octree2::build(const PolyLines& lines,
   // todo: setup vertices on GPU for rendering
   buildOctVertices();
   
+  for (unsigned int i = 0; i < qpoints.size() - 1; i++) {
+    lines.push_back({ i, i + 1 });
+  }
   //------------------
   // Cleanup OpenCL
   //------------------
@@ -676,6 +680,7 @@ void Octree2::render(LinesProgram* program) {
 
 void Octree2::renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength) {
   using namespace std;
+  if (octree.size() == 0) return;
   float width = bb.max_size();
   float2 center = bb.min() + make_float2(width / 2.0, width / 2.0);
   vector<int> indexes;
@@ -696,6 +701,7 @@ void Octree2::renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength) 
   //calculate width and offset by itterating through the tree
   for (int i = 0; i < indexes.size(); ++i) {
     width /= 2.0;
+    //assert(octNodeIndex != -1);
     switch (indexes[i]) {
     case 0:
       center += make_float2(-width / 2.0, -width / 2.0);
@@ -738,30 +744,19 @@ void Octree2::renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength) 
   print_error("Octree2::render 1");
 }
 
-void Octree2::renderBoundingBox(LinesProgram* program, const PolyLines& lines) {
-  // Get all vertices into a 1D array (karras_points).
-  karras_points.clear();
-  octree.clear();
+void Octree2::renderBoundingBox(LinesProgram* program) {
+  vector<BigUnsigned> lcps;
+  vector<unsigned int> lcp_lengths;
+  for (int i = 0; i < 1; ++i) {
+    BigUnsigned first;
+    BigUnsigned second;
+    BigUnsigned lcp;
 
-  const vector<vector<float2>>& polygons = lines.getPolygons();
-
-  // Get all vertices into a 1D array (karras_points).
-  for (int i = 0; i < polygons.size(); ++i) {
-    const vector<float2>& polygon = polygons[i];
-    for (int j = 0; j < polygon.size() - 1; ++j) {
-      karras_points.push_back(polygon[j]);
-    }
-    karras_points.push_back(polygon.back());
+    xyz2z(&first, qpoints[lines[i].firstIndex], resln.bits);
+    xyz2z(&second, qpoints[lines[i].secondIndex], resln.bits);
+    lcp_lengths.push_back(compute_lcp_length(&first, &second, resln.mbits));
+    compute_lcp(&lcp, &first, lcp_lengths[i], resln.mbits);
+    lcps.push_back(lcp);
+    renderNode(program, lcps[i], lcp_lengths[i]);
   }
-  vector<intn> qpoints = Karras::Quantize(karras_points, resln);
-  
-  BigUnsigned first;
-  BigUnsigned second;
-  BigUnsigned lcp;
-  xyz2z(&first, qpoints[0], resln.bits);
-  xyz2z(&second, qpoints[1], resln.bits);
-  int lcpLength = compute_lcp_length(&first, &second, resln.mbits);
-  compute_lcp(&lcp, &first, lcpLength, resln.mbits);
-  lcp.len = (lcpLength + 7) / 8;
-  renderNode(program, lcp, lcpLength);
 }

@@ -49,7 +49,7 @@ void refresh() {
   if (options.showOctree)
     octree->render(program);
   
-  octree->renderBoundingBox(program, *lines);
+  octree->renderBoundingBox(program);
   lines->render(program);
   glfwSwapBuffers(g_window);
 }
