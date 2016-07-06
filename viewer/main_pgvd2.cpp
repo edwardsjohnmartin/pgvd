@@ -1,3 +1,4 @@
+#pragma optimize("", off)
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -17,10 +18,11 @@
 
 #include "../opencl/vec.h"
 #include "./Polylines.h"
+#include "Line.h"
 #include "./LinesProgram.h"
 #include "./Octree2.h"
 #include "../Resln.h"
-
+#include "z_order.h"
 // keep track of window size for things like the viewport and the mouse cursor
 int g_gl_width = 512;
 int g_gl_height = 512 ;
@@ -28,49 +30,37 @@ GLFWwindow* g_window = NULL;
 cl_float count1 = 0;
 cl_float count2 = 0;
 
-Polylines* lines;
+float2 point1, point2;
+PolyLines* lines;
 LinesProgram* program;
 Octree2* octree;
 
-bool mouseDown = false;
+bool leftMouseDown = false;
+bool rightMouseDown = false;
 float2 curMouse;
 
 GLFWcursor* arrowCursor;
 GLFWcursor* zoomCursor;
 bool zoomMode = false;
 
-//------------------------------------------------------------
-// refresh
-//------------------------------------------------------------
+// Draws octree and lines.
 void refresh() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  if (options.showOctree) {
+  if (options.showOctree)
     octree->render(program);
-  }
+  
+  octree->renderBoundingBox(program, *lines);
   lines->render(program);
   glfwSwapBuffers(g_window);
 }
 
-void rebuild() {
-  octree->build(*lines);
-  refresh();
-}
-
-//------------------------------------------------------------
 // key_callback
-//------------------------------------------------------------
 void onKey(GLFWwindow* window, int key, int scancode,
            int action, int mods) {
   using namespace std;
 
   if (action == GLFW_PRESS) {
     switch (key) {
-      case GLFW_KEY_SPACE:
-        lines->addPoint({(cl_float).2*sin(count1),(cl_float).2*cos(count2)});
-        count1+=.01;
-        count2+=.01;
-        rebuild();
-        break;
       case GLFW_KEY_C:
         lines->clear();
         octree->build(*lines);
@@ -98,25 +88,24 @@ void onKey(GLFWwindow* window, int key, int scancode,
   refresh();
 }
 
-void addpt(double radius) {
-  lines->newLine({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
-  count1 += 1;
-  count2 += 1;
-  lines->addPoint({ (cl_float)radius*sin(count1),(cl_float)radius*cos(count2) });
-}
-
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
   using namespace std;
 
   if (action == GLFW_PRESS) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
-      mouseDown = true;
+      leftMouseDown = true;
+      rightMouseDown = false;
       lines->newLine(curMouse);
-      rebuild();
+      octree->build(*lines);
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+      lines->setPoint(curMouse, true);
+      rightMouseDown = true;
+      leftMouseDown = false;
+      octree->build(*lines);
     }
   } else if (action == GLFW_RELEASE) {
-      mouseDown = false;
+      leftMouseDown = false;
+      rightMouseDown = false;
   }
 }
 
@@ -127,20 +116,19 @@ void onMouseMove(GLFWwindow* window, double xpos, double ypos) {
   const float y = (ypos / g_gl_height) * 2 - 1;
   curMouse = make_float2(x, -y);
 
-  if (mouseDown) {
+  if (leftMouseDown) {
     lines->addPoint(curMouse);
-    rebuild();
+    octree->build(*lines);
+    refresh();
+  }
+  else if (rightMouseDown) {
+    lines->setPoint(curMouse, false);
+    octree->build(*lines);
+    refresh();
   }
 }
 
-void pollEvents() {
-  while (true) {
-  }
-}
-
-int main(int argc, char** argv) {
-  using namespace std;
-
+void InitializeOpenGL() {
   restart_gl_log();
   start_gl();
   print_error("new a");
@@ -149,28 +137,44 @@ int main(int argc, char** argv) {
   glfwSetKeyCallback(g_window, onKey);
   glfwSetMouseButtonCallback(g_window, onMouse);
   glfwSetCursorPosCallback(g_window, onMouseMove);
-  
+
   glfwSetCursor(g_window, arrowCursor);
 
   GLFWcursor* arrowCursor = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
   GLFWcursor* zoomCursor = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-  // glfwSetCursor(g_window, zoomCursor);
+
 
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-  glClear (GL_COLOR_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT);
+  glfwSwapBuffers(g_window);
+}
 
-  cl_int error = CLFW::Initialize(false, true);
+void checkError(cl_int error) {
   if (error != CL_SUCCESS) {
     cout << "ERROR initializing OpenCL!" << endl;
     getchar();
     std::exit(-1);
   }
+}
+
+int main(int argc, char** argv) {
+  using namespace std;
+
+  checkError(CLFW::Initialize(false, true));
+
+  InitializeOpenGL();
 
   octree = new Octree2();
   octree->processArgs(argc, argv);
-  lines = new Polylines();
+  lines = new PolyLines();
+  lines->newLine({ 0.0f, 0.0f });
+  lines->addPoint({ 0.0f, 0.0f});
+  point1 = point2 = make_float2(0.0f, 0.0f);
 
   program = new LinesProgram();
+
+  //glm::mat4 matrix = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f);
+  //program->setMatrix(matrix);
 	
   /*for (const string& f : options.filenames) {
     ifstream in(f.c_str());
@@ -205,11 +209,8 @@ int main(int argc, char** argv) {
   //  radius -= .0005;
   //  addpt(radius);
   //  rebuild();
-
   //}
   while (!glfwWindowShouldClose(g_window)) {
-    // Refresh here for animation
-    rebuild();
     glfwPollEvents();
   }
   glfwTerminate();

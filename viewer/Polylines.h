@@ -9,7 +9,7 @@
 #include "./LinesProgram.h"
 #include "../Options.h"
 
-class Polylines {
+class PolyLines {
  private:
   int capacity;
   int size;
@@ -21,18 +21,14 @@ class Polylines {
   GLuint pointsVaoId;
 
  public:
-  Polylines() : capacity(1024), size(0), points(new glm::vec3[capacity]) {
+  PolyLines() : capacity(1024), size(0), points(new glm::vec3[capacity]) {
     glGenBuffers(1, &pointsVboId);
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
-    glBufferData(
-        GL_ARRAY_BUFFER, capacity*sizeof(glm::vec3), points, GL_STATIC_DRAW);
-	
+    glBufferData(GL_ARRAY_BUFFER, capacity*sizeof(glm::vec3), points, GL_STATIC_DRAW);
     glGenVertexArrays(1, &pointsVaoId);
-    glBindVertexArray(pointsVaoId);
-    glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
   }
 
-  ~Polylines() {
+  ~PolyLines() {
     delete [] points;
   }
 
@@ -78,6 +74,14 @@ class Polylines {
         sizeof(glm::vec3), points+i);
   }
 
+
+  void setPoint(const float2& p, bool first) {
+    int i = first ? 0 : 1;
+    glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
+    points[i] = glm::vec3(p.x, p.y, 0.0);
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*i, sizeof(glm::vec3), points + i);
+  }
+
   void newLine(const float2& p) {
     lasts.push_back(0);
     addPoint(p);
@@ -107,8 +111,6 @@ class Polylines {
     using namespace std;
 
     program->useProgram();
-    // glm::mat4 matrix = glm::mat4(1.0);
-    // program->setMatrix(matrix);
 		
     program->setPointSize(5.0);
 

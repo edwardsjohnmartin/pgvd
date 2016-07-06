@@ -121,6 +121,10 @@ class LinesProgram {
     glUniformMatrix4fv(matrixId, 1, GL_FALSE, glm::value_ptr(matrix));
   }
 
+  void setMatrix(const glm::mat4& m) {
+    glUniformMatrix4fv(matrixId, 1, GL_FALSE, glm::value_ptr(m));
+  }
+
   void setColor(const int seed) {
     float3 color = Color::randomColor(seed, make_float3(1, 0, 0));
     glUniform3fv(colorId, 1, color.s);

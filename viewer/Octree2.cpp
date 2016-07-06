@@ -6,6 +6,10 @@
 #include "../Karras.h"
 #include "../opencl/Geom.h"
 
+extern "C" {
+#include "BuildBRT.h"
+}
+
 OctCell fnode;
 
 Octree2::Octree2() {
@@ -124,20 +128,9 @@ void Octree2::build(const vector<float2>& points,
  // buildOctVertices();
 }
 
-void Octree2::build(const Polylines& lines,
+void Octree2::build(const PolyLines& lines,
                     const BoundingBox<float2>* customBB) {
   using namespace std;
-
-  //------------------
-  // Initialize OpenCL
-  //------------------
-// #ifdef __OPEN_CL_SUPPORT__
-//   static bool initialized = false;
-//   if (options.gpu && !initialized) {
-//     OpenCLInit(2, o, options.opencl_log);
-//     initialized = true;
-//   }
-// #endif
 
   karras_points.clear();
   bb = BoundingBox<float2>();
@@ -201,7 +194,7 @@ void Octree2::build(const Polylines& lines,
   //cout << "Number of multi-intersection cells: " << count << endl;
 
   // todo: setup vertices on GPU for rendering
-  //buildOctVertices();
+  buildOctVertices();
   
   //------------------
   // Cleanup OpenCL
@@ -427,7 +420,7 @@ void MCCallback(OctCell cell, const floatn& a, const floatn& b,
   }
 }
 
-void Octree2::FindMultiCells(const Polylines& lines) {
+void Octree2::FindMultiCells(const PolyLines& lines) {
   using namespace Karras;
 
   cell_intersections.clear();
@@ -564,7 +557,7 @@ void Octree2::buildOctVertices() {
   glBufferData(
       GL_ARRAY_BUFFER, vertices.size()*sizeof(glm::vec3), drawVertices,
       GL_STATIC_DRAW);
-  delete [] drawVertices;
+  //delete [] drawVertices;
 
   //This section of code is causing memory leaks.
   if (drawIndicesBufferGenerated == false) {
@@ -679,4 +672,96 @@ void Octree2::render(LinesProgram* program) {
   glDrawArrays(GL_LINES, 0, vertices.size());
 
   print_error("Octree2::render 1");
+}
+
+void Octree2::renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength) {
+  using namespace std;
+  float width = bb.max_size();
+  float2 center = bb.min() + make_float2(width / 2.0, width / 2.0);
+  vector<int> indexes;
+  BigUnsigned mask;
+  BigUnsigned result;
+  int totalBits = lcpLength / DIM;// (lcpLength + DIM - 1) / DIM;
+  int isOdd = (lcpLength & 1 == 1) ? 1 : 0;
+  
+  //Add child indexes to list
+  for (int i = totalBits - 1; i >= 0 ; --i) {
+    initBlkBU(&mask, 3);
+    shiftBULeft(&mask, &mask, i * DIM + isOdd);
+    andBU(&result, &mask, &lcp);
+    shiftBURight(&result, &result, i*DIM + isOdd);
+    indexes.push_back(result.blk[0]);
+  }
+
+  //calculate width and offset by itterating through the tree
+  for (int i = 0; i < indexes.size(); ++i) {
+    width /= 2.0;
+    switch (indexes[i]) {
+    case 0:
+      center += make_float2(-width / 2.0, -width / 2.0);
+      break;
+    case 1:
+      center += make_float2(width / 2.0, -width / 2.0);
+      break;
+    case 2:
+      center += make_float2(-width / 2.0, width / 2.0);
+      break;
+    case 3:
+      center += make_float2(width / 2.0, width / 2.0);
+      break;
+    default:
+      cout << "Invalid lcp, can't render internal node." << endl;
+      assert(false);
+    }
+  }
+  
+  const int n = 4;
+  glm::vec3 drawVertices[n];
+  drawVertices[0] = glm::vec3(center.x - width / 2.0, center.y - width / 2.0, 0);
+  drawVertices[1] = glm::vec3(center.x - width / 2.0, center.y + width / 2.0, 0);
+  drawVertices[2] = glm::vec3(center.x + width / 2.0, center.y + width / 2.0, 0);
+  drawVertices[3] = glm::vec3(center.x + width / 2.0, center.y - width / 2.0, 0);
+
+  glBindVertexArray(vao);
+  glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, n*sizeof(glm::vec3), drawVertices);
+
+  glVertexAttribPointer(
+    program->getVertexLoc(), 3, GL_FLOAT, GL_FALSE, 0, NULL);
+  glEnableVertexAttribArray(program->getVertexLoc());
+
+  program->setColor(make_float3(1.0, 0.0, 0.0));
+
+  glLineWidth(4.0);
+  glDrawArrays(GL_LINE_LOOP, 0, 4);
+
+  print_error("Octree2::render 1");
+}
+
+void Octree2::renderBoundingBox(LinesProgram* program, const PolyLines& lines) {
+  // Get all vertices into a 1D array (karras_points).
+  karras_points.clear();
+  octree.clear();
+
+  const vector<vector<float2>>& polygons = lines.getPolygons();
+
+  // Get all vertices into a 1D array (karras_points).
+  for (int i = 0; i < polygons.size(); ++i) {
+    const vector<float2>& polygon = polygons[i];
+    for (int j = 0; j < polygon.size() - 1; ++j) {
+      karras_points.push_back(polygon[j]);
+    }
+    karras_points.push_back(polygon.back());
+  }
+  vector<intn> qpoints = Karras::Quantize(karras_points, resln);
+  
+  BigUnsigned first;
+  BigUnsigned second;
+  BigUnsigned lcp;
+  xyz2z(&first, qpoints[0], resln.bits);
+  xyz2z(&second, qpoints[1], resln.bits);
+  int lcpLength = compute_lcp_length(&first, &second, resln.mbits);
+  compute_lcp(&lcp, &first, lcpLength, resln.mbits);
+  lcp.len = (lcpLength + 7) / 8;
+  renderNode(program, lcp, lcpLength);
 }

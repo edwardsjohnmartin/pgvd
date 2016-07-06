@@ -37,8 +37,10 @@ class Octree2 {
   int processArgs(int argc, char** argv);
   void build(const std::vector<float2>& points,
              const BoundingBox<float2>* customBB);
-  void build(const Polylines& lines, const BoundingBox<float2>* customBB = 0);
+  void build(const PolyLines& lines, const BoundingBox<float2>* customBB = 0);
   void render(LinesProgram* program);
+  void renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength);
+  void renderBoundingBox(LinesProgram* program, const PolyLines& lines);
 
   void set(std::vector<OctNode>& octree_, const BoundingBox<float2>& bb_) {
     octree = octree_;
@@ -53,7 +55,7 @@ class Octree2 {
   glm::vec3 toVec3(float2 p) const;
 
   void Find(const float2& p);
-  void FindMultiCells(const Polylines& lines);
+  void FindMultiCells(const PolyLines& lines);
 
   void buildOctVertices();
   void drawNode(

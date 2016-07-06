@@ -113,6 +113,7 @@ SET(SRCS
   ./C/BuildOctree.h
   ./C/ParallelAlgorithms.h
   ./C/z_order.h
+  ./C/Line.h
 
   ./viewer/Color.h
   ./viewer/gl_utils.h

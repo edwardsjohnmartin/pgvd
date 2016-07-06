@@ -74,7 +74,7 @@ void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultB
 	__global unsigned int *leftBuffer, unsigned int size, const int gid)
 {
   int a = leftBuffer[gid];
-  int b = leftBuffer[size-2];
+  int b = leftBuffer[size - 2];
   int c = lPredicateBuffer[gid];
   int e = lPredicateBuffer[size - 1];
 
