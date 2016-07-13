@@ -2,7 +2,7 @@
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 offset;
-layout(location = 2) in vec3 scale;
+layout(location = 2) in float scale;
 layout(location = 3) in vec3 color;
 
 uniform mat4 matrix;
@@ -12,6 +12,7 @@ out vec4 fColor;
 
 void main() {
   gl_PointSize = point_size;
-  gl_Position = matrix * vec4(position + offset, 1.0) * scale;
+  gl_Position = matrix * (vec4( (position*scale) + offset, 1.0));
+  gl_Position -= vec4(0.0,0.0,color.z,0.0);
   fColor = vec4(color, 1.0);
 }
