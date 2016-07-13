@@ -47,6 +47,7 @@ void compute_lcp(__global BigUnsigned *lcp, __global BigUnsigned *value, const i
   }
 	andBU(&temp, &privateValue, &mask);
 	shiftBURight(&privateLcp, &temp, mbits - length);
+  privateLcp.len = (mbits - length + 7) / 8;
   *value = privateValue;
   *lcp = privateLcp;
 }

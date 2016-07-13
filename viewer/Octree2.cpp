@@ -5,6 +5,8 @@
 #include "./Octree2.h"
 #include "../Karras.h"
 #include "../opencl/Geom.h"
+#include "Kernels.h"
+#include "timer.h"
 
 extern "C" {
 #include "BuildBRT.h"
@@ -29,6 +31,40 @@ Octree2::Octree2() {
   glBindVertexArray(vao);
   glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);
 
+  glGenBuffers(1, &positions_vbo);
+  glGenBuffers(1, &instance_vbo);
+  glGenVertexArrays(1, &boxProgram_vao);
+  glBindVertexArray(boxProgram_vao);
+  glEnableVertexAttribArray(Shaders::boxProgram->position_id);
+  glEnableVertexAttribArray(Shaders::boxProgram->offset_id);
+  glEnableVertexAttribArray(Shaders::boxProgram->scale_id);
+  glEnableVertexAttribArray(Shaders::boxProgram->color_id);
+  assert (glGetError() == GL_NO_ERROR);
+  float points[] = {
+    -.5, -.5, -.5,  -.5, -.5, +.5,
+    +.5, -.5, +.5,  +.5, -.5, -.5,
+    -.5, +.5, -.5,  -.5, +.5, +.5,
+    +.5, +.5, +.5,  +.5, +.5, -.5,
+  };
+  unsigned char indices[] = {
+    0, 1, 1, 2, 2, 3, 3, 0,
+    0, 4, 1, 5, 2, 6, 3, 7,
+    4, 5, 5, 6, 6, 7, 7, 4,
+  };
+  glBindBuffer(GL_ARRAY_BUFFER, positions_vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, position_indices_vbo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  glVertexAttribPointer(Shaders::boxProgram->position_id, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+  glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+  glVertexAttribPointer(Shaders::boxProgram->offset_id, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), 0);
+  glVertexAttribPointer(Shaders::boxProgram->scale_id, 1, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3 * sizeof(float)));
+  glVertexAttribPointer(Shaders::boxProgram->color_id, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(4 * sizeof(float)));
+  glVertexAttribDivisor(Shaders::boxProgram->offset_id, 1);
+  glVertexAttribDivisor(Shaders::boxProgram->scale_id, 1);
+  glVertexAttribDivisor(Shaders::boxProgram->color_id, 1);
+  glBindVertexArray(0);
+  assert(glGetError() == GL_NO_ERROR);
   // Set up indices
   numIndices = 0;
 }
@@ -138,6 +174,11 @@ void Octree2::build(const PolyLines& polyLines,
   octree.clear();
 
   const vector<vector<float2>>& polygons = polyLines.getPolygons();
+  lines = polyLines.getLines();
+  for (int i = 0; i < lines.size(); ++i) {
+    if (lines[i].size() == 0)
+      polyLines.getLines();
+  }
   if (polygons.empty()) {
     buildOctVertices();
     return;
@@ -197,9 +238,6 @@ void Octree2::build(const PolyLines& polyLines,
   // todo: setup vertices on GPU for rendering
   buildOctVertices();
   
-  for (unsigned int i = 0; i < qpoints.size() - 1; i++) {
-    lines.push_back({ i, i + 1 });
-  }
   //------------------
   // Cleanup OpenCL
   //------------------
@@ -552,7 +590,7 @@ void Octree2::buildOctVertices() {
   vertices.push_back(toVec3(oct2Obj(make_int2(0, 0))));
 
   if (!octree.empty()) {
-    drawNode(octree[0], 0, make_intn(0), resln.width);
+    drawNodes();
   }
 
   glm::vec3* drawVertices = new glm::vec3[vertices.size()];
@@ -580,76 +618,19 @@ void Octree2::buildOctVertices() {
   }
 }
 
-// length is the length of the parent
-void Octree2::drawNode(
-    const OctNode& parent, const int parent_idx,
-     const intn origin, const int length) {
-
-  for (int i = 0; i < 4; ++i) {
-    intn o = origin;
-    if (i % 2 == 1)
-      o += make_intn(length/2, 0, 0);
-    if (i / 2 == 1)
-      o += make_intn(0, length/2, 0);
-    if (!::is_leaf(&parent, i)) {
-      drawNode(octree[parent[i]], parent[i], o, length/2);
-    } else {
-      // if (&parent == fnode.get_parent() && i == fnode.get_octant()) {
-      //   // glLineWidth(3);
-      //   // glColor3d(0.5, 0, 0.5);
-      //   // glSquare(oct2Obj(o), oct2Obj(length/2));
-      // }
-//      if (cell_intersections[parent_idx].is_multi(i)) {
-//        // glLineWidth(5);
-//        // glColor3d(1, 0, 0);
-//      } else {
-//        // glLineWidth(1);
-//        // glColor3dv(octree_color.s);
-//      }
-      
-      // glSquare(oct2Obj(o), oct2Obj(length/2));
-      // if (show_vertex_ids) {
-      //   stringstream ss;
-      //   // ss << o;
-      //   ss << parent_idx << "/" << i << " -- " << o;
-      //   // ss << o << " " << w << " " << parent_idx << " " << i << " -1";
-      //   BitmapString(ss.str(), Oct2Obj(o), 1, 3);
-      // }
-    }
-  }
-  // Vertical line
-  vertices.push_back(toVec3(oct2Obj(origin+make_intn(length/2, 0))));
-  vertices.push_back(toVec3(oct2Obj(origin+make_intn(length/2, length))));
-  // Horizontal line
-  vertices.push_back(toVec3(oct2Obj(origin+make_intn(0, length/2))));
-  vertices.push_back(toVec3(oct2Obj(origin+make_intn(length, length/2))));
+void Octree2::drawNodes() {
+  Shaders::boxProgram->use();
+  glBindVertexArray(boxProgram_vao);
+  glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * instances.size(), instances.data(), GL_STREAM_DRAW);
+  glm::mat4 identity(1.0);
+  glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, glm::value_ptr(identity));
+  glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
+  assert(glGetError() == GL_NO_ERROR);
+  glLineWidth(3.0);
+  glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, instances.size());
+  glBindVertexArray(0);
 }
-
-// void OctViewer2::DrawOctree() const {
-//   // cout << "DrawOctree " << octree.size() << endl;
-
-//   glLineWidth(1.0);
-//   glColor3dv(octree_color.s);
-
-//   if (!octree.empty()) {
-//     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-//     DrawNode(octree[0], 0, make_intn(0), resln.width);
-//     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-//   }
-
-//   // // Draw intersections
-//   // glColor3f(0.7, 0.0, 0.7);
-//   // for (const intn& i : intersections) {
-//   //   glSquareCentered(Oct2Obj(i), Win2Obj(7));
-//   // }
-
-//   // // Draw line segment
-//   // glColor3f(0.7, 0.0, 0.7);
-//   // glBegin(GL_LINES);
-//   // glVertex3fv(Oct2Obj(seg_a).s);
-//   // glVertex3fv(Oct2Obj(seg_b).s);
-//   // glEnd();
-// }
 
 void Octree2::render(LinesProgram* program) {
   using namespace std;
@@ -678,31 +659,35 @@ void Octree2::render(LinesProgram* program) {
   print_error("Octree2::render 1");
 }
 
-void Octree2::renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength) {
+void Octree2::addNodeToRender(BigUnsigned lcp, int lcpLength, float colorStrength) {
   using namespace std;
+  //Some special cases.
   if (octree.size() == 0) return;
+  if (lcpLength == resln.mbits) return;
+
+  //Helpful information
   float width = bb.max_size();
   float2 center = bb.min() + make_float2(width / 2.0, width / 2.0);
-  vector<int> indexes;
-  BigUnsigned mask;
-  BigUnsigned result;
-  int totalBits = lcpLength / DIM;// (lcpLength + DIM - 1) / DIM;
+  int numLevels = lcpLength / DIM;
   int isOdd = (lcpLength & 1 == 1) ? 1 : 0;
-  
-  //Add child indexes to list
-  for (int i = totalBits - 1; i >= 0 ; --i) {
-    initBlkBU(&mask, 3);
-    shiftBULeft(&mask, &mask, i * DIM + isOdd);
-    andBU(&result, &mask, &lcp);
-    shiftBURight(&result, &result, i*DIM + isOdd);
-    indexes.push_back(result.blk[0]);
-  }
+  int indx = 0;
 
   //calculate width and offset by itterating through the tree
-  for (int i = 0; i < indexes.size(); ++i) {
+  for (int i = 0; i < numLevels; ++i) {
+    //Get index
+    if (lcp.len != 0) {
+      BigUnsigned mask;
+      BigUnsigned result;
+      int shiftAmount = (numLevels - i - 1) * DIM + isOdd;
+      initBlkBU(&mask, ((DIM == 2) ? 3 : 7));
+      shiftBULeft(&mask, &mask, shiftAmount);
+      andBU(&result, &mask, &lcp);
+      shiftBURight(&result, &result, shiftAmount);
+      indx = result.blk[0];
+    }
+
     width /= 2.0;
-    //assert(octNodeIndex != -1);
-    switch (indexes[i]) {
+    switch (indx) {
     case 0:
       center += make_float2(-width / 2.0, -width / 2.0);
       break;
@@ -715,48 +700,112 @@ void Octree2::renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength) 
     case 3:
       center += make_float2(width / 2.0, width / 2.0);
       break;
-    default:
-      cout << "Invalid lcp, can't render internal node." << endl;
-      assert(false);
     }
   }
   
-  const int n = 4;
-  glm::vec3 drawVertices[n];
-  drawVertices[0] = glm::vec3(center.x - width / 2.0, center.y - width / 2.0, 0);
-  drawVertices[1] = glm::vec3(center.x - width / 2.0, center.y + width / 2.0, 0);
-  drawVertices[2] = glm::vec3(center.x + width / 2.0, center.y + width / 2.0, 0);
-  drawVertices[3] = glm::vec3(center.x + width / 2.0, center.y - width / 2.0, 0);
-
-  glBindVertexArray(vao);
-  glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, n*sizeof(glm::vec3), drawVertices);
-
-  glVertexAttribPointer(
-    program->getVertexLoc(), 3, GL_FLOAT, GL_FALSE, 0, NULL);
-  glEnableVertexAttribArray(program->getVertexLoc());
-
-  program->setColor(make_float3(1.0, 0.0, 0.0));
-
-  glLineWidth(4.0);
-  glDrawArrays(GL_LINE_LOOP, 0, 4);
-
-  print_error("Octree2::render 1");
+  instances.push_back({
+    center.x, center.y, 0.0,
+    width,
+    colorStrength, 0.0, 0.0,
+  });
 }
 
-void Octree2::renderBoundingBox(LinesProgram* program) {
-  vector<BigUnsigned> lcps;
-  vector<unsigned int> lcp_lengths;
-  for (int i = 0; i < 1; ++i) {
-    BigUnsigned first;
-    BigUnsigned second;
-    BigUnsigned lcp;
+int Octree2::getNode(BigUnsigned lcp, int lcpLength) {
+  using namespace std;
+  if (octree.size() == 0) return - 1;
+  
+  BigUnsigned mask;
+  BigUnsigned result;
+  int numLevels = lcpLength / DIM;
+  int isOdd = (lcpLength & 1 == 1) ? 1 : 0;
+  int currentIndex = 0;
+  int parentIndex = 0;
+  int childIndex = 0;
+  OctNode *node = &octree[currentIndex];
+  for (int i = 0; i < numLevels; ++i) {
+    //Get child index
+    if (lcp.len != 0) {
+      BigUnsigned mask;
+      BigUnsigned result;
+      int shiftAmount = (numLevels - i - 1) * DIM + isOdd;
+      initBlkBU(&mask, ((DIM == 2) ? 3 : 7));
+      shiftBULeft(&mask, &mask, shiftAmount);
+      andBU(&result, &mask, &lcp);
+      shiftBURight(&result, &result, shiftAmount);
+      childIndex = result.blk[0];
+    }
 
-    xyz2z(&first, qpoints[lines[i].firstIndex], resln.bits);
-    xyz2z(&second, qpoints[lines[i].secondIndex], resln.bits);
-    lcp_lengths.push_back(compute_lcp_length(&first, &second, resln.mbits));
-    compute_lcp(&lcp, &first, lcp_lengths[i], resln.mbits);
-    lcps.push_back(lcp);
-    renderNode(program, lcps[i], lcp_lengths[i]);
+    currentIndex = node->children[childIndex];
+    if (currentIndex == -1) {
+      //The current LCP sits within a leaf node.
+      return parentIndex;
+    }
+    node = &octree[currentIndex];
+    parentIndex = currentIndex;
   }
+  //The LCP refers to an internal node.
+  return currentIndex;
+}
+
+//Used purely for testing. 
+void Octree2::getZPoints(vector<BigUnsigned> &zpoints, const std::vector<intn> &qpoints) {
+  zpoints.clear();
+  zpoints.resize(qpoints.size());
+  for (int i = 0; i < qpoints.size(); ++i) {
+    xyz2z(&zpoints[i], qpoints[i], resln.bits);
+  }
+}
+
+void Octree2::renderBoundingBox(ShaderProgram* program) {
+  vector<BigUnsigned> zpoints;
+  getZPoints(zpoints, qpoints);
+
+  Timer timer("test");
+  instances.clear();
+  vector<unsigned int> counts(octree.size(), 0);
+
+  for (int i = 0; i < lines.size(); ++i) {
+    for (int j = 0; j < lines[i].size(); ++j) {
+      BigUnsigned first;
+      BigUnsigned second;
+      BigUnsigned lcp;
+      unsigned int lcp_length;
+
+      first = zpoints[lines[i][j].firstIndex];
+      second = zpoints[lines[i][j].secondIndex];
+      
+      lcp_length = compute_lcp_length(&first, &second, resln.mbits);
+      compute_lcp(&lcp, &first, lcp_length, resln.mbits);
+      
+      int nodeIndex = getNode(lcp, lcp_length);
+      counts[nodeIndex]++;
+
+      addNodeToRender(lcp, lcp_length, 100 * (float)counts[nodeIndex] / (float)octree.size());
+    }
+  }
+  vector<unsigned int> scannedCounts(counts.size());
+  Kernels::StreamScan_s(counts.data(), scannedCounts.data(), counts.size());
+  vector<unsigned int> OctNodeLineIndexes(scannedCounts[scannedCounts.size() - 1]);
+
+  for (int i = 0; i < lines.size(); ++i) {
+    for (int j = 0; j < lines[i].size(); ++j) {
+      BigUnsigned first;
+      BigUnsigned second;
+      BigUnsigned lcp;
+      unsigned int lcp_length;
+
+      first = zpoints[lines[i][j].firstIndex];
+      second = zpoints[lines[i][j].secondIndex];
+
+      lcp_length = compute_lcp_length(&first, &second, resln.mbits);
+      compute_lcp(&lcp, &first, lcp_length, resln.mbits);
+
+      int nodeIndex = getNode(lcp, lcp_length);
+      counts[nodeIndex]++;
+
+      addNodeToRender(lcp, lcp_length, 10 * (float)counts[nodeIndex] / (float)octree.size());
+    }
+  }
+
+  drawNodes();
 }

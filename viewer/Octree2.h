@@ -3,6 +3,7 @@
 
 #include "clfw.hpp"
 #include "LinesProgram.h"
+#include "Shaders.hpp"
 #include "Polylines.h"
 #include "gl_utils.h"
 #include "CellIntersections.h"
@@ -20,7 +21,7 @@ class Octree2 {
   std::vector<floatn> intersections;
   std::vector<floatn> karras_points;
   std::vector<intn> qpoints;
-  std::vector<Line> lines;
+  std::vector<vector<Line>> lines;
   std::vector<intn> extra_qpoints;
   BoundingBox<float2> bb;
   vector<floatn> _origins;
@@ -30,10 +31,19 @@ class Octree2 {
   GLuint drawIndices[100];
   int numIndices;
   std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> offsets;
+  std::vector<glm::vec3> colors;
+  std::vector<float> scales;
+
   // int numVertices;
   GLuint drawVertices_vbo;
   GLuint drawIndices_vbo;
   GLuint vao;
+
+  GLuint boxProgram_vao;
+  GLuint positions_vbo;
+  GLuint position_indices_vbo;
+  GLuint instance_vbo;
 
  public:
   Octree2();
@@ -43,8 +53,17 @@ class Octree2 {
              const BoundingBox<float2>* customBB);
   void build(const PolyLines& lines, const BoundingBox<float2>* customBB = 0);
   void render(LinesProgram* program);
-  void renderNode(LinesProgram* program, BigUnsigned lcp, int lcpLength);
-  void renderBoundingBox(LinesProgram* program);
+  typedef struct {
+    float offset[3];
+    float scale;
+    float color[3];
+  } Instance;
+  std::vector<Instance> instances;
+  void renderNodes(ShaderProgram *program);
+  void addNodeToRender(BigUnsigned lcp, int lcpLength, float colorStrength = 0.0);
+  void renderBoundingBox(ShaderProgram* program);
+  void getZPoints(vector<BigUnsigned> &zpoints, const std::vector<intn> &qpoints);
+  int getNode(BigUnsigned lcp, int lcpLength);
 
   void set(std::vector<OctNode>& octree_, const BoundingBox<float2>& bb_) {
     octree = octree_;
@@ -62,9 +81,7 @@ class Octree2 {
   void FindMultiCells(const PolyLines& lines);
 
   void buildOctVertices();
-  void drawNode(
-    const OctNode& parent, const int parent_idx,
-    const intn origin, const int length);
+  void drawNodes();
 
 
   std::vector<OctreeUtils::CellIntersection> Walk(

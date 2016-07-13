@@ -18,6 +18,7 @@
 
 #include "../opencl/vec.h"
 #include "./Polylines.h"
+#include "./opengl/Shaders.hpp"
 #include "Line.h"
 #include "./LinesProgram.h"
 #include "./Octree2.h"
@@ -49,7 +50,7 @@ void refresh() {
   if (options.showOctree)
     octree->render(program);
   
-  octree->renderBoundingBox(program);
+  octree->renderBoundingBox(Shaders::boxProgram);
   lines->render(program);
   glfwSwapBuffers(g_window);
 }
@@ -163,6 +164,7 @@ int main(int argc, char** argv) {
   checkError(CLFW::Initialize(false, true));
 
   InitializeOpenGL();
+  Shaders::create();
 
   octree = new Octree2();
   octree->processArgs(argc, argv);

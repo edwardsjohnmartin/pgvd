@@ -249,7 +249,7 @@ bool is_programme_valid (GLuint sp) {
   return true;
 }
 
-bool create_programme (GLuint vert, GLuint frag, GLuint* programme) {
+bool create_program (GLuint vert, GLuint frag, GLuint* programme) {
   *programme = glCreateProgram ();
   gl_log (
       "created programme %u. attaching shaders %u and %u...\n",
@@ -278,14 +278,14 @@ bool create_programme (GLuint vert, GLuint frag, GLuint* programme) {
   return true;
 }
 
-GLuint create_programme_from_files (
+GLuint create_program_from_files (
     const char* vert_file_name, const char* frag_file_name
                                     ) {
-  GLuint vert, frag, programme;
+  GLuint vert, frag, program;
   assert (create_shader (vert_file_name, &vert, GL_VERTEX_SHADER));
   assert (create_shader (frag_file_name, &frag, GL_FRAGMENT_SHADER));
-  assert (create_programme (vert, frag, &programme));
-  return programme;
+  assert (create_program (vert, frag, &program));
+  return program;
 }
 
 void clear_errors() {

@@ -66,6 +66,7 @@ SET(INCL
     ./opencl/CLWrapper
     ./opencl/Buffers
     ./opencl/Kernels
+    ./opengl
     ./tests/
 )
 INCLUDE_DIRECTORIES(${INCL})
@@ -94,6 +95,8 @@ SET(SRCS
 
   ./opencl/Geom.cpp
   ./opencl/Kernels.cpp
+  ./opengl/ShaderProgram.cpp
+  ./opengl/Shaders.cpp
 
   #headers
   ./BoundingBox.h
@@ -122,10 +125,12 @@ SET(SRCS
   ./viewer/Octree2.h
   
   ./opencl/Kernels.h
+  ./opengl/ShaderProgram.hpp
+  ./opengl/Shaders.hpp
 )
 
 SET(UNIT_TEST_SOURCES
-    ./tests/catch.hpp
+  ./tests/catch.hpp
 	./opencl/Kernels.cpp
 
 	./C/BuildOctree.c

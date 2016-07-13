@@ -37,10 +37,8 @@ class LinesProgram {
       vshaderfn = "./opengl/shaders/lines.vert";
       fshaderfn = "./opengl/shaders/lines.frag";
     }
-    assert(parse_file_into_str(
-        vshaderfn.c_str(), vertex_shader, 1024 * 256));
-    assert(parse_file_into_str(
-        fshaderfn.c_str(), fragment_shader, 1024 * 256));
+    assert(parse_file_into_str( vshaderfn.c_str(), vertex_shader, 1024 * 256));
+    assert(parse_file_into_str( fshaderfn.c_str(), fragment_shader, 1024 * 256));
 	
     print_error("-1");
     GLuint vs = glCreateShader (GL_VERTEX_SHADER);
