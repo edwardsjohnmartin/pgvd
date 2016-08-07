@@ -85,7 +85,7 @@ SET(SRCS
 
   ./Karras.cpp
 
-  ./OctreeUtils.cpp
+  #./OctreeUtils.cpp
 
   ./C/BuildOctree.c
   ./C/BigUnsigned.c
@@ -103,7 +103,7 @@ SET(SRCS
   ./CellIntersections.h
   ./Karras.h
   ./OctCell.h
-  ./OctreeUtils.h
+  #./OctreeUtils.h
   ./Options.h
   ./Resln.h
   ./timer.h
@@ -193,6 +193,9 @@ if(BUILD_2D_PGVD)
   add_custom_command(TARGET 2D_PGVD PRE_BUILD
                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
                        		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
 endif(BUILD_2D_PGVD)
 
 option(BUILD_2D_PGVD_UNIT_TESTS "2D PGVD Unit Tests" ON)
@@ -215,6 +218,9 @@ if(BUILD_2D_PGVD_UNIT_TESTS)
   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
                     COMMAND ${CMAKE_COMMAND} -E copy_directory
                           ${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opengl/shaders)
+  add_custom_command(TARGET 2D_PGVD PRE_BUILD
+                  COMMAND ${CMAKE_COMMAND} -E copy_directory
+                        ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
 endif(BUILD_2D_PGVD_UNIT_TESTS)
 
 option(BUILD_TEST2 "Build 2D TEST" OFF)
