@@ -62,7 +62,7 @@ public:
   static bool IsNotInitialized();
 
   /* Initializers */
-  static cl_int Initialize(bool _verbose = false, bool queryMode = false);
+  static cl_int Initialize(bool _verbose = false, bool queryMode = false, unsigned int numQueues = 1);
 
   /* Accessors */
   static cl_int get(std::vector<cl::Platform> &Platforms);

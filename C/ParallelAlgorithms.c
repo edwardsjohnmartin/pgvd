@@ -1,7 +1,9 @@
 #ifdef __OPENCL_VERSION__
 #include "opencl\C\ParallelAlgorithms.h"
+#include "opencl\C\dim.h"
 #else
 #include "ParallelAlgorithms.h"
+#include "dim.h"
 #endif
 
 #ifndef __OPENCL_VERSION__
@@ -49,6 +51,19 @@ void UniquePredicate( __global BigUnsigned *inputBuffer, __global unsigned int *
   }
 }
 
+void LinePredicate(__global Line *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, const int gid) {
+  Line line = inputBuffer[gid];
+  int shift = line.lcpLength%DIM;
+  int length = line.lcpLength - shift;
+  if (length < index)
+    predicateBuffer[gid] = !comparedWith;
+  else {
+    BigUnsigned self = inputBuffer[gid].lcp;
+    unsigned int x = (getBUBit(&self, index + shift) != comparedWith);
+    predicateBuffer[gid] = x;
+  }
+}
+
 void StreamScan_Init(__global unsigned int* buffer, __local unsigned int* localBuffer, __local unsigned int* scratch, const int gid, const int lid)
 {
   localBuffer[lid] = scratch[lid] = buffer[gid];
@@ -88,6 +103,27 @@ void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultB
 #endif
   resultBuffer[d] = inputBuffer[gid];
 }
+
+//result buffer MUST be initialized as 0!!!
+void LineCompact(__global Line *inputBuffer, __global Line *resultBuffer, __global unsigned int *lPredicateBuffer,
+  __global unsigned int *leftBuffer, unsigned int size, const int gid)
+{
+  int a = leftBuffer[gid];
+  int b = leftBuffer[size - 2];
+  int c = lPredicateBuffer[gid];
+  int e = lPredicateBuffer[size - 1];
+
+  //Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
+  int t = gid - a + (e + b);
+  int d = (!c) ? t : a - 1;
+
+  //This really suffers from poor coalescing
+#ifdef __OPENCL_VERSION__
+  barrier(CLK_GLOBAL_MEM_FENCE);
+#endif
+  resultBuffer[d] = inputBuffer[gid];
+}
+
 
 void BUSingleCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global unsigned int *predicateBuffer, __global unsigned int *addressBuffer, const int gid)
 {

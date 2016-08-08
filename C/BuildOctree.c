@@ -66,66 +66,56 @@ int quadrantInLcp(const BrtNode* brt_node, const int i) {
 /*
   Binary radix to Octree
 */
-
-void brt2octree_end(const int brt_i, __global BrtNode* I, __global OctNode* octree, __global unsigned int* local_splits, __global unsigned int* prefix_sums, const int n, const int octree_size) {
-
-}
-void brt2octree( const int brt_i, __global BrtNode* I, __global volatile OctNode* octree, __global unsigned int* local_splits, __global unsigned int* prefix_sums, const int n, const int octree_size) {
-  if (local_splits[brt_i] > 0) {
-    // m = number of local splits
-    const int numSplits = local_splits[brt_i];
-    BrtNode brt_node;
-    brt_node = I[brt_i];
+//gid is between 0 and the octree size excluding 0
+void brt2octree( const int gid, __global BrtNode* I, __global volatile OctNode* octree, __global unsigned int* local_splits, __global unsigned int* prefix_sums, const int n, const int octree_size) {
+  //If I have a local split
+  if (local_splits[gid] > 0) {
+    const int mySplits = local_splits[gid];
+    BrtNode myBRTNode = I[gid];
     
-    // Current octree node index
-    int currentNode;
-    if (brt_i == 0) {
-      currentNode = 0;
-    }
-    else {
-      currentNode = prefix_sums[brt_i-1]; //current node might be race condition. prefix sums are not unique.
-    }
-    for (int i = 0; i < numSplits -1; ++i) {
-      const int oct_parent = currentNode+1; //oct_parent is not guaranteed to be unique!
-      const int onode = quadrantInLcp(&brt_node, i);
-      //set_child(&octree[oct_parent], onode, currentNode);
-//No race conditions up to this point
-      octree[oct_parent].children[onode] = currentNode;  //Children modified! can't be read from w.o. race condition.
-      if (currentNode > -1) {
-        octree[oct_parent].leaf &= ~leaf_masks[onode]; //leaf modified! can't be read from w.o. race condition.
-      }
-      else {
-        octree[oct_parent].leaf |= leaf_masks[onode];
-      }
-      currentNode = oct_parent;
-    }
-    int brt_parent = I[brt_i].parent;
-    while (local_splits[brt_parent] == 0) {
-      brt_parent = I[brt_parent].parent;
-    }
-    int oct_parent;
-    if (brt_parent == 0) {
-      oct_parent = 0;
-    }
-    else {
-      oct_parent = prefix_sums[brt_parent-1];
+    // Current octree node index initializes as right before me
+    int currentOctIndx = prefix_sums[gid-1];
+    int quadrant;
+
+    //For each of my splits, initialize an octnode
+    for (int i = 0; i < mySplits -1; ++i) {
+      currentOctIndx++;
+      quadrant = quadrantInLcp(&myBRTNode, i);
+      octree[currentOctIndx].children[quadrant] = currentOctIndx - 1;
+      octree[currentOctIndx - 1].parent = currentOctIndx;
+      octree[currentOctIndx - 1].level = myBRTNode.lcp_length / DIM;
+      if (currentOctIndx > -1) 
+        octree[currentOctIndx].leaf &= ~leaf_masks[quadrant];
+      else 
+        octree[currentOctIndx].leaf |= leaf_masks[quadrant];
     }
 
-    //set_child(&octree[oct_parent], quadrantInLcp(brt_node, m-1), currentNode);
-    int temp = quadrantInLcp(&brt_node, numSplits - 1);
-    octree[oct_parent].children[temp] = currentNode;
-    if (currentNode > -1) {
+    //Find my first ancestor containing a split...
+    int parentBRTIndx = I[gid].parent;
+    while (local_splits[parentBRTIndx] == 0) 
+      parentBRTIndx = I[parentBRTIndx].parent;
+    
+    //The octparent is either root or the node index before the parent BRT node
+    int parentOctIndx = (parentBRTIndx == 0) ? 0 : prefix_sums[parentBRTIndx - 1];
+
+    //the parent octnode's child at my quadrant is me.
+    quadrant = quadrantInLcp(&myBRTNode, mySplits - 1);
+    octree[parentOctIndx].children[quadrant] = currentOctIndx;
+    octree[currentOctIndx].parent = parentOctIndx;
+    octree[currentOctIndx].level = myBRTNode.lcp_length / DIM;
+
+    if (currentOctIndx > -1) {
       #ifndef  __OPENCL_VERSION__
-        octree[oct_parent].leaf &= ~leaf_masks[temp];
+        octree[parentOctIndx].leaf &= ~leaf_masks[quadrant];
       #else
-        atomic_and(&octree[oct_parent].leaf, ~leaf_masks[temp]);
+        atomic_and(&octree[parentOctIndx].leaf, ~leaf_masks[quadrant]);
       #endif
     }
     else {
       #ifndef  __OPENCL_VERSION__
-        octree[oct_parent].leaf |= leaf_masks[temp];
+        octree[parentOctIndx].leaf |= leaf_masks[quadrant];
       #else
-        atomic_or(&octree[oct_parent].leaf, leaf_masks[temp]);
+        atomic_or(&octree[parentOctIndx].leaf, leaf_masks[quadrant]);
       #endif
     }
   }

@@ -48,9 +48,8 @@ bool zoomMode = false;
 void refresh() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   if (options.showOctree)
-    octree->render(program);
+    octree->draw();
   
-  octree->renderBoundingBox(Shaders::boxProgram);
   lines->render(program);
   glfwSwapBuffers(g_window);
 }
@@ -161,7 +160,7 @@ void checkError(cl_int error) {
 int main(int argc, char** argv) {
   using namespace std;
 
-  checkError(CLFW::Initialize(false, true));
+  checkError(CLFW::Initialize(true, true, 2));
 
   InitializeOpenGL();
   Shaders::create();
@@ -169,9 +168,9 @@ int main(int argc, char** argv) {
   octree = new Octree2();
   octree->processArgs(argc, argv);
   lines = new PolyLines();
-  lines->newLine({ 0.0f, 0.0f });
-  lines->addPoint({ 0.0f, 0.0f});
-  point1 = point2 = make_float2(0.0f, 0.0f);
+  //lines->newLine({ 0.0f, 0.0f });
+  //lines->addPoint({ 0.1f, 0.1f});
+  //point1 = point2 = make_float2(0.0f, 0.0f);
 
   program = new LinesProgram();
 

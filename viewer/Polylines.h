@@ -109,22 +109,21 @@ class PolyLines {
     return ret;
   }
 
-  std::vector<std::vector<Line>> getLines() const {
+  std::vector<Line> getLines() const {
     using namespace std;
-    vector<vector<Line>> lines;
+    vector<Line> lines;
     int first = 0;
     for (int i = 0; i < lasts.size(); ++i) {
       const int last = lasts[i];
       if (last - first < 2) continue;
-      vector<Line> currentLines;
       for (int j = first; j < last-1; ++j) {
         Line line;
         line.firstIndex = j;
         line.secondIndex = j + 1;
-        currentLines.push_back(line);
+        line.color = i;
+        lines.push_back(line);
       }
       first = last;
-      lines.push_back(currentLines);
     }
     return lines;
   }

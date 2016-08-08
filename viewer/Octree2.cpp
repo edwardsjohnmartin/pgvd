@@ -12,7 +12,7 @@ extern "C" {
 #include "BuildBRT.h"
 }
 
-OctCell fnode;
+//OctCell fnode;
 
 Octree2::Octree2() {
   const int n = 4;
@@ -172,18 +172,13 @@ void Octree2::build(const PolyLines& polyLines,
   bb = BoundingBox<float2>();
   extra_qpoints.clear();
   octree.clear();
+  instances.clear();
 
   const vector<vector<float2>>& polygons = polyLines.getPolygons();
   lines = polyLines.getLines();
-  for (int i = 0; i < lines.size(); ++i) {
-    if (lines[i].size() == 0)
-      polyLines.getLines();
-  }
-  if (polygons.empty()) {
-    buildOctVertices();
-    return;
-  }
 
+  if (polygons.empty()) return;
+  
   // Get all vertices into a 1D array (karras_points).
   for (int i = 0; i < polygons.size(); ++i) {
     const vector<float2>& polygon = polygons[i];
@@ -234,18 +229,11 @@ void Octree2::build(const PolyLines& polyLines,
     }
   }
   //cout << "Number of multi-intersection cells: " << count << endl;
-
-  // todo: setup vertices on GPU for rendering
-  buildOctVertices();
   
-  //------------------
-  // Cleanup OpenCL
-  //------------------
-// #ifdef __OPEN_CL_SUPPORT__
-//   if (options.gpu) {
-//     OpenCLCleanup();
-//   }
-// #endif
+  addOctreeNodes();
+  if (lines.size() > 4) {
+    findAmbiguousCells();
+  }
 }
 
 float2 Octree2::obj2Oct(const float2& v) const {
@@ -291,61 +279,61 @@ void Octree2::Find(const float2& p) {
   // glutPostRedisplay();
 }
 
-// Cell walk visitor
-// typedef void (*cwv)(Karras::OctCell, const intn& a, const intn& b,
-typedef void (*cwv)(OctCell, const floatn& a, const floatn& b,
-    const vector<OctNode>& octree, const Resln& resln, void* data);
+//// Cell walk visitor
+//// typedef void (*cwv)(Karras::OctCell, const intn& a, const intn& b,
+//typedef void (*cwv)(OctCell, const floatn& a, const floatn& b,
+//    const vector<OctNode>& octree, const Resln& resln, void* data);
 
 // Given a segment a-b, visit each octree cell that it intersects.
-void CellWalk(
-    const floatn& a, const floatn& b,
-    const vector<OctNode>& octree, const Resln& resln,
-    cwv v, void* data) {
-  using namespace Karras;
-
-  int dir[DIM];
-  for (int i = 0; i < DIM; ++i) {
-    if (b.s[i] > a.s[i]) dir[i] = 1;
-    else if (b.s[i] < a.s[i]) dir[i] = -1;
-    else dir[i] = 0;
-  }
-  OctreeUtils::CellIntersection cur(0, a);
-  const OctCell bcell = OctreeUtils::FindLeaf(convert_intn(b),
-                                                 octree, resln);
-  vector<OctreeUtils::CellIntersection> local_intersections;
-  vector<OctreeUtils::CellIntersection> all_intersections;
-  bool done = false;
-  int count = 0;
-  OctCell cell =
-      OctreeUtils::FindLeaf(convert_intn(cur.p), octree, resln);
-  do {
-    ++count;
-    if (count > 10000)
-      throw logic_error("Infinite loop");
-    v(cell, a, b, octree, resln, data);
-
-    const vector<OctreeUtils::CellIntersection> local_intersections =
-        OctreeUtils::FindIntersections(a, b, cell, /*octree,*/ resln);
-    for (const OctreeUtils::CellIntersection& i : local_intersections) {
-      if (i.t > cur.t) {
-        cur = i;
-      }
-    }
-    for (int i = 0; i < DIM; ++i) {
-      const int end = cell.get_origin().s[i];
-      if (cur.p.s[i] == end && cur.p.s[i] != 0 && dir[i] == -1) {
-        --cur.p.s[i];
-      }
-    }
-
-    OctCell new_cell = OctreeUtils::FindLeaf(
-        convert_intn(cur.p), octree, resln);
-    done = local_intersections.empty() ||
-        (cell.get_origin() == bcell.get_origin()) ||
-        (new_cell.get_origin() == cell.get_origin());
-    cell = new_cell;
-  } while (!done);
-}
+//void CellWalk(
+//    const floatn& a, const floatn& b,
+//    const vector<OctNode>& octree, const Resln& resln,
+//    cwv v, void* data) {
+//  using namespace Karras;
+//
+//  int dir[DIM];
+//  for (int i = 0; i < DIM; ++i) {
+//    if (b.s[i] > a.s[i]) dir[i] = 1;
+//    else if (b.s[i] < a.s[i]) dir[i] = -1;
+//    else dir[i] = 0;
+//  }
+//  OctreeUtils::CellIntersection cur(0, a);
+//  const OctCell bcell = OctreeUtils::FindLeaf(convert_intn(b),
+//                                                 octree, resln);
+//  vector<OctreeUtils::CellIntersection> local_intersections;
+//  vector<OctreeUtils::CellIntersection> all_intersections;
+//  bool done = false;
+//  int count = 0;
+//  OctCell cell =
+//      OctreeUtils::FindLeaf(convert_intn(cur.p), octree, resln);
+//  do {
+//    ++count;
+//    if (count > 10000)
+//      throw logic_error("Infinite loop");
+//    v(cell, a, b, octree, resln, data);
+//
+//    const vector<OctreeUtils::CellIntersection> local_intersections =
+//        OctreeUtils::FindIntersections(a, b, cell, /*octree,*/ resln);
+//    for (const OctreeUtils::CellIntersection& i : local_intersections) {
+//      if (i.t > cur.t) {
+//        cur = i;
+//      }
+//    }
+//    for (int i = 0; i < DIM; ++i) {
+//      const int end = cell.get_origin().s[i];
+//      if (cur.p.s[i] == end && cur.p.s[i] != 0 && dir[i] == -1) {
+//        --cur.p.s[i];
+//      }
+//    }
+//
+//    OctCell new_cell = OctreeUtils::FindLeaf(
+//        convert_intn(cur.p), octree, resln);
+//    done = local_intersections.empty() ||
+//        (cell.get_origin() == bcell.get_origin()) ||
+//        (new_cell.get_origin() == cell.get_origin());
+//    cell = new_cell;
+//  } while (!done);
+//}
 
 struct MCData {
   MCData(vector<CellIntersections>& labels_) : labels(labels_) {}
@@ -374,292 +362,277 @@ void write_cell(const intn& o, const int& w, const string& fn) {
   out.close();
 }
 
-void error_log(OctCell cell, const floatn& a, const floatn& b,
-               const vector<OctNode>& octree, const Resln& resln) {
-  cerr << "a = " << std::fixed << a << endl;
-  cerr << "b = " << std::fixed << b << endl;
-  cerr << "cell = " << cell << endl;
-  //cerr << "resln = " << resln << endl;
-  ofstream out("mccallback.err");
-  //out << cell << " " << a << " " << b << " " << octree << " " << resln << endl;
-  out.close();
-  write_seg(a, b, "data1.dat");
-  const intn o = cell.get_origin();
-  const int w = cell.get_width();
-  write_cell(o, w, "data2.dat");
-  const int w2 = w/2;
-  // Boundary
-  write_cell(o-make_intn(w2, w2), 2*w, "data3.dat");
-}
+//void error_log(OctCell cell, const floatn& a, const floatn& b,
+//               const vector<OctNode>& octree, const Resln& resln) {
+//  cerr << "a = " << std::fixed << a << endl;
+//  cerr << "b = " << std::fixed << b << endl;
+//  cerr << "cell = " << cell << endl;
+//  //cerr << "resln = " << resln << endl;
+//  ofstream out("mccallback.err");
+//  //out << cell << " " << a << " " << b << " " << octree << " " << resln << endl;
+//  out.close();
+//  write_seg(a, b, "data1.dat");
+//  const intn o = cell.get_origin();
+//  const int w = cell.get_width();
+//  write_cell(o, w, "data2.dat");
+//  const int w2 = w/2;
+//  // Boundary
+//  write_cell(o-make_intn(w2, w2), 2*w, "data3.dat");
+//}
 
 inline bool within(const float& a, const float& b, const float& epsilon) {
   return fabs(a-b) < epsilon;
 }
 
-// Multi-cell callback. Finds intersections with the current cell and
-// stores results in data.
-void MCCallback(OctCell cell, const floatn& a, const floatn& b,
-                  const vector<OctNode>& octree, const Resln& resln,
-                  void* data) {
-  // const static float EPSILON = 1e-6;
+//// Multi-cell callback. Finds intersections with the current cell and
+//// stores results in data.
+//void MCCallback(OctCell cell, const floatn& a, const floatn& b,
+//                  const vector<OctNode>& octree, const Resln& resln,
+//                  void* data) {
+//  // const static float EPSILON = 1e-6;
+//
+//  using namespace Karras;
+//  MCData* d = static_cast<MCData*>(data);
+//  const int octant = cell.get_octant();
+//
+//  // // debug
+//  // OctCell test_cell;
+//  // stringstream ss("8796416 6561024 256 22009 3 -1");
+//  // ss >> test_cell;
+//  // if (cell == test_cell || cell == fnode) {
+//  //   cout << "here in MCCallback" << endl;
+//  // }
+//
+//  // Get the intersections between the segment and octree cell.
+//  const vector<OctreeUtils::CellIntersection> intersections =
+//      OctreeUtils::FindIntersections(a, b, cell, /*octree,*/ resln);
+//  if (intersections.size() > 2) {
+//    error_log(cell, a, b, octree, resln);
+//    cerr << "More than 2 intersections with a cell" << endl;
+//    for (const OctreeUtils::CellIntersection& ci : intersections) {
+//      cerr << "  " << ci.p << endl;
+//    }
+//    throw logic_error("More than 2 intersections with a cell");
+//  }
+//  if (intersections.size() == 2) {
+//    FloatSegment seg(intersections[0].p,
+//                  intersections[1].p);
+//    CellIntersections& cell_intersections = d->labels[cell.get_parent_idx()];
+//    cell_intersections.set(octant, d->cur_label, seg);
+//  } else if (intersections.size() == 1) {
+//    // Find which endpoint is in cell
+//    const BoundingBox<intn> bb = cell.bb();
+//    const floatn p = intersections[0].p;
+//    floatn q;
+//    bool degenerate = false;
+//    // if (bb.in_half_open(convert_intn(a), EPSILON)) {
+//    if (bb.in_half_open(convert_intn(a))) {
+//      q = a;
+//    // } else if (bb.in_half_open(convert_intn(b), EPSILON)) {
+//    } else if (bb.in_half_open(convert_intn(b))) {
+//      q = b;
+//    } else if ((within(p.x, bb.min().x, EPSILON) ||
+//                within(p.x, bb.max().x, EPSILON)) &&
+//               (within(p.y, bb.min().y, EPSILON) ||
+//                within(p.y, bb.max().y, EPSILON))) {
+//      degenerate = true;
+//    } else {
+//      degenerate = true;
+//      // error_log(cell, a, b, octree, resln);
+//      // throw logic_error("Only one intersection but neither endpoint is"
+//      //                   " in bounding box");
+//    }
+//    if (!degenerate) {
+//      FloatSegment seg(p, q);
+//      CellIntersections& cell_intersections = d->labels[cell.get_parent_idx()];
+//      cell_intersections.set(octant, d->cur_label, seg);
+//    }
+//  }
+//}
+//
+//void Octree2::FindMultiCells(const PolyLines& lines) {
+//  using namespace Karras;
+//
+//  cell_intersections.clear();
+//  cell_intersections.resize(octree.size(), CellIntersections());
+//  MCData data(cell_intersections);
+//
+//  const vector<vector<float2>>& polygons = lines.getPolygons();;
+//
+//  // For each line segment in each polygon do a cell walk, updating
+//  // the cell_intersections structure.
+//  intersections.clear();
+//  for (int j = 0; j < polygons.size(); ++j) {
+//    const std::vector<float2>& polygon = polygons[j];
+//    data.cur_label = j;
+//    for (int i = 0; i < polygon.size() - 1; ++i) {
+//      const floatn a = obj2Oct(polygon[i]);
+//      const floatn b = obj2Oct(polygon[i+1]);
+//      // Visit each octree cell intersected by segment a-b. The visitor
+//      // is MCCallback.
+//      CellWalk(a, b, octree, resln, MCCallback, &data);
+//      vector<OctreeUtils::CellIntersection> local = Walk(a, b);
+//      for (const OctreeUtils::CellIntersection& ci : local) {
+//        intersections.push_back(ci.p);
+//      }
+//    }
+//  }
+//
+//  // Find points that we want to add in order to run a more effective
+//  // Karras octree construction.
+//  extra_qpoints.clear();
+//  _origins.clear();
+//  _lengths.clear();
+//  for (int i = 0; i < octree.size(); ++i) {
+//    const CellIntersections& intersection = cell_intersections[i];
+//    for (int octant = 0; octant < (1<<DIM); ++octant) {
+//      const int num_labels = intersection.num_labels(octant);
+//      // cout << "cell = " << i << "/" << octant << ": " << num_labels << endl;
+//      // if (intersection.is_multi(octant)) {
+//      //   {
+//      for (int j = 0; j < num_labels; ++j) {
+//      // for (int j = 0; j < 1; ++j) {
+//        for (int k = j+1; k < num_labels; ++k) {
+//        // for (int k = j+1; k < std::min(2, num_labels); ++k) {
+//          // We'll compare segments at j and k.
+//          FloatSegment segs[2] = { intersection.seg(j, octant),
+//                                intersection.seg(k, octant) };
+//          vector<floatn> samples;
+//          vector<floatn> origins;
+//          vector<float> lengths;
+//          if (!Geom::multi_intersection(segs[0], segs[1])) {
+//            try {
+//              if (i == fnode.get_parent_idx() && octant == fnode.get_octant()) {
+//                cout << "here in FitBoxes" << endl;
+//                write_seg(segs[0], "seg0.dat");
+//                write_seg(segs[1], "seg1.dat");
+//              }
+//              Geom::FitBoxes(segs[0], segs[1], 1, &samples, &origins, &lengths);
+//            } catch(logic_error& e) {
+//              cerr << "segments: " << segs[0] << " " << segs[1] << endl;
+//              cerr << "labels: " << intersection.label(0, octant)
+//                   << " " << intersection.label(1, octant) << endl;
+//              write_seg(segs[0], "seg0.dat");
+//              write_seg(segs[1], "seg1.dat");
+//              throw e;
+//            }
+//          }
+//          _origins.insert(_origins.end(), origins.begin(), origins.end());
+//          _lengths.insert(_lengths.end(), lengths.begin(), lengths.end());
+//          for (const floatn& sample : samples) {
+//            extra_qpoints.push_back(convert_intn(sample));
+//          }
+//        }
+//      }
+//    }
+//  }
+//}
 
-  using namespace Karras;
-  MCData* d = static_cast<MCData*>(data);
-  const int octant = cell.get_octant();
+//// void WalkCallback(Karras::OctCell cell, const intn& a, const intn& b,
+//void WalkCallback(OctCell cell, const floatn& a, const floatn& b,
+//                  const vector<OctNode>& octree, const Resln& resln,
+//                  void* data) {
+//  
+//  using namespace Karras;
+//  using OctreeUtils::CellIntersection;
+//  using OctreeUtils::FindIntersections;
+//
+//  vector<CellIntersection>& all_intersections =
+//      *static_cast<vector<CellIntersection>*>(data);
+//
+//  const vector<CellIntersection> local_intersections =
+//      FindIntersections(a, b, cell, /*octree,*/ resln);
+//  for (const CellIntersection& i : local_intersections) {
+//    // const intn p = i.p;
+//    all_intersections.push_back(i);
+//  }
+//}
+//
+//vector<OctreeUtils::CellIntersection> Octree2::Walk(
+//    // const intn& a, const intn& b) {
+//    const floatn& a, const floatn& b) {
+//  using namespace Karras;
+//
+//  vector<OctreeUtils::CellIntersection> all_intersections;
+//  CellWalk(a, b, octree, resln, WalkCallback, &all_intersections);
+//
+//  return all_intersections;
+//}
 
-  // // debug
-  // OctCell test_cell;
-  // stringstream ss("8796416 6561024 256 22009 3 -1");
-  // ss >> test_cell;
-  // if (cell == test_cell || cell == fnode) {
-  //   cout << "here in MCCallback" << endl;
-  // }
-
-  // Get the intersections between the segment and octree cell.
-  const vector<OctreeUtils::CellIntersection> intersections =
-      OctreeUtils::FindIntersections(a, b, cell, /*octree,*/ resln);
-  if (intersections.size() > 2) {
-    error_log(cell, a, b, octree, resln);
-    cerr << "More than 2 intersections with a cell" << endl;
-    for (const OctreeUtils::CellIntersection& ci : intersections) {
-      cerr << "  " << ci.p << endl;
-    }
-    throw logic_error("More than 2 intersections with a cell");
-  }
-  if (intersections.size() == 2) {
-    FloatSegment seg(intersections[0].p,
-                  intersections[1].p);
-    CellIntersections& cell_intersections = d->labels[cell.get_parent_idx()];
-    cell_intersections.set(octant, d->cur_label, seg);
-  } else if (intersections.size() == 1) {
-    // Find which endpoint is in cell
-    const BoundingBox<intn> bb = cell.bb();
-    const floatn p = intersections[0].p;
-    floatn q;
-    bool degenerate = false;
-    // if (bb.in_half_open(convert_intn(a), EPSILON)) {
-    if (bb.in_half_open(convert_intn(a))) {
-      q = a;
-    // } else if (bb.in_half_open(convert_intn(b), EPSILON)) {
-    } else if (bb.in_half_open(convert_intn(b))) {
-      q = b;
-    } else if ((within(p.x, bb.min().x, EPSILON) ||
-                within(p.x, bb.max().x, EPSILON)) &&
-               (within(p.y, bb.min().y, EPSILON) ||
-                within(p.y, bb.max().y, EPSILON))) {
-      degenerate = true;
-    } else {
-      degenerate = true;
-      // error_log(cell, a, b, octree, resln);
-      // throw logic_error("Only one intersection but neither endpoint is"
-      //                   " in bounding box");
-    }
-    if (!degenerate) {
-      FloatSegment seg(p, q);
-      CellIntersections& cell_intersections = d->labels[cell.get_parent_idx()];
-      cell_intersections.set(octant, d->cur_label, seg);
-    }
-  }
+//Used purely for testing. 
+void Octree2::getZPoints(vector<BigUnsigned> &zpoints, const std::vector<intn> &qpoints) {
+  zpoints.clear();
+  zpoints.resize(qpoints.size());
+  cl::Buffer zpointsBuffer = CLFW::Buffers["zpoints"];
+  cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(zpointsBuffer, CL_TRUE, 0, qpoints.size()*sizeof(BigUnsigned), zpoints.data());
 }
 
-void Octree2::FindMultiCells(const PolyLines& lines) {
-  using namespace Karras;
 
-  cell_intersections.clear();
-  cell_intersections.resize(octree.size(), CellIntersections());
-  MCData data(cell_intersections);
-
-  const vector<vector<float2>>& polygons = lines.getPolygons();;
-
-  // For each line segment in each polygon do a cell walk, updating
-  // the cell_intersections structure.
-  intersections.clear();
-  for (int j = 0; j < polygons.size(); ++j) {
-    const std::vector<float2>& polygon = polygons[j];
-    data.cur_label = j;
-    for (int i = 0; i < polygon.size() - 1; ++i) {
-      const floatn a = obj2Oct(polygon[i]);
-      const floatn b = obj2Oct(polygon[i+1]);
-      // Visit each octree cell intersected by segment a-b. The visitor
-      // is MCCallback.
-      CellWalk(a, b, octree, resln, MCCallback, &data);
-      vector<OctreeUtils::CellIntersection> local = Walk(a, b);
-      for (const OctreeUtils::CellIntersection& ci : local) {
-        intersections.push_back(ci.p);
-      }
-    }
+/* Drawing Methods */
+void Octree2::addOctreeNodes() {
+  if (octree.size() == 0) return;
+  float width = bb.max_size();
+  float2 center = bb.min() + make_float2(width / 2.0, width / 2.0);
+  float3 color = { 0.0, 0.0, 0.0 };
+  addOctreeNodes(0, center, width, color);
+}
+void Octree2::addOctreeNodes(int index, float2 offset, float scale, float3 color) {
+  Instance i = { offset.x, offset.y, 0.0, scale, color.x, color.y, color.z };
+  instances.push_back(i);
+  if (index != -1) {
+    OctNode current = octree[index];
+    scale /= 2.0;
+    float shift = scale / 2.0;
+    addOctreeNodes(current.children[0], { offset.x - shift, offset.y - shift }, scale, color);
+    addOctreeNodes(current.children[1], { offset.x + shift, offset.y - shift }, scale, color);
+    addOctreeNodes(current.children[2], { offset.x - shift, offset.y + shift }, scale, color);
+    addOctreeNodes(current.children[3], { offset.x + shift, offset.y + shift }, scale, color);
   }
+}
+void Octree2::findAmbiguousCells() {
+  if (qpoints.size() < 2) return;
+  cl::Buffer linesBuffer, sortedLines, boundingBoxesBuffer;
+  cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
+  cl::Buffer zpoints = CLFW::Buffers["zpoints"];
+  vector<int> boundingBoxes;
+  assert(Kernels::UploadLines(lines, linesBuffer) == CL_SUCCESS);
+  vector<BigUnsigned> zpoints_vec(qpoints.size());
+  CLFW::DefaultQueue.enqueueReadBuffer(zpoints, CL_TRUE, 0, qpoints.size() * sizeof(BigUnsigned), zpoints_vec.data());
+  //Kernels::ComputeLineLCPs_s(lines.data(), zpoints_vec.data(), lines.size(), resln.mbits);
+  //Kernels::ComputeLineBoundingBoxes_s(lines.data(), boundingBoxes.data(), octree.data(), lines.size());
+  assert(Kernels::ComputeLineLCPs_p(linesBuffer, zpoints, lines.size(), resln.mbits) == CL_SUCCESS);
+  assert(Kernels::RadixSortLines(linesBuffer, sortedLines, lines.size(), resln.mbits) == CL_SUCCESS);
+  assert(Kernels::ComputeLineBoundingBoxes_p(sortedLines, octreeBuffer, boundingBoxesBuffer, lines.size()) == CL_SUCCESS);
+  assert(Kernels::DownloadLines(sortedLines, lines, lines.size()) == CL_SUCCESS);
+  assert(Kernels::DownloadBoundingBoxes(boundingBoxesBuffer, boundingBoxes, lines.size()) == CL_SUCCESS);
 
-  // Find points that we want to add in order to run a more effective
-  // Karras octree construction.
-  extra_qpoints.clear();
-  _origins.clear();
-  _lengths.clear();
+  /*cout << "Begin:" << endl;
   for (int i = 0; i < octree.size(); ++i) {
-    const CellIntersections& intersection = cell_intersections[i];
-    for (int octant = 0; octant < (1<<DIM); ++octant) {
-      const int num_labels = intersection.num_labels(octant);
-      // cout << "cell = " << i << "/" << octant << ": " << num_labels << endl;
-      // if (intersection.is_multi(octant)) {
-      //   {
-      for (int j = 0; j < num_labels; ++j) {
-      // for (int j = 0; j < 1; ++j) {
-        for (int k = j+1; k < num_labels; ++k) {
-        // for (int k = j+1; k < std::min(2, num_labels); ++k) {
-          // We'll compare segments at j and k.
-          FloatSegment segs[2] = { intersection.seg(j, octant),
-                                intersection.seg(k, octant) };
-          vector<floatn> samples;
-          vector<floatn> origins;
-          vector<float> lengths;
-          if (!Geom::multi_intersection(segs[0], segs[1])) {
-            try {
-              if (i == fnode.get_parent_idx() && octant == fnode.get_octant()) {
-                cout << "here in FitBoxes" << endl;
-                write_seg(segs[0], "seg0.dat");
-                write_seg(segs[1], "seg1.dat");
-              }
-              Geom::FitBoxes(segs[0], segs[1], 1, &samples, &origins, &lengths);
-            } catch(logic_error& e) {
-              cerr << "segments: " << segs[0] << " " << segs[1] << endl;
-              cerr << "labels: " << intersection.label(0, octant)
-                   << " " << intersection.label(1, octant) << endl;
-              write_seg(segs[0], "seg0.dat");
-              write_seg(segs[1], "seg1.dat");
-              throw e;
-            }
-          }
-          _origins.insert(_origins.end(), origins.begin(), origins.end());
-          _lengths.insert(_lengths.end(), lengths.begin(), lengths.end());
-          for (const floatn& sample : samples) {
-            extra_qpoints.push_back(convert_intn(sample));
-          }
-        }
-      }
-    }
+    cout << "Node " << i << " level  " << octree[i].level << " parent " << octree[i].parent << endl;
   }
-}
-
-// void WalkCallback(Karras::OctCell cell, const intn& a, const intn& b,
-void WalkCallback(OctCell cell, const floatn& a, const floatn& b,
-                  const vector<OctNode>& octree, const Resln& resln,
-                  void* data) {
-  
-  using namespace Karras;
-  using OctreeUtils::CellIntersection;
-  using OctreeUtils::FindIntersections;
-
-  vector<CellIntersection>& all_intersections =
-      *static_cast<vector<CellIntersection>*>(data);
-
-  const vector<CellIntersection> local_intersections =
-      FindIntersections(a, b, cell, /*octree,*/ resln);
-  for (const CellIntersection& i : local_intersections) {
-    // const intn p = i.p;
-    all_intersections.push_back(i);
+  for (int i = 0; i < boundingBoxes.size(); ++i) {
+    printf("\tBoundingBox: %3s, Line: %3s, BB level: %s, LCP: %s\n", 
+      to_string(boundingBoxes[i]).c_str(), to_string(lines[i].firstIndex).c_str(), to_string(octree[boundingBoxes[i]].level).c_str(), Kernels::buToString(lines[i].lcp, lines[i].lcpLength).c_str());
   }
+  cout << " " << endl;*/
+
+  //for (int i = 0; i < lines.size() - 1; ++i) {
+    //compareLCP(&lines[i].lcp, &lines[i + 1].lcp, lines[i].lcpLength, lines[i + 1].lcpLength);// << endl;
+  //}
+
+  Kernels::FindAmbiguousCells_s(lines, boundingBoxes, octree, octree.size());
+
+  //ComputeHistogram
+//  for (int i = 0; i < lines.size(); ++i) {
+  //  counts[lines[i].bb]++;
+  //}
+
+  //render for testing
+  //for (int i = 0; i < lines.size(); ++i) {
+  //  addNode(lines[i].lcp, lines[i].lcpLength, 10 * (float)counts[lines[i].bb] / (float)octree.size());
+  //}
 }
-
-vector<OctreeUtils::CellIntersection> Octree2::Walk(
-    // const intn& a, const intn& b) {
-    const floatn& a, const floatn& b) {
-  using namespace Karras;
-
-  vector<OctreeUtils::CellIntersection> all_intersections;
-  CellWalk(a, b, octree, resln, WalkCallback, &all_intersections);
-
-  return all_intersections;
-}
-
-bool drawIndicesBufferGenerated = false;
-void Octree2::buildOctVertices() {
-  // numVertices = 4;
-  // glm::vec3 drawVertices[n];
-  // drawVertices[0] = toVec3(oct2Obj(make_int2(0, 0)));
-  // drawVertices[1] = toVec3(oct2Obj(make_int2(resln.width, 0)));
-  // drawVertices[2] = toVec3(oct2Obj(make_int2(resln.width, resln.width)));
-  // drawVertices[3] = toVec3(oct2Obj(make_int2(0, resln.width)));
-  vertices.clear();
-  vertices.push_back(toVec3(oct2Obj(make_int2(0, 0))));
-  vertices.push_back(toVec3(oct2Obj(make_int2(resln.width, 0))));
-  vertices.push_back(toVec3(oct2Obj(make_int2(resln.width, 0))));
-  vertices.push_back(toVec3(oct2Obj(make_int2(resln.width, resln.width))));
-  vertices.push_back(toVec3(oct2Obj(make_int2(resln.width, resln.width))));
-  vertices.push_back(toVec3(oct2Obj(make_int2(0, resln.width))));
-  vertices.push_back(toVec3(oct2Obj(make_int2(0, resln.width))));
-  vertices.push_back(toVec3(oct2Obj(make_int2(0, 0))));
-
-  if (!octree.empty()) {
-    drawNodes();
-  }
-
-  glm::vec3* drawVertices = new glm::vec3[vertices.size()];
-  std::copy(vertices.begin(), vertices.end(), drawVertices);
-  glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);
-  glBufferData(
-      GL_ARRAY_BUFFER, vertices.size()*sizeof(glm::vec3), drawVertices,
-      GL_STATIC_DRAW);
-  //delete [] drawVertices;
-
-  //This section of code is causing memory leaks.
-  if (drawIndicesBufferGenerated == false) {
-    numIndices = 5;
-    drawIndices[0] = 0;
-    drawIndices[1] = 1;
-    drawIndices[2] = 2;
-    drawIndices[3] = 3;
-    drawIndices[4] = 0;
-    glGenBuffers(1, &drawIndices_vbo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawIndices_vbo);
-    glBufferData(
-      GL_ELEMENT_ARRAY_BUFFER, numIndices*sizeof(GLuint), drawIndices,
-      GL_STATIC_DRAW);
-    drawIndicesBufferGenerated = true;
-  }
-}
-
-void Octree2::drawNodes() {
-  Shaders::boxProgram->use();
-  glBindVertexArray(boxProgram_vao);
-  glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * instances.size(), instances.data(), GL_STREAM_DRAW);
-  glm::mat4 identity(1.0);
-  glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, glm::value_ptr(identity));
-  glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
-  assert(glGetError() == GL_NO_ERROR);
-  glLineWidth(3.0);
-  glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, instances.size());
-  glBindVertexArray(0);
-}
-
-void Octree2::render(LinesProgram* program) {
-  using namespace std;
-
-  if (numIndices == 0)
-    return;
-
-  program->useProgram();
-
-  // program->setMatrix(glm::mat4(1.0));
-
-  glBindVertexArray(vao);
-  glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);
-
-  glVertexAttribPointer(
-      program->getVertexLoc(), 3, GL_FLOAT, GL_FALSE, 0, NULL);
-  glEnableVertexAttribArray(program->getVertexLoc());
-
-  program->setColor(make_float3(0.0, 0.0, 0.0));
-
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, drawIndices_vbo);
-  // glDrawElements(GL_LINE_STRIP, numIndices, GL_UNSIGNED_INT, (void*)0);
-  glLineWidth(1.0);
-  glDrawArrays(GL_LINES, 0, vertices.size());
-
-  print_error("Octree2::render 1");
-}
-
-void Octree2::addNodeToRender(BigUnsigned lcp, int lcpLength, float colorStrength) {
+void Octree2::addNode(BigUnsigned lcp, int lcpLength, float colorStrength) {
   using namespace std;
   //Some special cases.
   if (octree.size() == 0) return;
@@ -684,22 +657,22 @@ void Octree2::addNodeToRender(BigUnsigned lcp, int lcpLength, float colorStrengt
       andBU(&result, &mask, &lcp);
       shiftBURight(&result, &result, shiftAmount);
       indx = result.blk[0];
-    }
 
-    width /= 2.0;
-    switch (indx) {
-    case 0:
-      center += make_float2(-width / 2.0, -width / 2.0);
-      break;
-    case 1:
-      center += make_float2(width / 2.0, -width / 2.0);
-      break;
-    case 2:
-      center += make_float2(-width / 2.0, width / 2.0);
-      break;
-    case 3:
-      center += make_float2(width / 2.0, width / 2.0);
-      break;
+      width /= 2.0;
+      switch (indx) {
+      case 0:
+        center += make_float2(-width / 2.0, -width / 2.0);
+        break;
+      case 1:
+        center += make_float2(width / 2.0, -width / 2.0);
+        break;
+      case 2:
+        center += make_float2(-width / 2.0, width / 2.0);
+        break;
+      case 3:
+        center += make_float2(width / 2.0, width / 2.0);
+        break;
+      }
     }
   }
   
@@ -709,103 +682,16 @@ void Octree2::addNodeToRender(BigUnsigned lcp, int lcpLength, float colorStrengt
     colorStrength, 0.0, 0.0,
   });
 }
-
-int Octree2::getNode(BigUnsigned lcp, int lcpLength) {
-  using namespace std;
-  if (octree.size() == 0) return - 1;
-  
-  BigUnsigned mask;
-  BigUnsigned result;
-  int numLevels = lcpLength / DIM;
-  int isOdd = (lcpLength & 1 == 1) ? 1 : 0;
-  int currentIndex = 0;
-  int parentIndex = 0;
-  int childIndex = 0;
-  OctNode *node = &octree[currentIndex];
-  for (int i = 0; i < numLevels; ++i) {
-    //Get child index
-    if (lcp.len != 0) {
-      BigUnsigned mask;
-      BigUnsigned result;
-      int shiftAmount = (numLevels - i - 1) * DIM + isOdd;
-      initBlkBU(&mask, ((DIM == 2) ? 3 : 7));
-      shiftBULeft(&mask, &mask, shiftAmount);
-      andBU(&result, &mask, &lcp);
-      shiftBURight(&result, &result, shiftAmount);
-      childIndex = result.blk[0];
-    }
-
-    currentIndex = node->children[childIndex];
-    if (currentIndex == -1) {
-      //The current LCP sits within a leaf node.
-      return parentIndex;
-    }
-    node = &octree[currentIndex];
-    parentIndex = currentIndex;
-  }
-  //The LCP refers to an internal node.
-  return currentIndex;
-}
-
-//Used purely for testing. 
-void Octree2::getZPoints(vector<BigUnsigned> &zpoints, const std::vector<intn> &qpoints) {
-  zpoints.clear();
-  zpoints.resize(qpoints.size());
-  for (int i = 0; i < qpoints.size(); ++i) {
-    xyz2z(&zpoints[i], qpoints[i], resln.bits);
-  }
-}
-
-void Octree2::renderBoundingBox(ShaderProgram* program) {
-  vector<BigUnsigned> zpoints;
-  getZPoints(zpoints, qpoints);
-
-  Timer timer("test");
-  instances.clear();
-  vector<unsigned int> counts(octree.size(), 0);
-
-  for (int i = 0; i < lines.size(); ++i) {
-    for (int j = 0; j < lines[i].size(); ++j) {
-      BigUnsigned first;
-      BigUnsigned second;
-      BigUnsigned lcp;
-      unsigned int lcp_length;
-
-      first = zpoints[lines[i][j].firstIndex];
-      second = zpoints[lines[i][j].secondIndex];
-      
-      lcp_length = compute_lcp_length(&first, &second, resln.mbits);
-      compute_lcp(&lcp, &first, lcp_length, resln.mbits);
-      
-      int nodeIndex = getNode(lcp, lcp_length);
-      counts[nodeIndex]++;
-
-      addNodeToRender(lcp, lcp_length, 100 * (float)counts[nodeIndex] / (float)octree.size());
-    }
-  }
-  vector<unsigned int> scannedCounts(counts.size());
-  Kernels::StreamScan_s(counts.data(), scannedCounts.data(), counts.size());
-  vector<unsigned int> OctNodeLineIndexes(scannedCounts[scannedCounts.size() - 1]);
-
-  for (int i = 0; i < lines.size(); ++i) {
-    for (int j = 0; j < lines[i].size(); ++j) {
-      BigUnsigned first;
-      BigUnsigned second;
-      BigUnsigned lcp;
-      unsigned int lcp_length;
-
-      first = zpoints[lines[i][j].firstIndex];
-      second = zpoints[lines[i][j].secondIndex];
-
-      lcp_length = compute_lcp_length(&first, &second, resln.mbits);
-      compute_lcp(&lcp, &first, lcp_length, resln.mbits);
-
-      int nodeIndex = getNode(lcp, lcp_length);
-      counts[nodeIndex]++;
-
-      addNodeToRender(lcp, lcp_length, 10 * (float)counts[nodeIndex] / (float)octree.size());
-    }
-  }
-
-  drawNodes();
+void Octree2::draw() {
+  Shaders::boxProgram->use();
+  glBindVertexArray(boxProgram_vao);
+  glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * instances.size(), instances.data(), GL_STREAM_DRAW);
+  glm::mat4 identity(1.0);
+  glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, glm::value_ptr(identity));
+  glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
+  assert(glGetError() == GL_NO_ERROR);
+  glLineWidth( 2.0);
+  glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, instances.size());
+  glBindVertexArray(0);
 }

@@ -1,7 +1,9 @@
 #ifdef __OPENCL_VERSION__ 
 #include "opencl\C\BuildBRT.h"
+#include "opencl\C\dim.h"
 #else
 #include "BuildBRT.h"
+#include "dim.h"
 #endif
 
 #ifndef __OPENCL_VERSION__
@@ -47,10 +49,10 @@ void compute_lcp(__global BigUnsigned *lcp, __global BigUnsigned *value, const i
   }
 	andBU(&temp, &privateValue, &mask);
 	shiftBURight(&privateLcp, &temp, mbits - length);
-  privateLcp.len = (mbits - length + 7) / 8;
   *value = privateValue;
   *lcp = privateLcp;
 }
+
 
 int compute_lcp_length(BigUnsigned* a, BigUnsigned* b, int mbits) {
   BigUnsigned tempa, tempb;
@@ -86,6 +88,38 @@ int compute_lcp_length(BigUnsigned* a, BigUnsigned* b, int mbits) {
   }
   else
     return mbits - (offset + 1);
+}
+
+int compareLCP(BigUnsigned *a, BigUnsigned *b, unsigned int a_len, unsigned int b_len) {
+  //1. Compare length.
+  if (a_len > b_len) return 1;
+  if (a_len < b_len) return -1;
+
+  //2. Compare blocks one by one from left to right.
+  unsigned int numBlocks = a_len / 8;
+  for (int i = 0; i < numBlocks; ++i) {
+    if (a->blk[(BIG_INTEGER_SIZE - 1) - i] == b->blk[(BIG_INTEGER_SIZE - 1) - i])
+      continue;
+    else if (a->blk[(BIG_INTEGER_SIZE - 1) - i] > b->blk[(BIG_INTEGER_SIZE - 1) - i])
+      return 1;
+    else
+      return -1;
+  } 
+
+  //3. Compare bits of the block after last
+  unsigned int numBits = a_len % 8;
+  for (int i = 0; i < numBits; ++i) {
+    bool bit1 = getBUBit(a, (numBits - 1) - i);
+    bool bit2 = getBUBit(a, (numBits - 1) - i);
+    if (bit1 == bit2)
+      continue;
+    else if (bit1 > bit2)
+      return 1;
+    else return -1;
+  }
+
+  //4. The two LCPS are equivalent.
+  return 0;
 }
 
 void BuildBinaryRadixTree( __global BrtNode *I, __global BigUnsigned* mpoints, int mbits, int size, const unsigned int gid)

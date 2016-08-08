@@ -7,12 +7,15 @@
 #include "Polylines.h"
 #include "gl_utils.h"
 #include "CellIntersections.h"
-#include "OctreeUtils.h"
+//#include "OctreeUtils.h"
 #include "BoundingBox.h"
 #include "Options.h"
+
+extern "C" {
 #include "Resln.h"
 #include "OctNode.h"
 #include "Line.h"
+}
 
 class Octree2 {
  private:
@@ -21,7 +24,7 @@ class Octree2 {
   std::vector<floatn> intersections;
   std::vector<floatn> karras_points;
   std::vector<intn> qpoints;
-  std::vector<vector<Line>> lines;
+  std::vector<Line> lines;
   std::vector<intn> extra_qpoints;
   BoundingBox<float2> bb;
   vector<floatn> _origins;
@@ -52,24 +55,23 @@ class Octree2 {
   void build(const std::vector<float2>& points,
              const BoundingBox<float2>* customBB);
   void build(const PolyLines& lines, const BoundingBox<float2>* customBB = 0);
-  void render(LinesProgram* program);
   typedef struct {
     float offset[3];
     float scale;
     float color[3];
   } Instance;
   std::vector<Instance> instances;
-  void renderNodes(ShaderProgram *program);
-  void addNodeToRender(BigUnsigned lcp, int lcpLength, float colorStrength = 0.0);
-  void renderBoundingBox(ShaderProgram* program);
   void getZPoints(vector<BigUnsigned> &zpoints, const std::vector<intn> &qpoints);
-  int getNode(BigUnsigned lcp, int lcpLength);
+  int getNode(BigUnsigned lcp, int lcpLength, OctNode *octree);
 
-  void set(std::vector<OctNode>& octree_, const BoundingBox<float2>& bb_) {
-    octree = octree_;
-    bb = bb_;
-    buildOctVertices();
-  }
+  //void set(std::vector<OctNode>& octree_, const BoundingBox<float2>& bb_) {
+  //  octree = octree_;
+  //  bb = bb_;
+  //  buildOctVertices();
+  //}
+
+  /* Drawing Methods */
+  void draw();
 
  private:
   float2 obj2Oct(const float2& v) const;
@@ -77,15 +79,18 @@ class Octree2 {
   GLfloat oct2Obj(int dist) const;
   glm::vec3 toVec3(float2 p) const;
 
+
+  
+  /* Drawing Methods */
+  void addOctreeNodes();
+  void addOctreeNodes(int index, float2 offset, float scale, float3 color);
+  void findAmbiguousCells();
+  void addNode(BigUnsigned lcp, int lcpLength, float colorStrength = 0.0);
+
+  /* Unused */
+  //void FindMultiCells(const PolyLines& lines);
   void Find(const float2& p);
-  void FindMultiCells(const PolyLines& lines);
-
-  void buildOctVertices();
-  void drawNodes();
-
-
-  std::vector<OctreeUtils::CellIntersection> Walk(
-      const floatn& a, const floatn& b);
+  //std::vector<OctreeUtils::CellIntersection> Walk(const floatn& a, const floatn& b);
 
 };
 

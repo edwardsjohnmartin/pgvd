@@ -79,7 +79,7 @@ bool CLFW::IsNotInitialized() {
 }
 
 /* Initializers */
-cl_int CLFW::Initialize(bool _verbose, bool queryMode) {
+cl_int CLFW::Initialize(bool _verbose, bool queryMode, unsigned int numQueues) {
   verbose = _verbose;
   if (verbose) Print("Initializing...", infoFG, infoBG);
   cl_int  error = get(Platforms);
@@ -95,8 +95,13 @@ cl_int CLFW::Initialize(bool _verbose, bool queryMode) {
   error |= get(DefaultContext);
   Contexts.push_back(DefaultContext);
   Queues.clear();
-  error |= get(DefaultQueue);
-  Queues.push_back(DefaultQueue);
+  for (int i = 0; i < numQueues; ++i) {
+    cl::CommandQueue queue;
+    error |= get(queue);
+    Queues.push_back(queue);
+    if (i == 0)
+      DefaultQueue = queue;
+  }
   error |= get(DefaultSources);
   error |= Build(DefaultProgram, DefaultSources);
   error |= get(Kernels);

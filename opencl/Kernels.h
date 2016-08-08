@@ -20,6 +20,7 @@ extern "C" {
   #include "BuildOctree.h"
   #include "ParallelAlgorithms.h"
   #include "./Resln.h"
+  #include "Line.h"
 }
 
 using namespace std;
@@ -29,6 +30,9 @@ namespace Kernels {
 
   int nextPow2(int num);
   cl_int UploadPoints(const vector<intn> &points, cl::Buffer &pointsBuffer);
+  cl_int UploadLines(const vector<Line> &lines, cl::Buffer &linesBuffer);
+  cl_int DownloadLines(cl::Buffer &linesBuffer, vector<Line> &lines, cl_int size);
+  cl_int DownloadBoundingBoxes(cl::Buffer &boundingBoxesBuffer, vector<int> &boundingBoxes, cl_int size);
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits);
   cl_int PointsToMorton_s(cl_int size, cl_int bits, cl_int2* points, BigUnsigned* result);
   cl_int BitPredicate(cl::Buffer &input, cl::Buffer &predicate, unsigned int &index, unsigned char compared, cl_int globalSize);
@@ -41,9 +45,11 @@ namespace Kernels {
   cl_int StreamScan_s(unsigned int* buffer, unsigned int* result, const int size);
   cl_int SingleCompact(cl::Buffer &input, cl::Buffer &result, cl::Memory &predicate, cl::Buffer &address, cl_int globalSize);
   cl_int DoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize);
+  cl_int LineDoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize);
   cl_int UniqueSorted(cl::Buffer &input, cl_int &size);
   cl_int CheckOrder_s(cl::Buffer &input, cl_int &size);
-  cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits);
+  cl_int RadixSortBigUnsigned(cl::Buffer &input, cl::Buffer &result, cl_int size, cl_int mbits);
+  cl_int RadixSortLines(cl::Buffer &input, cl::Buffer &sortedLines, cl_int size, cl_int mbits);
   cl_int BuildBinaryRadixTree_p(cl::Buffer &zpoints, cl::Buffer &internalBRTNodes, cl_int size, cl_int mbits);
   cl_int BuildBinaryRadixTree_s(BigUnsigned* zpoints, BrtNode* internalBRTNodes, cl_int size, cl_int mbits);
   cl_int ComputeLocalSplits_p(cl::Buffer &internalBRTNodes, cl::Buffer &localSplits, cl_int size);
@@ -55,4 +61,25 @@ namespace Kernels {
   cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
   cl_int AddAll(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
   cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
+  cl_int ComputeLineLCPs_s(Line* lines, BigUnsigned* zpoints, cl_int size, int mbits);
+  cl_int ComputeLineLCPs_p(cl::Buffer &linesBuffer, cl::Buffer &zpoints, cl_int size, int mbits);
+  cl_int ComputeLineBoundingBoxes_s(Line* lines, int* boundingBoxes, OctNode *octree, cl_int numLines);
+  cl_int ComputeLineBoundingBoxes_p(cl::Buffer &linesBuffer, cl::Buffer &octree, cl::Buffer &boundingBoxes, cl_int numLines);
+  cl_int FindAmbiguousCells_s(vector<Line> orderedLines, vector<int> boundingBoxes, vector<OctNode> octree, const unsigned int octreeSize);
+  inline std::string buToString(BigUnsigned bu, int len) {
+    std::string representation = "";
+    if (len == 0)
+    {
+      representation += "NULL";
+    }
+    else {
+      int shift = len%DIM;
+      len -= shift;
+      for (int i = len - 1; i >= 0; --i) {
+        representation += std::to_string(getBUBit(&bu, i + shift));
+      }
+    }
+
+    return representation;
+  }
 }

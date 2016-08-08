@@ -1,4 +1,5 @@
 #include ".\opencl\C\z_order.h"
+#include ".\opencl\C\Line.h"
 __kernel void PointsToMortonKernel(
   __global BigUnsigned *inputBuffer,
   __global intn *points,
@@ -35,6 +36,15 @@ __kernel void UniquePredicateKernel(
   __global Index *predicateBuffer)
 {
   UniquePredicate(inputBuffer, predicateBuffer, get_global_id(0));
+}
+
+__kernel void LinePredicateKernel(
+ __global Line *inputBuffer,
+  __global Index *predicateBuffer,
+  unsigned index,
+  unsigned char comparedWith)
+{
+  LinePredicate(inputBuffer, predicateBuffer, index, comparedWith, get_global_id(0));
 }
 
 __kernel void StreamScanKernel( 
@@ -91,6 +101,17 @@ __kernel void BUCompactKernel(
   BUCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
 }
 
+//Double Compaction
+__kernel void LineCompactKernel( 
+  __global Line *inputBuffer, 
+  __global Line *resultBuffer, 
+  __global Index *lPredicateBuffer, 
+  __global Index *leftBuffer, 
+  Index size)
+{
+  LineCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
+}
+
 
 //Single Compaction
 __kernel void BUSingleCompactKernel(
@@ -142,7 +163,6 @@ __kernel void BRT2OctreeKernel_init(
 ) {
   const size_t gid = get_global_id(0);
   const int octreeSize = prefixSums[size-1];
-
   if(gid < octreeSize)
     brt2octree_init(gid, octree);    
 }
@@ -156,6 +176,30 @@ __kernel void BRT2OctreeKernel(
 ) {
   const int gid = get_global_id(0);
   const int octreeSize = prefixSums[size-1];
+  octree[0].parent = -1;
+  octree[0].level = 0;
   if (gid > 0 && gid < size - 1)
     brt2octree(gid, I, octree, localSplits, prefixSums, size, octreeSize);
+}
+
+__kernel void ComputeLineLCPKernel(
+  __global Line* lines,
+  __global BigUnsigned* zpoints,
+  const int mbits 
+  ) {
+  const int gid = get_global_id(0);
+  calculateLineLCP(lines, zpoints, mbits, gid);
+}
+
+__kernel void ComputeLineBoundingBoxesKernel(
+  __global Line* lines,
+  __global OctNode* octree,
+  __global int* boundingBoxes
+  ) {
+  const int gid = get_global_id(0);
+  BigUnsigned lcp = lines[gid].lcp;
+  int lcpLength = lines[gid].lcpLength;
+  int index = getOctNode(lcp, lcpLength, octree);
+  barrier(CLK_LOCAL_MEM_FENCE);
+  boundingBoxes[gid] = index;
 }

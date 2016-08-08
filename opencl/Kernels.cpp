@@ -34,12 +34,42 @@ namespace Kernels {
     return representation;
   }
 
+  
+
   cl_int UploadPoints(const vector<intn> &points, cl::Buffer &pointsBuffer) {
     startBenchmark("Uploading points");
     cl_int error = 0;
     cl_int roundSize = nextPow2(points.size());
     error |= CLFW::get(pointsBuffer, "pointsBuffer", sizeof(intn)*roundSize);
     error |= CLFW::DefaultQueue.enqueueWriteBuffer(pointsBuffer, CL_TRUE, 0, sizeof(cl_int2) * points.size(), points.data());
+    stopBenchmark();
+    return error;
+  }
+
+  cl_int UploadLines(const vector<Line> &lines, cl::Buffer &linesBuffer) {
+    startBenchmark("Uploading lines");
+    cl_int error = 0;
+    cl_int roundSize = nextPow2(lines.size());
+    error |= CLFW::get(linesBuffer, "linesBuffer", sizeof(Line)*roundSize);
+    error |= CLFW::DefaultQueue.enqueueWriteBuffer(linesBuffer, CL_TRUE, 0, sizeof(Line) * lines.size(), lines.data());
+    stopBenchmark();
+    return error;
+  }
+
+  cl_int DownloadLines(cl::Buffer &linesBuffer, vector<Line> &lines, cl_int size) {
+    startBenchmark("Downloading lines");
+    lines.resize(size);
+    cl_int error = 0;
+    error |= CLFW::DefaultQueue.enqueueReadBuffer(linesBuffer, CL_TRUE, 0, sizeof(Line)*size, lines.data());
+    stopBenchmark();
+    return error;
+  }
+
+  cl_int DownloadBoundingBoxes(cl::Buffer &boundingBoxesBuffer, vector<int> &boundingBoxes, cl_int size) {
+    startBenchmark("Downloading boundingBoxes");
+    boundingBoxes.resize(size);
+    cl_int error = 0;
+    error |= CLFW::DefaultQueue.enqueueReadBuffer(boundingBoxesBuffer, CL_TRUE, 0, sizeof(int)*size, boundingBoxes.data());
     stopBenchmark();
     return error;
   }
@@ -85,6 +115,20 @@ namespace Kernels {
     error |= kernel->setArg(2, index);
     error |= kernel->setArg(3, compared);
     error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    return error;
+  };
+  
+  cl_int LinePredicate(cl::Buffer &input, cl::Buffer &predicate, unsigned int &index, unsigned char compared, cl_int size) {
+    cl::CommandQueue *queue = &CLFW::DefaultQueue;
+    cl::Kernel *kernel = &CLFW::Kernels["LinePredicateKernel"];
+    int roundSize = nextPow2(size);
+    cl_int error = CLFW::get(predicate, "predicate", sizeof(cl_int)* (roundSize));
+
+    error |= kernel->setArg(0, input);
+    error |= kernel->setArg(1, predicate);
+    error |= kernel->setArg(2, index);
+    error |= kernel->setArg(3, compared);
+    error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(size), cl::NullRange);
     return error;
   };
 
@@ -245,6 +289,31 @@ namespace Kernels {
     return error;
   };
 
+  cl_int LineDoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize) {
+    cl_int error = 0;
+    bool isOld;
+    cl::CommandQueue *queue = &CLFW::DefaultQueue;
+    cl::Kernel *kernel = &CLFW::Kernels["LineCompactKernel"];
+    cl::Buffer zeroLineBuffer;
+    unsigned int roundSize = nextPow2(globalSize);
+    error |= CLFW::get(zeroLineBuffer, "zeroLineBuffer", sizeof(Line)*roundSize, isOld);
+    if (!isOld) {
+      Line zero;
+      initBlkBU(&zero.lcp, 0);
+      zero.lcpLength = -1;
+      error |= queue->enqueueFillBuffer<Line>(zeroLineBuffer, { zero }, 0, roundSize*sizeof(Line));
+    }
+    error |= queue->enqueueCopyBuffer(zeroLineBuffer, result, 0, 0, sizeof(Line) * globalSize);
+
+    error |= kernel->setArg(0, input);
+    error |= kernel->setArg(1, result);
+    error |= kernel->setArg(2, predicate);
+    error |= kernel->setArg(3, address);
+    error |= kernel->setArg(4, globalSize);
+    error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+    return error;
+  };
+
   cl_int UniqueSorted(cl::Buffer &input, cl_int &size) {
     startBenchmark("UniqueSorted");
     int globalSize = nextPow2(size);
@@ -290,34 +359,88 @@ namespace Kernels {
     return CL_SUCCESS;
   }
 
-  cl_int RadixSortBigUnsigned(cl::Buffer &input, cl_int size, cl_int mbits) {
+  cl_int RadixSortBigUnsigned(cl::Buffer &input, cl::Buffer &result, cl_int size, cl_int mbits) {
     cl_int error = 0;
     const size_t globalSize = nextPow2(size);
 
     cl::Buffer predicate, address, bigUnsignedTemp, temp;
     error |= CLFW::get(address, "address", sizeof(cl_int)*(globalSize));
     error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
+    error |= CLFW::get(result, "sortedZPoints", sizeof(BigUnsigned)*globalSize);
+    error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, result, 0, 0, sizeof(BigUnsigned) * globalSize);
 
-    if (error != CL_SUCCESS) return error;
+    if (error != CL_SUCCESS) 
+      return error;
     cl_uint test;
     cl_uint sum;
     //For each bit
     startBenchmark("RadixSortBigUnsigned");
     for (unsigned int index = 0; index < mbits; index++) {
       //Predicate the 0's and 1's
-      error |= BitPredicate(input, predicate, index, 0, globalSize);
+      error |= BitPredicate(result, predicate, index, 0, globalSize);
 
       //Scan the predication buffers.
       error |= StreamScan_p(predicate, address, globalSize);
       
       //Compacting
-      error |= DoubleCompact(input, bigUnsignedTemp, predicate, address, globalSize);
+      error |= DoubleCompact(result, bigUnsignedTemp, predicate, address, globalSize);
       
       //Swap result with input.
-      temp = input;
-      input = bigUnsignedTemp;
+      temp = result;
+      result = bigUnsignedTemp;
       bigUnsignedTemp = temp;
     }
+    stopBenchmark();
+    return error;
+  }
+
+  cl_int RadixSortLines(cl::Buffer &input, cl::Buffer &sortedLines, cl_int size, cl_int mbits) {
+    cl_int error = 0;
+
+    /*vector<Line> lines;
+    lines.resize(size);
+    error |= CLFW::DefaultQueue.enqueueReadBuffer(input, CL_TRUE, 0, size*sizeof(Line), lines.data());
+    cout << "Before:" << endl;
+    for (int i = 0; i < size; ++i) {
+      cout << buToString(lines[i].lcp, lines[i].lcpLength) << endl;
+    }*/
+
+
+    const size_t globalSize = nextPow2(size);
+
+    cl::Buffer predicate, address, tempLinesBuffer, temp;
+    error |= CLFW::get(address, "address", sizeof(cl_int)*(globalSize));
+    error |= CLFW::get(tempLinesBuffer, "tempLinesBuffer", sizeof(Line)*globalSize);
+    error |= CLFW::get(sortedLines, "sortedLines", sizeof(Line)*globalSize);
+    error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, sortedLines, 0, 0, sizeof(Line) * globalSize);
+
+    if (error != CL_SUCCESS)
+      return error;
+
+    //For each bit
+    startBenchmark("RadixSortBigUnsigned");
+    for (unsigned int index = 0; index < mbits; index++) {
+      //Predicate the 0's and 1's
+      error |= LinePredicate(sortedLines, predicate, index, 0, size);
+
+      //Scan the predication buffers.
+      error |= StreamScan_p(predicate, address, globalSize);
+
+      //Compacting
+      error |= LineDoubleCompact(sortedLines, tempLinesBuffer, predicate, address, size);
+
+      //Swap result with input.
+      temp = sortedLines;
+      sortedLines = tempLinesBuffer;
+      tempLinesBuffer = temp;
+    }
+
+    /*error |= CLFW::DefaultQueue.enqueueReadBuffer(sortedLines, CL_TRUE, 0, size*sizeof(Line), lines.data());
+    cout << "After:" << endl;
+    for (int i = 0; i < size; ++i) {
+      cout << buToString(lines[i].lcp, lines[i].lcpLength)<<endl;
+    }*/
+
     stopBenchmark();
     return error;
   }
@@ -453,6 +576,8 @@ namespace Kernels {
 
     const int octreeSize = prefixSums[size - 1];
     octree.resize(octreeSize);
+    octree[0].parent = -1;
+    octree[0].level = 0;
     for (int i = 0; i < octreeSize; ++i)
       brt2octree_init(i, octree.data());
     for (int brt_i = 1; brt_i < size - 1; ++brt_i)
@@ -494,24 +619,12 @@ namespace Kernels {
 
     int size = points.size();
     cl_int error = 0;
-    cl::Buffer pointsBuffer, zpoints, internalBRTNodes;
+    cl::Buffer pointsBuffer, zpoints, sortedZPoints, internalBRTNodes;
     error |= Kernels::UploadPoints(points, pointsBuffer);
     error |= Kernels::PointsToMorton_p(pointsBuffer, zpoints, size, bits);
-    error |= Kernels::RadixSortBigUnsigned(zpoints, size, mbits);
-
-    //vector<BigUnsigned> zpoints_vec(nextPow2(size));
-    //CLFW::DefaultQueue.enqueueReadBuffer(zpoints, CL_TRUE, 0, nextPow2(size)*sizeof(BigUnsigned), zpoints_vec.data());
-    
-    //for (int i = 0; i < zpoints_vec.size(); ++i) {
-    //  if (i != 0) {
-    //    if (compareBU(&zpoints_vec[i], &zpoints_vec[i - 1]) == -1) {
-    //      cout << "Error" << endl;
-    //    }
-    //  }
-    //}
-
-    error |= Kernels::UniqueSorted(zpoints, size);
-    error |= Kernels::BuildBinaryRadixTree_p(zpoints, internalBRTNodes, size, mbits);
+    error |= Kernels::RadixSortBigUnsigned(zpoints, sortedZPoints, size, mbits);
+    error |= Kernels::UniqueSorted(sortedZPoints, size);
+    error |= Kernels::BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, size, mbits);
     error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, octree, size);
     return error;
   }
@@ -603,5 +716,103 @@ namespace Kernels {
     error |= queue.enqueueReadBuffer(reduceResult, CL_TRUE, 0, sizeof(cl_uint), &gpuSum);
    // stopBenchmark();
     return error;
+  }
+
+  cl_int ComputeLineLCPs_s(Line* lines, BigUnsigned* zpoints, cl_int size, int mbits) {
+    for (int i = 0; i < size; ++i) {
+      calculateLineLCP(lines, zpoints, mbits, i);
+    }
+    return CL_SUCCESS;
+  }
+
+  cl_int ComputeLineLCPs_p(cl::Buffer &linesBuffer, cl::Buffer &zpoints, cl_int size, int mbits) {
+    cl::CommandQueue *queue = &CLFW::DefaultQueue;
+    cl::Kernel *kernel = &CLFW::Kernels["ComputeLineLCPKernel"];
+    cl_int error = 0;
+    error |= kernel->setArg(0, linesBuffer);
+    error |= kernel->setArg(1, zpoints);
+    error |= kernel->setArg(2, mbits);
+    error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(size), cl::NullRange);
+    error = CLFW::DefaultQueue.finish();
+    return error;
+  }
+
+  cl_int ComputeLineBoundingBoxes_s(Line* lines, int* boundingBoxes, OctNode *octree, cl_int numLines) {
+    for (int i = 0; i < numLines; ++i) {
+      boundingBoxes[i] = getOctNode(lines[i].lcp, lines[i].lcpLength, octree);
+    }
+    return CL_SUCCESS;
+  }
+
+  cl_int ComputeLineBoundingBoxes_p(cl::Buffer &linesBuffer, cl::Buffer &octree, cl::Buffer &boundingBoxes, cl_int numLines) {
+    cl::CommandQueue *queue = &CLFW::DefaultQueue;
+    cl::Kernel *kernel = &CLFW::Kernels["ComputeLineBoundingBoxesKernel"];
+    int roundNumber = nextPow2(numLines);
+    cl_int error = CLFW::get(boundingBoxes, "boundingBoxes", sizeof(cl_int)* (roundNumber));
+
+    error |= kernel->setArg(0, linesBuffer);
+    error |= kernel->setArg(1, octree);
+    error |= kernel->setArg(2, boundingBoxes);
+    error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(numLines), cl::NullRange);
+    error = CLFW::DefaultQueue.finish();
+    return error;
+  }
+
+  int compareThingy(unsigned int a_indx, unsigned int b_indx, unsigned int a_lvl, unsigned int b_lvl) {
+    if (a_lvl < b_lvl)
+      return -1;
+    if (b_lvl < a_lvl)
+      return 1;
+    if (a_indx < b_indx)
+      return 1;
+    if (b_indx < a_indx)
+      return -1;
+    return 0;
+  }
+
+  int findBoundingBox(unsigned int key, OctNode node, Line* lines, int* boundingBoxes, unsigned int size) {
+    unsigned int start = 0;
+    unsigned int end = size;
+    while (start != end) {
+      unsigned int index = ((end - start) / 2) + start;
+      int x = compareThingy(key, boundingBoxes[index], node.level, lines[index].lcpLength/DIM);
+      if (0 > x) end = index;
+      else if (x > 0) start = index + 1;
+      else return index;
+    }
+    return -1;
+  }
+
+  cl_int FindAmbiguousCells_s(vector<Line> orderedLines, vector<int> boundingBoxes, vector<OctNode> octree, const unsigned int octreeSize) {
+    struct NodeColors { int colors[4] = { -1, -1, -1, -1 }; };
+    vector<NodeColors> nodeColors_vec(octree.size());
+    //For each internal node (in parallel)
+    for (int i = 0; i < octreeSize; ++i) {
+      OctNode node = octree[i];
+      if (node.leaf != 0) {
+        int index = i;
+        while (index != -1) {
+          node = octree[index];
+          int bbIndex = findBoundingBox(index, node, orderedLines.data(), boundingBoxes.data(), orderedLines.size());
+          while (bbIndex > 0 && boundingBoxes[bbIndex-1] == bbIndex) bbIndex--;
+          if (bbIndex != -1) {
+            for (int j = 0; j < 1 << DIM; ++j) {
+              if (!(node.leaf & (1 << j))) continue;
+              if (true) {
+                struct NodeColors &nodeColors = nodeColors_vec[i];
+                if (nodeColors.colors[j] == -1)
+                  nodeColors.colors[j] = orderedLines[bbIndex].color;
+                else if (nodeColors.colors[j] != orderedLines[bbIndex].color) {
+                  nodeColors.colors[j] = -2;
+                  cout << index <<":"<< j << " is ambiguous" << endl;
+                }
+              }
+            }
+          }
+          index = node.parent;
+        }  
+      }
+    }
+    return CL_SUCCESS;
   }
 }

@@ -3,12 +3,19 @@
 // An octree node is an internal node of the octree. An octree cell
 // is a general term that refers to both internal nodes and leaves.
 
+#ifndef __OPENCL_VERSION__
+#define __local
+#define __global
+#endif
+
 #ifndef  __OPENCL_VERSION__ 
 static const int leaf_masks[] = { 1, 2, 4, 8 };
 #include "dim.h"
+#include "BigUnsigned.h"
 #else
 __constant int leaf_masks[] = { 1, 2, 4, 8 };
 #include "./opencl/C/dim.h"
+#include "./opencl/C/BigUnsigned.h"
 #endif
 
 
@@ -23,6 +30,8 @@ typedef struct OctNode {
 
   int children[1<<DIM];
   int leaf;
+  int level;
+  int parent;
 } OctNode;
 
 static inline void init_OctNode(struct OctNode* node) {
@@ -53,6 +62,40 @@ inline bool compareOctNode(OctNode* first, OctNode* second) {
     if (first->children[i] != second->children[i]) return false;
   if (first->leaf != second->leaf) return false;
   return true;
+}
+
+inline int getOctNode(BigUnsigned lcp, int lcpLength, __global OctNode *octree) {
+  BigUnsigned mask;
+  BigUnsigned result;
+  int numLevels = lcpLength / DIM;
+  int isOdd = ((lcpLength & 1) == 1) ? 1 : 0;
+  int currentIndex = 0;
+  int parentIndex = 0;
+  int childIndex = 0;
+  OctNode node = octree[currentIndex];
+  for (int i = 0; i < numLevels; ++i) {
+    //Get child index
+    if (lcp.len != 0) {
+      BigUnsigned mask;
+      BigUnsigned result;
+      int shiftAmount = (numLevels - i - 1) * DIM + isOdd;
+      initBlkBU(&mask, ((DIM == 2) ? 3 : 7));
+      shiftBULeft(&mask, &mask, shiftAmount);
+      andBU(&result, &mask, &lcp);
+      shiftBURight(&result, &result, shiftAmount);
+      childIndex = result.blk[0];
+    }
+
+    currentIndex = node.children[childIndex];
+    if (currentIndex == -1) {
+      //The current LCP sits within a leaf node.
+      return parentIndex;
+    }
+    node = octree[currentIndex];
+    parentIndex = currentIndex;
+  }
+  //The LCP refers to an internal node.
+  return currentIndex;
 }
 
 //#ifdef __cplusplus
@@ -96,5 +139,10 @@ inline bool compareOctNode(OctNode* first, OctNode* second) {
 //}
 //
 //#endif // __cplusplus
+
+#ifndef __OPENCL_VERSION__
+#undef __local
+#undef __global
+#endif
 
 #endif
