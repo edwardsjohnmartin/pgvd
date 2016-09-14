@@ -1,0 +1,25 @@
+add_subdirectory(BigUnsigned)
+add_subdirectory(BinaryRadixTree)
+add_subdirectory(Boolean)
+add_subdirectory(BoundingBox)
+add_subdirectory(CellResolution)
+add_subdirectory(Dimension)
+add_subdirectory(Octree)
+add_subdirectory(OctreeResolution)
+add_subdirectory(ParallelAlgorithms)
+add_subdirectory(Vector)
+add_subdirectory(ZOrder)
+
+set(OCTREE_C_SRC 
+	${BIG_UNSIGNED_SRC}
+	${BINARY_RADIX_TREE_SRC}
+	${BOOLEAN_SRC}
+	${BOUNDING_BOX_SRC}
+	${CELL_RESOLUTION_SRC}
+	${DIMENSION_SRC}
+	${OCTREE_C_SRC}
+	${OCTREE_RESOLUTION_SRC}
+	${PARALLEL_ALGORITHMS_SRC}
+	${VECTOR_SRC}
+	${Z_ORDER_SRC}
+	PARENT_SCOPE)

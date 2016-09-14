@@ -1,0 +1,3 @@
+set (TIMER_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/timer.h 
+	PARENT_SCOPE)

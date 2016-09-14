@@ -1,0 +1,5 @@
+set (PROGRAMS_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/ShaderProgram.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/ShaderProgram.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/LinesProgram.h
+	PARENT_SCOPE)

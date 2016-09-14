@@ -1,238 +1,158 @@
 cmake_minimum_required (VERSION 2.6)
+
 project (PGVD)
 
-SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
-#------------------------------------------------------------
-# build glfw
-#------------------------------------------------------------
-option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" OFF)
-option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
-option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
-option(GLFW_INSTALL "Generate installation target" OFF)
-option(GLFW_USE_CHDIR "Make glfwInit chdir to Contents/Resources" OFF)
-option(GLFW_USE_MENUBAR "Populate the menu bar on first window creation" OFF)
-add_subdirectory (glfw)
-include_directories(glfw/include)
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
+set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 
 #------------------------------------------------------------
 # Use C++ 2011
 #------------------------------------------------------------
-if(WIN32)
-  message(STATUS "Please verify you are using a compiler with C++11 support.")
+
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+if(COMPILER_SUPPORTS_CXX11)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 else()
-  include(CheckCXXCompilerFlag)
-  CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-  CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-  if(COMPILER_SUPPORTS_CXX11)
-  	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-  elseif(COMPILER_SUPPORTS_CXX0X)
-  	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-  else()
-          message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-  endif()
+  message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
 #------------------------------------------------------------
-# Use OpenCL depending on setting
-#------------------------------------------------------------
-OPTION(OPENCL_ACCEL "Use OpenCL acceleration" ON)
-if(OPENCL_ACCEL)
-  FIND_PACKAGE(OpenCL)
-  if (OPENCL_FOUND)
-    INCLUDE_DIRECTORIES(${OPENCL_INCLUDE_DIR})
-    ADD_DEFINITIONS(-D__OPEN_CL_SUPPORT__)
-  else (OPENCL_FOUND)
-    set(OPENCL_LIBRARY "")
-  endif (OPENCL_FOUND)
-endif(OPENCL_ACCEL)
-
-set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
-
-#------------------------------------------------------------
-# Build CLFW 
+# Use external dependencies
 #------------------------------------------------------------
 
-add_subdirectory(CLFW)
+find_package(OpenGL REQUIRED)
+include_directories(${OPENGL_INCLUDE_DIR})
+
+# use GLFW
+find_package(GLFW REQUIRED)
+include_directories(${GLFW_INCLUDE_DIR})
+
+# use GLEW
+find_package(GLEW REQUIRED)
+include_directories(${GLEW_INCLUDE_DIR})
+
+# use GLM
+find_package(GLM REQUIRED)
+include_directories(${GLM_INCLUDE_DIR})
+
+# use OpenCL
+find_package(OpenCL REQUIRED)
+include_directories(${OPENCL_INCLUDE_DIR})
+
+# use CLFW (OpenCL must be included first.)
+add_subdirectory(Dependencies/CLFW)
 include_directories(${CLFW_INCLUDE_DIR})
 
 #------------------------------------------------------------
-# Header include directories
+# Include directories
 #------------------------------------------------------------
-SET(INCL
-    ./
-    ./C
-    ./opencl
-    ./opencl/CLWrapper
-    ./opencl/Buffers
-    ./opencl/Kernels
-    ./opengl
-    ./tests/
-)
-INCLUDE_DIRECTORIES(${INCL})
+add_subdirectory(C)
+add_subdirectory(CPP)
 
-#------------------------------------------------------------
-# Source files
-#------------------------------------------------------------
-SET(SRCS
-  ./Options.cpp
-
-  ./viewer/gl_utils.cpp
-  ./viewer/Octree2.cpp
-  #./viewer/main_fit2.cpp
-  #./viewer/main_pgvd2.cpp
-  #./viewer/main_test2.cpp
-
-  ./Karras.cpp
-
-  #./OctreeUtils.cpp
-
-  ./C/BuildOctree.c
-  ./C/BigUnsigned.c
-  ./C/BuildBRT.c
-  ./C/z_order.c
-  ./C/ParallelAlgorithms.c
-
-  ./opencl/Geom.cpp
-  ./opencl/Kernels.cpp
-  ./opengl/ShaderProgram.cpp
-  ./opengl/Shaders.cpp
-
-  #headers
-  ./BoundingBox.h
-  ./CellIntersections.h
-  ./Karras.h
-  ./OctCell.h
-  #./OctreeUtils.h
-  ./Options.h
-  ./Resln.h
-  ./timer.h
-
-  ./C/BigUnsigned.h
-  ./C/bool.h
-  ./C/BrtNode.h
-  ./C/OctNode.h
-  ./C/BuildBRT.h
-  ./C/BuildOctree.h
-  ./C/ParallelAlgorithms.h
-  ./C/z_order.h
-  ./C/Line.h
-
-  ./viewer/Color.h
-  ./viewer/gl_utils.h
-  ./viewer/LinesProgram.h
-  ./viewer/Polylines.h
-  ./viewer/Octree2.h
-  
-  ./opencl/Kernels.h
-  ./opengl/ShaderProgram.hpp
-  ./opengl/Shaders.hpp
-)
-
-SET(UNIT_TEST_SOURCES
-  ./tests/catch.hpp
-	./opencl/Kernels.cpp
-
-	./C/BuildOctree.c
-	./C/BigUnsigned.c
-	./C/BuildBRT.c
-	./C/z_order.c
-	./C/ParallelAlgorithms.c
-    
-    #tests
-    ./tests/clfw_tests.cpp
-    ./tests/C_Tests/BigUnsignedTests.cpp
-    ./tests/KernelTests.cpp
-)
-
-#------------------------------------------------------------
-# Maximum octree depth. Used for creating the Morton code
-# integer.
-#------------------------------------------------------------
-SET(MAX_OCTREE_DEPTH 15)
+# #------------------------------------------------------------
+# # Maximum octree depth. Used for creating the Morton code
+# # integer.
+# #------------------------------------------------------------
+# SET(MAX_OCTREE_DEPTH 15)
 
 
-ADD_DEFINITIONS(-DANSI_DECLARATORS -DTRILIBRARY)
-ADD_DEFINITIONS(-U__STRICT_ANSI__)
-ADD_DEFINITIONS(-DMAX_OCTREE_DEPTH=${MAX_OCTREE_DEPTH})
+# ADD_DEFINITIONS(-DANSI_DECLARATORS -DTRILIBRARY)
+# ADD_DEFINITIONS(-U__STRICT_ANSI__)
+# ADD_DEFINITIONS(-DMAX_OCTREE_DEPTH=${MAX_OCTREE_DEPTH})
 
 
-#NH find_path and find_libary mods for glew...
-find_path(GLEW_INCLUDE_DIR GL/glew.h PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/include)
-find_library(GLEW_LIBRARY NAMES GLEW glew32 glew glew32s PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/lib/Release/Win32 PATH_SUFFIXES lib64 Win32 Release)
+# #NH find_path and find_libary mods for glew...
+# find_path(GLEW_INCLUDE_DIR GL/glew.h PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/include)
+# find_library(GLEW_LIBRARY NAMES GLEW glew32 glew glew32s PATHS ${CMAKE_SOURCE_DIR}/dependencies/glew-1.13.0/lib/Release/Win32 PATH_SUFFIXES lib64 Win32 Release)
 
 
-FIND_PACKAGE(OpenGL)
-FIND_PACKAGE(GLEW)
-include_directories(${GLEW_INCLUDE_DIRS})
 
+# include_directories(${GLEW_INCLUDE_DIR})
 
-message(STATUS "GLEW_INCLUDE_DIR: ${GLEW_INCLUDE_DIRS}")
-message(STATUS "GLEW_LIBRARY: ${GLEW_LIBRARY}")
-
-
-IF(APPLE)
-  ADD_DEFINITIONS(-D__MAC__ -DAPPLE)
-ENDIF(APPLE)
+# IF(APPLE)
+#   ADD_DEFINITIONS(-D__MAC__ -DAPPLE)
+# ENDIF(APPLE)
 
 option(BUILD_2D_PGVD "Build 2D PGVD" ON)
 if(BUILD_2D_PGVD)
-  ADD_EXECUTABLE(2D_PGVD ${SRCS} ${2D_PGVD_SRCS} viewer/main_pgvd2.cpp)
-  set_target_properties (2D_PGVD PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES (2D_PGVD glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
 
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy
-                       		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD>/opencl_sources.txt)
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       		${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD>/opencl/C)
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       		${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD>/opencl/Kernels)
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                          ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+  #2D GVDS require quadtrees.
+  add_executable (QUADTREE ${OCTREE_CPP_SRC} ${OCTREE_C_SRC})
+  set_target_properties (QUADTREE PROPERTIES COMPILE_DEFINITIONS "QUADTREE")
+  target_link_libraries (QUADTREE ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW )
+
+	add_custom_target(
+	    COPY_KERNELS
+	    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+	    ${CMAKE_SOURCE_DIR}/OpenCL 
+	    ${CMAKE_CURRENT_BINARY_DIR}/OpenCL
+
+	    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+	    ${CMAKE_SOURCE_DIR}/C 
+	    ${CMAKE_CURRENT_BINARY_DIR}/OpenCL/C
+	)
+
+	add_custom_target(
+	    COPY_SHADERS
+	    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+	    ${CMAKE_SOURCE_DIR}/OpenGL 
+	    ${CMAKE_CURRENT_BINARY_DIR}/OpenGL
+	)
+	add_dependencies(QUADTREE COPY_KERNELS COPY_SHADERS)
+
+#   add_custom_command(TARGET 2D_PGVD PRE_BUILD
+#                    	COMMAND ${CMAKE_COMMAND} -E copy
+#                        		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD>/opencl_sources.txt)
+#   add_custom_command(TARGET 2D_PGVD PRE_BUILD
+#                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                        		${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD>/opencl/C)
+#   add_custom_command(TARGET 2D_PGVD PRE_BUILD
+#                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                        		${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD>/opencl/Kernels)
+#   add_custom_command(TARGET 2D_PGVD PRE_BUILD
+#                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                        		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+#   add_custom_command(TARGET 2D_PGVD PRE_BUILD
+#                     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                           ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
 endif(BUILD_2D_PGVD)
 
-option(BUILD_2D_PGVD_UNIT_TESTS "2D PGVD Unit Tests" ON)
-if(BUILD_2D_PGVD_UNIT_TESTS)
-#Adding files to target
-  ADD_EXECUTABLE(2D_PGVD_UNIT_TESTS ${UNIT_TEST_SOURCES} tests/main.cpp)
-  set_target_properties (2D_PGVD_UNIT_TESTS PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES (2D_PGVD_UNIT_TESTS glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY} CLFW)
+# option(BUILD_2D_PGVD_UNIT_TESTS "2D PGVD Unit Tests" ON)
+# if(BUILD_2D_PGVD_UNIT_TESTS)
+# #Adding files to target
+#   ADD_EXECUTABLE(2D_PGVD_UNIT_TESTS ${UNIT_TEST_SOURCES} tests/main.cpp)
+#   set_target_properties (2D_PGVD_UNIT_TESTS PROPERTIES COMPILE_DEFINITIONS "OCT2D")
+#   TARGET_LINK_LIBRARIES (2D_PGVD_UNIT_TESTS glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARY} ${OPENCL_LIBRARY} CLFW)
 
-#Custom Build Commands
-  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
-                   	COMMAND ${CMAKE_COMMAND} -E copy
-                       		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl_sources.txt)
-  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                          ${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/C)
-  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                          ${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/Kernels)
-  add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                          ${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opengl/shaders)
-  add_custom_command(TARGET 2D_PGVD PRE_BUILD
-                  COMMAND ${CMAKE_COMMAND} -E copy_directory
-                        ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
-endif(BUILD_2D_PGVD_UNIT_TESTS)
+# #Custom Build Commands
+#   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+#                    	COMMAND ${CMAKE_COMMAND} -E copy
+#                        		${CMAKE_SOURCE_DIR}/opencl/opencl_sources.txt $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl_sources.txt)
+#   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+#                     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                           ${CMAKE_SOURCE_DIR}/C $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/C)
+#   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+#                     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                           ${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/Kernels)
+#   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
+#                     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                           ${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opengl/shaders)
+#   add_custom_command(TARGET 2D_PGVD PRE_BUILD
+#                   COMMAND ${CMAKE_COMMAND} -E copy_directory
+#                         ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+# endif(BUILD_2D_PGVD_UNIT_TESTS)
 
-option(BUILD_TEST2 "Build 2D TEST" OFF)
-if(BUILD_TEST2)
-  ADD_EXECUTABLE(test2 ${SRCS} viewer/main_test2.cpp)
-  set_target_properties (test2 PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES(test2 glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
-endif(BUILD_TEST2)
+# option(BUILD_TEST2 "Build 2D TEST" OFF)
+# if(BUILD_TEST2)
+#   ADD_EXECUTABLE(test2 ${SRCS} viewer/main_test2.cpp)
+#   set_target_properties (test2 PROPERTIES COMPILE_DEFINITIONS "OCT2D")
+#   TARGET_LINK_LIBRARIES(test2 glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARY} ${OPENCL_LIBRARY})
+# endif(BUILD_TEST2)
 
-option(BUILD_FIT2 "Build 2D FIT" OFF)
-if(BUILD_FIT2)
-  ADD_EXECUTABLE(fit2 ${SRCS} viewer/main_fit2.cpp)
-  set_target_properties (fit2 PROPERTIES COMPILE_DEFINITIONS "OCT2D")
-  TARGET_LINK_LIBRARIES(fit2 glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${OPENCL_LIBRARY})
-endif(BUILD_FIT2)
+# option(BUILD_FIT2 "Build 2D FIT" OFF)
+# if(BUILD_FIT2)
+#   ADD_EXECUTABLE(fit2 ${SRCS} viewer/main_fit2.cpp)
+#   set_target_properties (fit2 PROPERTIES COMPILE_DEFINITIONS "OCT2D")
+#   TARGET_LINK_LIBRARIES(fit2 glfw ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARY} ${OPENCL_LIBRARY})
+# endif(BUILD_FIT2)

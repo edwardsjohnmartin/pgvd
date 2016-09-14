@@ -1,5 +1,5 @@
-#include ".\opencl\C\z_order.h"
-#include ".\opencl\C\Line.h"
+#include "./OpenCL/C/ZOrder/z_order.h"
+#include "./OpenCL/C/Line/Line.h"
 __kernel void PointsToMortonKernel(
   __global BigUnsigned *inputBuffer,
   __global intn *points,
@@ -42,9 +42,19 @@ __kernel void LinePredicateKernel(
  __global Line *inputBuffer,
   __global Index *predicateBuffer,
   unsigned index,
-  unsigned char comparedWith)
+  unsigned char comparedWith,
+  int mbits)
 {
-  LinePredicate(inputBuffer, predicateBuffer, index, comparedWith, get_global_id(0));
+  LinePredicate(inputBuffer, predicateBuffer, index, comparedWith, mbits, get_global_id(0));
+}
+__kernel void LevelPredicateKernel(
+ __global Line *inputBuffer,
+  __global Index *predicateBuffer,
+  unsigned index,
+  unsigned char comparedWith,
+  int mbits)
+{
+  LevelPredicate(inputBuffer, predicateBuffer, index, comparedWith, mbits, get_global_id(0));
 }
 
 __kernel void StreamScanKernel( 
@@ -202,4 +212,7 @@ __kernel void ComputeLineBoundingBoxesKernel(
   int index = getOctNode(lcp, lcpLength, octree);
   barrier(CLK_LOCAL_MEM_FENCE);
   boundingBoxes[gid] = index;
+  OctNode node = octree[boundingBoxes[gid]];
+  barrier(CLK_LOCAL_MEM_FENCE);
+  lines[gid].level = (short)node.level;
 }

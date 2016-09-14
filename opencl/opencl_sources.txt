@@ -1,6 +1,6 @@
-./opencl/C/BigUnsigned.c
-./opencl/C/ParallelAlgorithms.c
-./opencl/C/BuildBRT.c
-./opencl/C/BuildOctree.c
-./opencl/Kernels/kernels.cl
-./opencl/Kernels/TestKernels.cl
+./OpenCL/C/BigUnsigned/BigUnsigned.c
+./OpenCL/C/ParallelAlgorithms/ParallelAlgorithms.c
+./OpenCL/C/BinaryRadixTree/BuildBRT.c
+./OpenCL/C/Octree/BuildOctree.c
+./OpenCL/Kernels/kernels.cl
+./OpenCL/Kernels/TestKernels.cl

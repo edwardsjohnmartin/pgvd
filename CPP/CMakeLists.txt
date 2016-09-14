@@ -1,0 +1,26 @@
+add_subdirectory(Color)
+add_subdirectory(Events)
+add_subdirectory(GLUtilities)
+add_subdirectory(Karras)
+add_subdirectory(Kernels)
+add_subdirectory(Octree)
+add_subdirectory(Options)
+add_subdirectory(GlobalData)
+add_subdirectory(Polylines)
+add_subdirectory(Shaders)
+add_subdirectory(Timer)
+
+set(OCTREE_CPP_SRC
+	${COLOR_SRC}
+	${EVENTS_SRC}
+	${GLOBAL_DATA_SRC}
+	${GL_UTILITIES_SRC}
+	${KARRAS_SRC}
+	${KERNELS_SRC}
+	${OCTREE_CPP_SRC}
+	${OPTIONS_SRC}
+	${POLYLINES_SRC}
+	${SHADERS_SRC}
+	${TIMER_SRC}
+	${CMAKE_CURRENT_SOURCE_DIR}/main_pgvd2.cpp
+	PARENT_SCOPE)
