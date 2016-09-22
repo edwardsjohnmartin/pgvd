@@ -18,7 +18,7 @@
 #include <string>
 #include <unordered_map>
 
-static class CLFW{
+class CLFW{
 
 private:
   /* Verbose things */
@@ -30,7 +30,7 @@ private:
   static const int infoBG = 47;
   static const int defaultFG = 39;
   static const int defaultBG = 49;
-  static void Print(std::string s, int fgcode = defaultFG, int bgcode = defaultBG, bool verbose = verbose);
+  static void Print(std::string s, int fgcode = defaultFG, int bgcode = defaultBG, bool verbose = true);
 
   /* Source file management */
   static cl_int loadFile(const char* name, char** buffer, long* length);

@@ -1,6 +1,18 @@
 ﻿#pragma once
 #include "Kernels.h"
 
+#ifdef __OPENCL_VERSION__
+#define VEC_ACCESS(v, a) (v.a)
+#define VEC_X(v) VEC_ACCESS(v, x)
+#define VEC_Y(v) VEC_ACCESS(v, y)
+#define VEC_Z(v) VEC_ACCESS(v, z)
+#else
+#define VEC_ACCESS(v, a) (v.s[a])
+#define VEC_X(v) VEC_ACCESS(v, 0)
+#define VEC_Y(v) VEC_ACCESS(v, 1)
+#define VEC_Z(v) VEC_ACCESS(v, 2)
+#endif
+
 /* Testing methods */
 namespace Kernels {
 
@@ -843,8 +855,8 @@ namespace Kernels {
             center.x += (leafKey & (1 << 0)) ? shift : -shift;
             center.y += (leafKey & (1 << 1)) ? shift : -shift;
 
-            const floatn minimum = { center.x - shift + octreeCenter.x, center.y - shift + octreeCenter.y };
-            const floatn maximum = { center.x + shift + octreeCenter.x, center.y + shift + octreeCenter.y };
+            const floatn minimum = { center.x - shift + VEC_X(octreeCenter), center.y - shift + VEC_Y(octreeCenter) };
+            const floatn maximum = { center.x + shift + VEC_X(octreeCenter), center.y + shift + VEC_Y(octreeCenter) };
 
             //offsets.push_back(glm::vec3(center.x + octreeCenter.x, center.y + octreeCenter.y, 0.0));
             //colors.push_back(glm::vec3(1.0, 0.0, 0.0));
@@ -901,7 +913,7 @@ namespace Kernels {
                       nodeColors.colors[leafKey] = -2;
 
                       //Draw the ambiguous
-                      offsets.push_back(glm::vec3(center.x + octreeCenter.x, center.y + octreeCenter.y, 0.8));
+                      offsets.push_back(glm::vec3(center.x + VEC_X(octreeCenter), center.y + VEC_Y(octreeCenter), 0.8));
                       colors.push_back(glm::vec3(1.0, 0.0, 0.0));
                       scales.push_back(width);
                     }

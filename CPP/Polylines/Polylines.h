@@ -11,6 +11,7 @@ extern "C" {
 #include "../../CPP/Shaders/Shaders.hpp"
 #include "../Options/Options.h"
 #include "../Color/Color.h"
+#include <cstring>
 #include <iostream>
 
 class PolyLines {
@@ -60,7 +61,7 @@ class PolyLines {
           GL_ARRAY_BUFFER, capacity*sizeof(glm::vec3), points, GL_STATIC_DRAW);
       cout << "Updating capacity to " << capacity << endl;
     }
-    points[size] = glm::vec3(p.x, p.y, 0.0);
+    points[size] = glm::vec3(p.s[0], p.s[1], 0.0);
 
     glBufferSubData(
         GL_ARRAY_BUFFER, size*sizeof(glm::vec3),
@@ -76,7 +77,7 @@ class PolyLines {
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 
     int i = (lineIdx == 0) ? vertexIdx + 0 : vertexIdx + 2;
-    points[i] = glm::vec3(p.x, p.y, 0.0);
+    points[i] = glm::vec3(p.s[0], p.s[1], 0.0);
 
     glBufferSubData(
         GL_ARRAY_BUFFER, i*sizeof(glm::vec3),
@@ -86,7 +87,7 @@ class PolyLines {
   void setPoint(const cl_float2& p, bool first) {
     int i = first ? 0 : 1;
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
-    points[i] = glm::vec3(p.x, p.y, 0.0);
+    points[i] = glm::vec3(p.s[0], p.s[1], 0.0);
     glBufferSubData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*i, sizeof(glm::vec3), points + i);
   }
 

@@ -2,6 +2,20 @@
 #include <fstream>
 #include <sstream>
 
+#include <cstdio>
+
+#ifdef __OPENCL_VERSION__
+#define VEC_ACCESS(v, a) (v.a)
+#define VEC_X(v) VEC_ACCESS(v, x)
+#define VEC_Y(v) VEC_ACCESS(v, y)
+#define VEC_Z(v) VEC_ACCESS(v, z)
+#else
+#define VEC_ACCESS(v, a) (v.s[a])
+#define VEC_X(v) VEC_ACCESS(v, 0)
+#define VEC_Y(v) VEC_ACCESS(v, 1)
+#define VEC_Z(v) VEC_ACCESS(v, 2)
+#endif
+
 #include "./Octree2.h"
 #include "../Karras/Karras.h" //TODO: parallelize quantization
 //#include "../opencl/Geom.h"
@@ -33,6 +47,7 @@ Octree2::Octree2() {
 
   glGenBuffers(1, &positions_vbo);
   glGenBuffers(1, &instance_vbo);
+  glGenBuffers(1, &position_indices_vbo);
   glGenVertexArrays(1, &boxProgram_vao);
   glBindVertexArray(boxProgram_vao);
   glEnableVertexAttribArray(Shaders::boxProgram->position_id);
@@ -52,16 +67,28 @@ Octree2::Octree2() {
     4, 5, 5, 6, 6, 7, 7, 4,
   };
   glBindBuffer(GL_ARRAY_BUFFER, positions_vbo);
+  assert(glGetError() == GL_NO_ERROR);
   glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
+  assert(glGetError() == GL_NO_ERROR);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, position_indices_vbo);
+  fprintf(stderr, "position_indices_vbo: %d\n", position_indices_vbo);
+  assert(glGetError() == GL_NO_ERROR);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  assert(glGetError() == GL_NO_ERROR);
   glVertexAttribPointer(Shaders::boxProgram->position_id, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+  assert(glGetError() == GL_NO_ERROR);
   glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+  assert(glGetError() == GL_NO_ERROR);
   glVertexAttribPointer(Shaders::boxProgram->offset_id, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), 0);
+  assert(glGetError() == GL_NO_ERROR);
   glVertexAttribPointer(Shaders::boxProgram->scale_id, 1, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3 * sizeof(float)));
+  assert(glGetError() == GL_NO_ERROR);
   glVertexAttribPointer(Shaders::boxProgram->color_id, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(4 * sizeof(float)));
+  assert(glGetError() == GL_NO_ERROR);
   glVertexAttribDivisor(Shaders::boxProgram->offset_id, 1);
+  assert(glGetError() == GL_NO_ERROR);
   glVertexAttribDivisor(Shaders::boxProgram->scale_id, 1);
+  assert(glGetError() == GL_NO_ERROR);
   glVertexAttribDivisor(Shaders::boxProgram->color_id, 1);
   glBindVertexArray(0);
   assert(glGetError() == GL_NO_ERROR);
@@ -564,7 +591,7 @@ void Octree2::addOctreeNodes() {
   addOctreeNodes(0, center, width, color);
 }
 void Octree2::addOctreeNodes(int index, floatn offset, float scale, cl_float3 color) {
-  Instance i = { offset.x, offset.y, 0.0, scale, color.x, color.y, color.z };
+  Instance i = { offset.x, offset.y, 0.0, scale, VEC_X(color), VEC_Y(color), VEC_Z(color) };
   instances.push_back(i);
   if (index != -1) {
     OctNode current = octree[index];

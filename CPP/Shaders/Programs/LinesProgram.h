@@ -31,11 +31,11 @@ class LinesProgram {
     GLint major, minor;
     glGetIntegerv(GL_MAJOR_VERSION, &major);
     glGetIntegerv(GL_MINOR_VERSION, &minor);
-    std::string vshaderfn = "./opengl/shaders/lines-v1.2.vert";
-    std::string fshaderfn = "./opengl/shaders/lines-v1.2.frag";
+    std::string vshaderfn = "./OpenGL/Shaders/lines-v1.2.vert";
+    std::string fshaderfn = "./OpenGL/Shaders/lines-v1.2.frag";
     if ((major == 4 && minor >= 1) || major >= 5) {
-      vshaderfn = "./opengl/shaders/lines.vert";
-      fshaderfn = "./opengl/shaders/lines.frag";
+      vshaderfn = "./OpenGL/Shaders/lines.vert";
+      fshaderfn = "./OpenGL/Shaders/lines.frag";
     }
     assert(parse_file_into_str( vshaderfn.c_str(), vertex_shader, 1024 * 256));
     assert(parse_file_into_str( fshaderfn.c_str(), fragment_shader, 1024 * 256));

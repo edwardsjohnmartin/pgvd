@@ -6,20 +6,22 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 
 #------------------------------------------------------------
-# Use C++ 2011
+# Use C++ 201z
 #------------------------------------------------------------
 
 include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+CHECK_CXX_COMPILER_FLAG("-std=c++1z" COMPILER_SUPPORTS_CXX11)
 if(COMPILER_SUPPORTS_CXX11)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z")
 else()
-  message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+  message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
 endif()
 
 #------------------------------------------------------------
 # Use external dependencies
 #------------------------------------------------------------
+
+include_directories(${PROJECT_SOURCE_DIR})
 
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIR})
@@ -80,7 +82,7 @@ if(BUILD_2D_PGVD)
   #2D GVDS require quadtrees.
   add_executable (QUADTREE ${OCTREE_CPP_SRC} ${OCTREE_C_SRC})
   set_target_properties (QUADTREE PROPERTIES COMPILE_DEFINITIONS "QUADTREE")
-  target_link_libraries (QUADTREE ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW )
+  target_link_libraries (QUADTREE ${OpenCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW )
 
 	add_custom_target(
 	    COPY_KERNELS
@@ -112,10 +114,10 @@ if(BUILD_2D_PGVD)
 #                        		${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD>/opencl/Kernels)
 #   add_custom_command(TARGET 2D_PGVD PRE_BUILD
 #                    	COMMAND ${CMAKE_COMMAND} -E copy_directory
-#                        		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+#                        		${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD>/OpenGL/Shaders)
 #   add_custom_command(TARGET 2D_PGVD PRE_BUILD
 #                     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#                           ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+#                           ${CMAKE_SOURCE_DIR}/OpenGL/Shaders $<TARGET_FILE_DIR:2D_PGVD>/OpenGL/Shaders)
 endif(BUILD_2D_PGVD)
 
 # option(BUILD_2D_PGVD_UNIT_TESTS "2D PGVD Unit Tests" ON)
@@ -137,10 +139,10 @@ endif(BUILD_2D_PGVD)
 #                           ${CMAKE_SOURCE_DIR}/opencl/Kernels/ $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opencl/Kernels)
 #   add_custom_command(TARGET 2D_PGVD_UNIT_TESTS PRE_BUILD
 #                     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#                           ${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/opengl/shaders)
+#                           ${CMAKE_SOURCE_DIR}/viewer/shaders $<TARGET_FILE_DIR:2D_PGVD_UNIT_TESTS>/OpenGL/Shaders)
 #   add_custom_command(TARGET 2D_PGVD PRE_BUILD
 #                   COMMAND ${CMAKE_COMMAND} -E copy_directory
-#                         ${CMAKE_SOURCE_DIR}/opengl/shaders $<TARGET_FILE_DIR:2D_PGVD>/opengl/shaders)
+#                         ${CMAKE_SOURCE_DIR}/OpenGL/Shaders $<TARGET_FILE_DIR:2D_PGVD>/OpenGL/Shaders)
 # endif(BUILD_2D_PGVD_UNIT_TESTS)
 
 # option(BUILD_TEST2 "Build 2D TEST" OFF)
