@@ -166,6 +166,10 @@ void Octree2::build(const PolyLines *polyLines) {
     karras_points.push_back(polygon.back());
   }
 
+  for (int i = 0; i < lines.size(); ++i) {
+    if(lines[i].secondIndex >= karras_points.size())
+      lines = polyLines->getLines();
+  }
   // Compute bounding box
   //Probably should be parallelized...
   floatn minimum;
@@ -207,7 +211,7 @@ void Octree2::build(const PolyLines *polyLines) {
     //}
 //    extra_qpoints.clear();
     if (qpoints.size() > 1) {
-      octree = Karras::BuildOctreeInSerial(qpoints, resln, true);
+      octree = Karras::BuildOctreeInParallel(qpoints, resln, true);
     }
     else {
       octree.clear();
@@ -230,10 +234,9 @@ void Octree2::build(const PolyLines *polyLines) {
 //  //cout << "Number of multi-intersection cells: " << count << endl;
 //  
   addOctreeNodes();
-//  if (lines.size() > 4) {
-//   // cout << "Line: " << std::to_string(karras_points[0].x) << " " << std::to_string(karras_points[0].y) << " " << std::to_string(karras_points[1].x) << " " << std::to_string(karras_points[1].y) << endl;
-//    findAmbiguousCells();
-//  }
+  if (lines.size() > 4) {
+    findAmbiguousCells();
+  }
 }
 //
 //float2 Octree2::obj2Oct(const float2& v) const {
@@ -590,7 +593,7 @@ void Octree2::addOctreeNodes() {
   cout << endl;
   addOctreeNodes(0, center, width, color);
 }
-void Octree2::addOctreeNodes(int index, floatn offset, float scale, cl_float3 color) {
+void Octree2::addOctreeNodes(int index, floatn offset, float scale, float3 color) {
   Instance i = { offset.x, offset.y, 0.0, scale, VEC_X(color), VEC_Y(color), VEC_Z(color) };
   instances.push_back(i);
   if (index != -1) {
@@ -603,47 +606,77 @@ void Octree2::addOctreeNodes(int index, floatn offset, float scale, cl_float3 co
     addOctreeNodes(current.children[3], { offset.x + shift, offset.y + shift }, scale, color);
   }
 }
-//void Octree2::findAmbiguousCells() {
-//  if (qpoints.size() < 2) return;
-//  cl::Buffer linesBuffer, sortedLines, boundingBoxesBuffer;
-//  cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
-//  cl::Buffer zpoints = CLFW::Buffers["zpoints"];
-//  vector<int> boundingBoxes;
-//  vector<Line> sortedLines_vec(lines.size());
-//  assert(Kernels::UploadLines(lines, linesBuffer) == CL_SUCCESS);
-//  vector<BigUnsigned> zpoints_vec(qpoints.size());
-//  CLFW::DefaultQueue.enqueueReadBuffer(zpoints, CL_TRUE, 0, qpoints.size() * sizeof(BigUnsigned), zpoints_vec.data());\
-//  assert(Kernels::ComputeLineLCPs_p(linesBuffer, zpoints, lines.size(), resln.mbits) == CL_SUCCESS);
-//  assert(Kernels::RadixSortLines_p(linesBuffer, sortedLines, lines.size(), resln.mbits) == CL_SUCCESS);
-//  assert(Kernels::ComputeLineBoundingBoxes_p(sortedLines, octreeBuffer, boundingBoxesBuffer, lines.size()) == CL_SUCCESS);
-//  assert(Kernels::DownloadLines(sortedLines, sortedLines_vec, sortedLines_vec.size()) == CL_SUCCESS);
-//  assert(Kernels::DownloadBoundingBoxes(boundingBoxesBuffer, boundingBoxes, lines.size()) == CL_SUCCESS);
-//
-//  float width;
-//  BB_max_size(&bb, &width);
-//  float2 center;
-//  float2 temp;
-//  copy_fvf(&temp, width / 2.0F);
-//  add_fvfv(&center, &bb.minimum, &temp);
-//  //Kernels::ComputeLineLCPs_s(lines.data(), zpoints_vec.data(), lines.size(), resln.mbits);
-//  Kernels::FindAmbiguousCells_s(lines, sortedLines_vec, boundingBoxes, karras_points, zpoints_vec, octree, octree.size(), width, center, offsets, colors, scales);
-//
-//  for (int i = 0; i < offsets.size(); ++i) {
-//    Instance instance = { offsets[i].x, offsets[i].y, offsets[i].z,
-//      scales[i],
-//      colors[i].x, colors[i].y, colors[i].z, };
-//    instances.push_back(instance);
-//  }
-//  //ComputeHistogram
-////  for (int i = 0; i < lines.size(); ++i) {
-//  //  counts[lines[i].bb]++;
-//  //}
-//
-//  //render for testing
-//  //for (int i = 0; i < lines.size(); ++i) {
-//  //  addNode(lines[i].lcp, lines[i].lcpLength, 10 * (float)counts[lines[i].bb] / (float)octree.size());
-//  //}
-//}
+
+void Octree2::addLeaf(int internalIndex, int childIndex, float3 color) {
+  floatn center;
+  BB_center(&bb, &center);
+  float octreeWidth;
+  BB_max_size(&bb, &octreeWidth);
+  OctNode node = octree[internalIndex];
+
+  //Shift to account for the leaf
+  float width = octreeWidth / (1 << (node.level + 1));
+  float shift = width / 2.0;
+  center.x += (childIndex & 1) ? shift : -shift;
+  center.y += (childIndex & 2) ? shift : -shift;
+
+  //Shift for the internal node
+  while (node.parent != -1) {
+    for (childIndex = 0; childIndex < 4; ++childIndex) {
+      if (octree[node.parent].children[childIndex] == internalIndex)
+        break;
+    }
+
+    shift *= 2.0;
+    center.x += (childIndex & 1) ? shift : -shift;
+    center.y += (childIndex & 2) ? shift : -shift;
+
+    internalIndex = node.parent;
+    node = octree[node.parent];
+  }
+
+  Instance i = {
+    { center.x, center.y, 0.0 }
+    , width
+    , { VEC_X(color), VEC_Y(color), VEC_Z(color) }
+  };
+  instances.push_back(i);
+}
+
+void Octree2::findAmbiguousCells() {
+  if (qpoints.size() < 2) return;
+  cl::Buffer linesBuffer, sortedLines, boundingBoxesBuffer;
+  cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
+  cl::Buffer zpoints = CLFW::Buffers["zpoints"];
+  vector<int> boundingBoxes;
+  vector<Line> sortedLines_vec(lines.size());
+  assert(Kernels::UploadLines(lines, linesBuffer) == CL_SUCCESS);
+  vector<BigUnsigned> zpoints_vec(qpoints.size());
+  CLFW::DefaultQueue.enqueueReadBuffer(zpoints, CL_TRUE, 0, qpoints.size() * sizeof(BigUnsigned), zpoints_vec.data());\
+  assert(Kernels::ComputeLineLCPs_p(linesBuffer, zpoints, lines.size(), resln.mbits) == CL_SUCCESS);
+  assert(Kernels::RadixSortLines_p(linesBuffer, sortedLines, lines.size(), resln.mbits) == CL_SUCCESS);
+  assert(Kernels::ComputeLineBoundingBoxes_p(sortedLines, octreeBuffer, boundingBoxesBuffer, lines.size()) == CL_SUCCESS);
+  assert(Kernels::DownloadLines(sortedLines, sortedLines_vec, sortedLines_vec.size()) == CL_SUCCESS);
+  assert(Kernels::DownloadBoundingBoxes(boundingBoxesBuffer, boundingBoxes, lines.size()) == CL_SUCCESS);
+
+  vector<int> leafColors(4 * octree.size(), -1);
+  floatn octreeCenter = {};
+  float width;
+  BB_center(&bb, &octreeCenter);
+  BB_max_size(&bb, &width);
+  for (unsigned int i = 0; i < octree.size(); ++i) {
+    Kernels::FindAmbiguousCells_p(octree.data(), octree.size(), octreeCenter, width, leafColors.data(), 
+      boundingBoxes.data(), boundingBoxes.size(), sortedLines_vec.data(), sortedLines_vec.size(), karras_points.data(), i);
+  }
+
+  for (int i = 0; i < octree.size(); ++i) {
+    for (int j = 0; j < 4; ++j) {
+      if (leafColors[i * 4 + j] == -2) {
+        addLeaf(i, j, { 1.0, 0.0, 0.0 });
+      }
+    }
+  }
+}
 //void Octree2::addNode(BigUnsigned lcp, int lcpLength, float colorStrength) {
 //  using namespace std;
 //  //Some special cases.

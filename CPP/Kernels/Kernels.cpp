@@ -660,28 +660,11 @@ namespace Kernels {
     cl_int error = 0;
     cl::Buffer pointsBuffer, zpoints, sortedZPoints, internalBRTNodes;
     error |= Kernels::UploadPoints(points, pointsBuffer);
-    if (error != CL_SUCCESS)
-      cout << "Error: " + std::to_string(error) << endl;
     error |= Kernels::PointsToMorton_p(pointsBuffer, zpoints, size, bits);
-    if (error != CL_SUCCESS)
-      cout << "Error: " + std::to_string(error) << endl;
     error |= Kernels::RadixSortBigUnsigned_p(zpoints, sortedZPoints, size, mbits);
-    if (error != CL_SUCCESS)
-      cout << "Error: " + std::to_string(error) << endl;
     error |= Kernels::UniqueSorted(sortedZPoints, size);
-    if (error != CL_SUCCESS)
-      cout << "Error: " + std::to_string(error) << endl;
     error |= Kernels::BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, size, mbits);
-    if (error != CL_SUCCESS)
-      cout << "Error: " + std::to_string(error) << endl;
-
-    vector<BigUnsigned> zpoints_vec(size);
-    DownloadZPoints(zpoints_vec, zpoints, size);
-    for (int i = 0; i < size; ++i) {
-      cout << buToString(zpoints_vec[i]) << endl;
-    }
-
-    //error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, octree, size);
+    error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, octree, size);
     return error;
   }
 }
@@ -806,8 +789,71 @@ namespace Kernels {
     return center;;
   }
 
-  cl_int FindAmbiguousCells_s(vector<Line> unorderedLines, vector<Line> orderedLines, vector<int> boundingBoxes, vector<floatn> points,
-    vector<BigUnsigned> zpoints, vector<OctNode> octree, const unsigned int octreeSize, float octreeWidth, float2 octreeCenter,
+  //Colors should be initialized as -1. run for each internal node.
+  cl_int FindAmbiguousCells_p(OctNode *octree, unsigned int octreeSize, floatn octreeCenter, float octreeWidth, 
+    int* leafColors, int* smallestContainingCells, unsigned int numSCCS, Line* orderedLines, unsigned int numLines, float2* points, unsigned int gid ) {
+    OctNode node = octree[gid];
+    //If that node contains leaves...
+    if (node.leaf != 0) {
+      //for each leaf...
+      floatn parentcenter = getNodeCenterFromOctree(octree, gid, octreeSize, octreeWidth);
+      const float width = octreeWidth / (1 << (node.level + 1));
+      const float shift = width / 2.0;
+      for (int leafKey = 0; leafKey < 1 << DIM; ++leafKey) {
+        node = octree[gid];
+        if ((1 << leafKey) & node.leaf) {
+          floatn center = parentcenter;
+          center.x += (leafKey & (1 << 0)) ? shift : -shift;
+          center.y += (leafKey & (1 << 1)) ? shift : -shift;
+
+          const floatn minimum = { center.x - shift + octreeCenter.x, center.y - shift + octreeCenter.y };
+          const floatn maximum = { center.x + shift + octreeCenter.x, center.y + shift + octreeCenter.y };
+
+          //For each node from the current to the root
+          int nodeKey = gid;
+          do {
+            //Check to see if The current node is a bounding box.
+            int firstIndex = getIndexUsingBoundingBox(nodeKey, node.level, orderedLines, smallestContainingCells, numLines);
+            while (firstIndex > 0 && smallestContainingCells[firstIndex - 1] == smallestContainingCells[firstIndex]) firstIndex--;
+
+            //If it is a bounding box...
+            if (firstIndex != -1) {
+              unsigned int currentIndex = firstIndex;
+              //For each line this node is a bounding box to...
+              do {
+                //Paint the leaves that intersect the line.
+                if (doLineBoxTest((const floatn*)&points[orderedLines[currentIndex].firstIndex], 
+                    (const floatn*)&points[orderedLines[currentIndex].secondIndex], 
+                    (const floatn*)&minimum, (const floatn*)&maximum)) {
+                  if (leafColors[4 * gid + leafKey] == -1) {
+                    leafColors[4 * gid + leafKey] = orderedLines[currentIndex].color;
+                  }
+                  else if (leafColors[4 * gid + leafKey] != orderedLines[currentIndex].color) {
+                    leafColors[4 * gid + leafKey] = -2;
+                  }
+                }
+                currentIndex++;
+              } while (currentIndex < numSCCS && smallestContainingCells[currentIndex] == smallestContainingCells[firstIndex]);
+            }
+            nodeKey = node.parent;
+            if (nodeKey >= 0) node = octree[nodeKey];
+          } while (nodeKey >= 0);
+        }
+      }
+    }
+    return CL_SUCCESS;
+  }
+
+  cl_int FindAmbiguousCells_s(
+    vector<Line> unorderedLines, 
+    vector<Line> orderedLines, 
+    vector<int> boundingBoxes, 
+    vector<float2> points,
+    vector<BigUnsigned> zpoints, 
+    vector<OctNode> octree, 
+    const unsigned int octreeSize, 
+    float octreeWidth, 
+    float2 octreeCenter,
     std::vector<glm::vec3> &offsets,
     std::vector<glm::vec3> &colors,
     std::vector<float> &scales) {
@@ -825,17 +871,16 @@ namespace Kernels {
     vector<NodeColors> nodeColors_vec(octree.size());
 
 
-    offsets.push_back(glm::vec3(points[0].x, points[0].y, 0.0));
-    colors.push_back(glm::vec3(0.0, 0.0, 0.0));
+    offsets.push_back(glm::vec3(VEC_X(points[0]), VEC_Y(points[0]), 0.0));
+    colors.push_back(glm::vec3(1.0, 0.0, 0.0));
     scales.push_back(.01);
 
-    offsets.push_back(glm::vec3(points[1].x, points[1].y, 0.0));
-    colors.push_back(glm::vec3(0.0, 0.0, 0.0));
+    offsets.push_back(glm::vec3(VEC_X(points[1]), VEC_Y(points[1]), 0.0));
+    colors.push_back(glm::vec3(1.0, 0.0, 0.0));
     scales.push_back(.01);
 
 
     //For each internal node
-
     for (int i = 0; i < octreeSize; ++i) {
       OctNode node = octree[i];
 
@@ -858,15 +903,6 @@ namespace Kernels {
             const floatn minimum = { center.x - shift + VEC_X(octreeCenter), center.y - shift + VEC_Y(octreeCenter) };
             const floatn maximum = { center.x + shift + VEC_X(octreeCenter), center.y + shift + VEC_Y(octreeCenter) };
 
-            //offsets.push_back(glm::vec3(center.x + octreeCenter.x, center.y + octreeCenter.y, 0.0));
-            //colors.push_back(glm::vec3(1.0, 0.0, 0.0));
-            //scales.push_back(.01);
-
-
-            //offsets.push_back(glm::vec3(center.x + octreeCenter.x, center.y + octreeCenter.y, 0.0));
-            //colors.push_back(glm::vec3(0.0, 1.0, 1.0));
-            //scales.push_back(width);
-
             //For each node from the current to the root
             int nodeKey = i;
             do {
@@ -874,37 +910,13 @@ namespace Kernels {
               int firstIndex = getIndexUsingBoundingBox(nodeKey, node.level, orderedLines.data(), boundingBoxes.data(), orderedLines.size());
               while (firstIndex > 0 && boundingBoxes[firstIndex - 1] == boundingBoxes[firstIndex]) firstIndex--;
 
-              //if (firstIndex == -1) {
-              //  printf("search %d, {bb: %d l: %d}\n", -1, nodeKey, -1);
-              //  getIndexUsingBoundingBox(nodeKey, node.level, orderedLines.data(), boundingBoxes.data(), orderedLines.size());
-              //}
-              //else {
-              // printf("search %d, {bb: %d l: %d}\n", firstIndex, boundingBoxes[firstIndex], orderedLines[firstIndex]);
-              //}
-
               //If it is a bounding box...
               if (firstIndex != -1) {
                 unsigned int currentIndex = firstIndex;
                 //For each line this node is a bounding box to...
                 do {
                   //Paint the leaves that intersect the line.
-                  if (doLineBoxTest(points[orderedLines[currentIndex].firstIndex], points[orderedLines[currentIndex].secondIndex], minimum, maximum)) {
-
-                    //if (orderedLines[currentIndex].firstIndex == 0) {
-                    //  offsets.push_back(glm::vec3(minimum.x, minimum.y, 0.0));
-                    //  colors.push_back(glm::vec3(0.0, 1.0, 0.0));
-                    //  scales.push_back(.01);
-
-                    //  offsets.push_back(glm::vec3(maximum.x, maximum.y, 0.0));
-                    //  colors.push_back(glm::vec3(0.0, 0.0, 1.0));
-                    //  scales.push_back(.01);
-                    //  doLineBoxTest(points[orderedLines[currentIndex].firstIndex], points[orderedLines[currentIndex].secondIndex], minimum, maximum);
-                    //}
-
-
-                    //offsets.push_back(glm::vec3(center.x + octreeCenter.x, center.y + octreeCenter.y, 0.0));
-                    //colors.push_back(glm::vec3(1.0, 0.0, 0.0));
-                    //scales.push_back(width);
+                  if (doLineBoxTest((const floatn*)&points[orderedLines[currentIndex].firstIndex], (const floatn*)&points[orderedLines[currentIndex].secondIndex], (const floatn*)&minimum, (const floatn*)&maximum)) {
 
                     if (nodeColors.colors[leafKey] == -1) {
                       nodeColors.colors[leafKey] = orderedLines[currentIndex].color;
