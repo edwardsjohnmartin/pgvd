@@ -30,7 +30,7 @@ private:
   static const int infoBG = 47;
   static const int defaultFG = 39;
   static const int defaultBG = 49;
-  static void Print(std::string s, int fgcode = defaultFG, int bgcode = defaultBG, bool verbose = true);
+  static void Print(std::string s, int fgcode = defaultFG, int bgcode = defaultBG, bool verbose = false);
 
   /* Source file management */
   static cl_int loadFile(const char* name, char** buffer, long* length);

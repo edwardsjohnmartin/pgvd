@@ -82,7 +82,7 @@ if(BUILD_2D_PGVD)
   #2D GVDS require quadtrees.
   add_executable (QUADTREE ${OCTREE_CPP_SRC} ${OCTREE_C_SRC})
   set_target_properties (QUADTREE PROPERTIES COMPILE_DEFINITIONS "QUADTREE")
-  target_link_libraries (QUADTREE ${OpenCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW )
+  target_link_libraries (QUADTREE ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW )
 
 	add_custom_target(
 	    COPY_KERNELS
