@@ -119,18 +119,24 @@ class PolyLines {
   std::vector<Line> getLines() const {
     using namespace std;
     vector<Line> lines;
+    int totalSkips = 0; //we skip single point polylines.
     int first = 0;
+    //For each polyline 
     for (int i = 0; i < lasts.size(); ++i) {
-      const int last = lasts[i];
-      if (last - first < 2) continue;
-      for (int j = first; j < last-1; ++j) {
-        Line line;
-        line.firstIndex = j;
-        line.secondIndex = j + 1;
-        line.color = i;
-        lines.push_back(line);
+      int last = lasts[i];
+      first = (i != 0) ? lasts[i - 1] : i;
+      //if the polyline has more than one point
+      if (last - first > 1) {
+        //then add the lines in this polyline
+        for (int j = 0; j < (last - first) - 1; ++j) {
+          Line line;
+          line.firstIndex = first + j - totalSkips;
+          line.secondIndex = first + j + 1 - totalSkips;
+          line.color = first;
+          lines.push_back(line);
+        }
       }
-      first = last;
+      else totalSkips++;
     }
     return lines;
   }
@@ -153,7 +159,7 @@ class PolyLines {
 
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
     glEnable(GL_LINE_SMOOTH);
-    glLineWidth(2.0);
+    glLineWidth(1.0);
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
       if (error == GL_INVALID_VALUE) {

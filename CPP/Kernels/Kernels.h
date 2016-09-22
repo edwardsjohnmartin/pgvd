@@ -68,10 +68,21 @@ namespace Kernels {
   cl_int ComputeLineLCPs_p(cl::Buffer &linesBuffer, cl::Buffer &zpoints, cl_int size, int mbits);
   cl_int ComputeLineBoundingBoxes_s(Line* lines, int* boundingBoxes, OctNode *octree, cl_int numLines);
   cl_int ComputeLineBoundingBoxes_p(cl::Buffer &linesBuffer, cl::Buffer &octree, cl::Buffer &boundingBoxes, cl_int numLines);
-  cl_int FindAmbiguousCells_s(vector<Line> unorderedLines, vector<Line> orderedLines, vector<int> boundingBoxes, vector<floatn> points, vector<BigUnsigned> zpoints, vector<OctNode> octree, const unsigned int octreeSize, float width, float2 center,
+  cl_int FindAmbiguousCells_p(OctNode *octree, unsigned int octreeSize, floatn octreeCenter, float octreeWidth,
+    int* leafColors, int* smallestContainingCells, unsigned int numSCCS, Line* orderedLines, unsigned int numLines, float2* points, unsigned int gid);
+  cl_int FindAmbiguousCells_s(
+    vector<Line> unorderedLines, 
+    vector<Line> orderedLines, 
+    vector<int> boundingBoxes, 
+    vector<float2> points, 
+    vector<BigUnsigned> zpoints, 
+    vector<OctNode> octree, 
+    const unsigned int octreeSize, 
+    float width, float2 center,
     std::vector<glm::vec3> &offsets,
     std::vector<glm::vec3> &colors,
     std::vector<float> &scales);
+
   inline std::string buToString(BigUnsigned bu, int len) {
     std::string representation = "";
     if (len == 0)

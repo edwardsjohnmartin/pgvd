@@ -2,13 +2,11 @@
 #define __OCTREE_2_H__
 
 #include "clfw.hpp"
-//#include "LinesProgram.h"
 #include "../Shaders/Shaders.hpp"
 #include "../Polylines/Polylines.h"
 #include "../GLUtilities/gl_utils.h"
-//#include "CellIntersections.h"
-//#include "OctreeUtils.h"
 #include "../Options/Options.h"
+#include "../Kernels/Kernels.h"
 #include <glm/glm.hpp>
 
 extern "C" {
@@ -35,9 +33,9 @@ class Octree2 {
   //GLuint drawIndices[100];
   //int numIndices;
   //std::vector<glm::vec3> vertices;
-  //std::vector<glm::vec3> offsets;
-  //std::vector<glm::vec3> colors;
-  //std::vector<float> scales;
+  std::vector<glm::vec3> offsets;
+  std::vector<glm::vec3> colors;
+  std::vector<float> scales;
 
   // int numVertices;
   GLuint drawVertices_vbo;
@@ -84,8 +82,9 @@ class Octree2 {
   /* Drawing Methods */
   void addOctreeNodes();
   void addOctreeNodes(int index, floatn offset, float scale, float3 color);
-   /*
+  void addLeaf(int internalIndex, int leafIndex, float3 color);
   void findAmbiguousCells();
+   /*
   void addNode(BigUnsigned lcp, int lcpLength, float colorStrength = 0.0);
   */
   /* Unused */

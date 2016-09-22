@@ -89,21 +89,21 @@ int doCohenSutherlandTest(floatn point1, floatn point2, floatn min, floatn max) 
   /* This is an ambiguous case */
   return 0;
 }
-bool doLineBoxTest(floatn point1, floatn point2, floatn minimum, floatn maximum) {
+bool doLineBoxTest(const floatn *point1, const floatn *point2, const floatn *minimum, const floatn *maximum) {
 #if DIM == 3
-  cl_double3 dMinimum = { minimum.x, minimum.y, minimum.z };
+  cl_double3 dMinimum = { minimum->x, minimum->y, minimum->z };
   cl_double3 newPoint = {};
 
 #else
-  cl_double2 dMinimum = { minimum.x, minimum.y };
-  cl_double2 dMaximum = { maximum.x, maximum.y };
+  cl_double2 dMinimum = { minimum->x, minimum->y };
+  cl_double2 dMaximum = { maximum->x, maximum->y };
   cl_double2 newPoint = {0.0,0.0};
-  cl_double2 dPoint1 = { point1.x, point1.y };
-  cl_double2 dPoint2 = { point2.x, point2.y };
+  cl_double2 dPoint1 = { point1->x, point1->y };
+  cl_double2 dPoint2 = { point2->x, point2->y };
 #endif
 
   //Needs testing...
-  int csResult = doCohenSutherlandTest(point1, point2, minimum, maximum);
+  int csResult = doCohenSutherlandTest(*point1, *point2, *minimum, *maximum);
   if (csResult != 0) return (csResult == 1) ? true : false;
   if (true) {
 #if  DIM == 3
@@ -113,7 +113,7 @@ bool doLineBoxTest(floatn point1, floatn point2, floatn minimum, floatn maximum)
 #endif 
     cl_double2 temp = {0.0,0.0};
     double numerator, denominator;
-    double width = maximum.x - minimum.x;
+    double width = maximum->x - minimum->x;
 
     //Else for each plane, check to see where the line crosses
     for (int i = 0; i < 4; ++i) {
