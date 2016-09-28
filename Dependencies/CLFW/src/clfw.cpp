@@ -56,6 +56,7 @@ cl_int CLFW::loadFile(const char* name, char** buffer, long* length)
 cl::Device CLFW::DefaultDevice;
 cl::Context CLFW::DefaultContext;
 cl::CommandQueue CLFW::DefaultQueue;
+cl::CommandQueue CLFW::SecondaryQueue;
 
 cl::Program CLFW::DefaultProgram;
 cl::Program::Sources CLFW::DefaultSources;
@@ -102,6 +103,8 @@ cl_int CLFW::Initialize(bool _verbose, bool queryMode, unsigned int numQueues) {
     Queues.push_back(queue);
     if (i == 0)
       DefaultQueue = queue;
+    if (i == 1)
+      SecondaryQueue = queue;
   }
   error |= get(DefaultSources);
   error |= Build(DefaultProgram, DefaultSources);

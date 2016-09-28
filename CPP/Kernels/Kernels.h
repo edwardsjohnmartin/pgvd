@@ -45,7 +45,7 @@ namespace Kernels {
   cl_int GetFourWayPrefixSum_p(cl::Buffer &input, cl::Buffer &fourWayPrefix, unsigned int index, unsigned char compared, cl_int size);
   cl_int GetFourWayPrefixSum_s(BigUnsigned* input, unsigned int *fourWayPrefix, unsigned int index, unsigned char compared, cl_int size);
   cl_int UniquePredicate(cl::Buffer &input, cl::Buffer &predicate, cl_int globalSize);
-  cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize);
+  cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize, string intermediateName);
   cl_int StreamScan_s(unsigned int* buffer, unsigned int* result, const int size);
   cl_int SingleCompact(cl::Buffer &input, cl::Buffer &result, cl::Memory &predicate, cl::Buffer &address, cl_int globalSize);
   cl_int DoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize);
@@ -61,27 +61,16 @@ namespace Kernels {
   cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, vector<OctNode> &octree_vec, cl_int size);
   cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree, cl_int size);
   cl_int BuildOctree_s(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
-  cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
+  cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, vector<OctNode> &octree, int bits, int mbits);
   cl_int AddAll(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
   cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
   cl_int ComputeLineLCPs_s(Line* lines, BigUnsigned* zpoints, cl_int size, int mbits);
   cl_int ComputeLineLCPs_p(cl::Buffer &linesBuffer, cl::Buffer &zpoints, cl_int size, int mbits);
   cl_int ComputeLineBoundingBoxes_s(Line* lines, int* boundingBoxes, OctNode *octree, cl_int numLines);
   cl_int ComputeLineBoundingBoxes_p(cl::Buffer &linesBuffer, cl::Buffer &octree, cl::Buffer &boundingBoxes, cl_int numLines);
-  cl_int FindAmbiguousCells_p(OctNode *octree, unsigned int octreeSize, floatn octreeCenter, float octreeWidth,
-    int* leafColors, int* smallestContainingCells, unsigned int numSCCS, Line* orderedLines, unsigned int numLines, float2* points, unsigned int gid);
-  cl_int FindAmbiguousCells_s(
-    vector<Line> unorderedLines, 
-    vector<Line> orderedLines, 
-    vector<int> boundingBoxes, 
-    vector<float2> points, 
-    vector<BigUnsigned> zpoints, 
-    vector<OctNode> octree, 
-    const unsigned int octreeSize, 
-    float width, float2 center,
-    std::vector<glm::vec3> &offsets,
-    std::vector<glm::vec3> &colors,
-    std::vector<float> &scales);
+  cl_int SortLinesByLvlThenVal_p(vector<Line> &unorderedLines, cl::Buffer &sortedLinesBuffer, cl::Buffer &zpoints, const Resln &resln);
+  cl_int FindConflictCells_s(cl::Buffer sortedLinesBuffer, cl_int numLines, cl::Buffer octreeBuffer, OctNode* octree,
+    unsigned int numOctNodes, floatn octreeCenter, float octreeWidth, vector<ConflictPair> &conflictPairs, float2* points);
 
   inline std::string buToString(BigUnsigned bu, int len) {
     std::string representation = "";

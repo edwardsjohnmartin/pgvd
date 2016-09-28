@@ -104,18 +104,6 @@ inline std::string buToString(BigUnsigned bu) {
   return representation;
 }
 
-vector<OctNode> BuildOctreeInParallel( const vector<intn>& points, const Resln& resln, const bool verbose) {
-  vector<OctNode> octree;
-  Kernels::BuildOctree_p(points, octree, resln.bits, resln.mbits);
-  return octree;
-}
-
-vector<OctNode> BuildOctreeInSerial( const vector<intn>& points, const Resln& resln, const bool verbose) {
-  vector<OctNode> octree;
-  Kernels::BuildOctree_s(points, octree, resln.bits, resln.mbits);
-  return octree;
-}
-
 // Debug output
 // void OutputOctreeNode(
 //     const int node, const std::vector<OctNode>& octree, vector<int> path) {

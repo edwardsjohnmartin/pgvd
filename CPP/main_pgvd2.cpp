@@ -32,7 +32,7 @@ void InitializeGLFW(int width = 512, int height = 512) {
 
 int main(int argc, char** argv) {
   using namespace std;
-  CLFW::Initialize(false, true, 1);
+  CLFW::Initialize(false, true, 2);
   InitializeGLFW();
   Shaders::create();
   Data::lines = new PolyLines();
@@ -40,10 +40,12 @@ int main(int argc, char** argv) {
   Data::lines->addPoint({ .5,.5 });
   Data::lines->addPoint({ .0,.0 });
 
-  Data::octree = new Octree2();
-
   Options::showObjects = true;
   Options::showOctree = true;
+  Options::max_level = 6;
+
+  Data::octree = new Octree2();
+
   /* Event loop */
   while (!glfwWindowShouldClose(GLUtilities::window)) {
     glfwPollEvents();
@@ -52,69 +54,3 @@ int main(int argc, char** argv) {
   glfwTerminate();
   return 0;
 }
-
-////
-////int main(int argc, char** argv) {
-////  srand(static_cast <unsigned> (time(0)));
-////  using namespace std;
-////
-////  checkError(CLFW::Initialize(false, true, 1));
-////
-////  InitializeOpenGL();
-////  Shaders::create();
-////
-////  octree = new Octree2();
-////  octree->processArgs(argc, argv);
-////  lines = new PolyLines();
-////  lines->newLine({ 0.0f, 0.0f });
-////  lines->addPoint({ 0.1f, 0.1f});
-////  //point1 = point2 = make_float2(0.0f, 0.0f);
-////
-////  program = new LinesProgram();
-////
-////  //for testing
-////  octree->program = program;
-////
-////  //glm::mat4 matrix = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f);
-////  //program->setMatrix(matrix);
-////	
-////  /*for (const string& f : options.filenames) {
-////    ifstream in(f.c_str());
-////    bool first = true;
-////    while (!in.eof()) {
-////      double x, y;
-////      in >> x >> y;
-////      if (options.jitter) {
-////        double s = 100;
-////        x += rand() / (RAND_MAX*s) - 1/(s*2);
-////        y += rand() / (RAND_MAX*s) - 1/(s*2);
-////      }
-////      if (!in.eof()) {
-////        if (first) {
-////          lines->newLine(make_float2(x, y));
-////          first = false;
-////        } else {
-////          lines->addPoint(make_float2(x, y));
-////        }
-////      }
-////    }
-////    in.close();
-////  }
-////  rebuild();
-////
-////  refresh();
-////
-////*/
-////  //float radius = 1.0;
-////  ////500000
-////  //for (int i = 0; i < 3000; i++) {
-////  //  radius -= .0005;
-////  //  addpt(radius);
-////  //  rebuild();
-////  //}
-////  while (!glfwWindowShouldClose(g_window)) {
-////    glfwPollEvents();
-////  }
-////  glfwTerminate();
-////  return 0;
-////}

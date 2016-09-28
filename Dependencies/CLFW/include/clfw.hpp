@@ -44,6 +44,7 @@ public:
   static cl::Device DefaultDevice;
   static cl::Context DefaultContext;
   static cl::CommandQueue DefaultQueue;
+  static cl::CommandQueue SecondaryQueue;
 
   static cl::Program DefaultProgram;
   static cl::Program::Sources DefaultSources;

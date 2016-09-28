@@ -66,6 +66,7 @@ namespace Kernels {
     cl_int error = 0;
     cl_int roundSize = nextPow2(lines.size());
     error |= CLFW::get(linesBuffer, "linesBuffer", sizeof(Line)*roundSize);
+    error |= CLFW::DefaultQueue.finish();
     error |= CLFW::DefaultQueue.enqueueWriteBuffer(linesBuffer, CL_TRUE, 0, sizeof(Line) * lines.size(), lines.data());
     stopBenchmark();
     return error;
@@ -157,7 +158,7 @@ namespace Kernels {
     cl::CommandQueue *queue = &CLFW::DefaultQueue;
     cl::Kernel *kernel = &CLFW::Kernels["BitPredicateKernel"];
 
-    cl_int error = CLFW::get(predicate, "predicate", sizeof(cl_int)* (globalSize));
+    cl_int error = CLFW::get(predicate, "bitPredicate", sizeof(cl_int)* (globalSize));
 
     error |= kernel->setArg(0, input);
     error |= kernel->setArg(1, predicate);
@@ -171,7 +172,7 @@ namespace Kernels {
     cl::CommandQueue *queue = &CLFW::DefaultQueue;
     cl::Kernel *kernel = &CLFW::Kernels["LinePredicateKernel"];
     int roundSize = nextPow2(size);
-    cl_int error = CLFW::get(predicate, "predicate", sizeof(cl_int)* (roundSize));
+    cl_int error = CLFW::get(predicate, "linePredicate", sizeof(cl_int)* (roundSize));
 
     error |= kernel->setArg(0, input);
     error |= kernel->setArg(1, predicate);
@@ -186,7 +187,7 @@ namespace Kernels {
     cl::CommandQueue *queue = &CLFW::DefaultQueue;
     cl::Kernel *kernel = &CLFW::Kernels["LevelPredicateKernel"];
     int roundSize = nextPow2(size);
-    cl_int error = CLFW::get(predicate, "predicate", sizeof(cl_int)* (roundSize));
+    cl_int error = CLFW::get(predicate, "levelPredicate", sizeof(cl_int)* (roundSize));
 
     error |= kernel->setArg(0, input);
     error |= kernel->setArg(1, predicate);
@@ -326,7 +327,7 @@ namespace Kernels {
     return CL_SUCCESS;
   }
 
-  cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize) {
+  cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize, string intermediateName) {
     cl_int error = 0;
     bool isOld;
     cl::Kernel *kernel = &CLFW::Kernels["StreamScanKernel"];
@@ -335,8 +336,8 @@ namespace Kernels {
     int currentNumWorkgroups = (globalSize / localSize) + 1;
 
     cl::Buffer intermediate, intermediateCopy;
-    error |= CLFW::get(intermediate, "intermediate", sizeof(cl_int) * currentNumWorkgroups);
-    error |= CLFW::get(intermediateCopy, "intermediateCopy", sizeof(cl_int) * currentNumWorkgroups, isOld);
+    error |= CLFW::get(intermediate, intermediateName, sizeof(cl_int) * currentNumWorkgroups);
+    error |= CLFW::get(intermediateCopy, intermediateName + "copy", sizeof(cl_int) * currentNumWorkgroups, isOld);
 
     if (!isOld) error |= queue->enqueueFillBuffer<cl_int>(intermediateCopy, { -1 }, 0, sizeof(cl_int) * currentNumWorkgroups);
     error |= queue->enqueueCopyBuffer(intermediateCopy, intermediate, 0, 0, sizeof(cl_int) * currentNumWorkgroups);
@@ -393,11 +394,11 @@ namespace Kernels {
     const size_t globalSize = nextPow2(size);
 
     cl::Buffer predicate, address, bigUnsignedTemp, temp;
-    error |= CLFW::get(address, "address", sizeof(cl_int)*(globalSize));
+    error |= CLFW::get(address, "BUAddress", sizeof(cl_int)*(globalSize));
     error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
     error |= CLFW::get(result, "sortedZPoints", sizeof(BigUnsigned)*globalSize);
     error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, result, 0, 0, sizeof(BigUnsigned) * globalSize);
-
+    
     if (error != CL_SUCCESS)
       return error;
     cl_uint test;
@@ -407,13 +408,16 @@ namespace Kernels {
     for (unsigned int index = 0; index < mbits; index++) {
       //Predicate the 0's and 1's
       error |= BitPredicate(result, predicate, index, 0, globalSize);
-
+      if (error != CL_SUCCESS)
+        return error;
       //Scan the predication buffers.
-      error |= StreamScan_p(predicate, address, globalSize);
-
+      error |= StreamScan_p(predicate, address, globalSize, "radixSortBUIntermediate");
+      if (error != CL_SUCCESS)
+        return error;
       //Compacting
       error |= DoubleCompact(result, bigUnsignedTemp, predicate, address, globalSize);
-
+      if (error != CL_SUCCESS)
+        return error;
       //Swap result with input.
       temp = result;
       result = bigUnsignedTemp;
@@ -430,11 +434,10 @@ namespace Kernels {
     lines.resize(size);
     error |= CLFW::DefaultQueue.enqueueReadBuffer(input, CL_TRUE, 0, size * sizeof(Line), lines.data());
 
-
     const size_t globalSize = nextPow2(size);
 
     cl::Buffer predicate, address, tempLinesBuffer, temp;
-    error |= CLFW::get(address, "address", sizeof(cl_int)*(globalSize));
+    error |= CLFW::get(address, "lineAddress", sizeof(cl_int)*(globalSize));
     error |= CLFW::get(tempLinesBuffer, "tempLinesBuffer", sizeof(Line)*globalSize);
     error |= CLFW::get(sortedLines, "sortedLines", sizeof(Line)*globalSize);
     error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, sortedLines, 0, 0, sizeof(Line) * globalSize);
@@ -449,7 +452,7 @@ namespace Kernels {
       error |= LinePredicate(sortedLines, predicate, index, 0, size, mbits);
 
       //Scan the predication buffers.
-      error |= StreamScan_p(predicate, address, globalSize);
+      error |= StreamScan_p(predicate, address, globalSize, "radixSortLineIntermediate");
 
       //Compacting
       error |= LineDoubleCompact(sortedLines, tempLinesBuffer, predicate, address, size);
@@ -466,7 +469,7 @@ namespace Kernels {
       error |= LevelPredicate(sortedLines, predicate, index, 0, size, mbits);
 
       //Scan the predication buffers.
-      error |= StreamScan_p(predicate, address, globalSize);
+      error |= StreamScan_p(predicate, address, globalSize, "radixSortLineIntermediate");
 
       //Compacting
       error |= LineDoubleCompact(sortedLines, tempLinesBuffer, predicate, address, size);
@@ -578,7 +581,7 @@ namespace Kernels {
     cl_int error = CLFW::get(scannedSplits, "scannedSplits", sizeof(cl_int) * globalSize);
 
     error |= ComputeLocalSplits_p(internalBRTNodes, localSplits, size);
-    error |= StreamScan_p(localSplits, scannedSplits, globalSize);
+    error |= StreamScan_p(localSplits, scannedSplits, globalSize, "BinaryRadixToOctreeIntermediate");
 
     //Read in the required octree size
     cl_int octreeSize;
@@ -631,11 +634,11 @@ namespace Kernels {
       return -1;
     }
     int numPoints = points.size();
-    int roundNumPoints = Kernels::nextPow2(points.size());
+    int roundNumPoints = nextPow2(points.size());
     vector<BigUnsigned> zpoints(roundNumPoints);
 
     //Points to Z Order
-    Kernels::PointsToMorton_s(points.size(), bits, (intn*)points.data(), zpoints.data());
+    PointsToMorton_s(points.size(), bits, (intn*)points.data(), zpoints.data());
 
     //Sort and unique Z points
     sort(zpoints.rbegin(), zpoints.rend(), weakCompareBU);
@@ -643,28 +646,24 @@ namespace Kernels {
 
     //Build BRT
     vector<BrtNode> I(numPoints - 1);
-    Kernels::BuildBinaryRadixTree_s(zpoints.data(), I.data(), numPoints, mbits);
+    BuildBinaryRadixTree_s(zpoints.data(), I.data(), numPoints, mbits);
 
     //Build Octree
-    Kernels::BinaryRadixToOctree_s(I, octree, numPoints);
+    BinaryRadixToOctree_s(I, octree, numPoints);
     return CL_SUCCESS;
   }
 
-  cl_int BuildOctree_p(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits) {
+  cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, vector<OctNode> &octree, int bits, int mbits) {
     if (benchmarking)
       system("cls");
-    if (points.empty())
-      throw logic_error("Zero points not supported");
 
-    int size = points.size();
+    int currentSize = numZPoints;
     cl_int error = 0;
-    cl::Buffer pointsBuffer, zpoints, sortedZPoints, internalBRTNodes;
-    error |= Kernels::UploadPoints(points, pointsBuffer);
-    error |= Kernels::PointsToMorton_p(pointsBuffer, zpoints, size, bits);
-    error |= Kernels::RadixSortBigUnsigned_p(zpoints, sortedZPoints, size, mbits);
-    error |= Kernels::UniqueSorted(sortedZPoints, size);
-    error |= Kernels::BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, size, mbits);
-    error |= Kernels::BinaryRadixToOctree_p(internalBRTNodes, octree, size);
+    cl::Buffer sortedZPoints, internalBRTNodes;
+    error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
+    error |= UniqueSorted(sortedZPoints, currentSize);
+    error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
+    error |= BinaryRadixToOctree_p(internalBRTNodes, octree, currentSize);
     return error;
   }
 }
@@ -714,31 +713,6 @@ namespace Kernels {
     return error;
   }
 
-  int compareLevelThenIndex(unsigned int a_indx, unsigned int b_indx, unsigned int a_lvl, unsigned int b_lvl) {
-    if (a_lvl < b_lvl)
-      return -1;
-    if (b_lvl < a_lvl)
-      return 1;
-    if (a_indx < b_indx)
-      return -1;
-    if (b_indx < a_indx)
-      return 1;
-    return 0;
-  }
-
-  int getIndexUsingBoundingBox(unsigned int key, unsigned int level, Line* lines, int* boundingBoxes, unsigned int size) {
-    unsigned int start = 0;
-    unsigned int end = size;
-    while (start != end) {
-      unsigned int index = ((end - start) / 2) + start;
-      int x = compareLevelThenIndex(key, boundingBoxes[index], level, (lines[index].lcpLength - lines[index].lcpLength%DIM) / DIM); //lines[index].lcpLength = 3, should be 0....
-      if (0 > x) end = index;
-      else if (x > 0) start = index + 1;
-      else return index;
-    }
-    return -1;
-  }
-
   unsigned char getQuadrant(BigUnsigned *lcp, unsigned char lcpShift, unsigned char i) {
     BigUnsigned buMask, result;
     unsigned int quadrantMask = (DIM == 2) ? 3 : 7;
@@ -768,180 +742,39 @@ namespace Kernels {
     return center;
   }
 
-  floatn getNodeCenterFromOctree(OctNode *octree, unsigned int key, unsigned int octreeSize, float octreeWidth) {
-    OctNode node = octree[key];
-    floatn center = { 0.0,0.0 };
-    float shift = octreeWidth / (1 << (node.level)) / 2.0;
-
-    while (node.parent != -1) {
-      unsigned quadrant;
-      for (quadrant = 0; quadrant < (1 << DIM); ++quadrant) {
-        if (octree[node.parent].children[quadrant] == key) break;
-      }
-
-      center.x += (quadrant & (1 << 0)) ? shift : -shift;
-      center.y += (quadrant & (1 << 1)) ? shift : -shift;
-      key = node.parent;
-      node = octree[key];
-      shift *= 2.0;
-    }
-
-    return center;;
+  cl_int SortLinesByLvlThenVal_p(vector<Line> &unorderedLines, cl::Buffer &sortedLinesBuffer, cl::Buffer &zpoints, const Resln &resln) {
+    //Two lines are required for an ambigous cell to appear.
+    if (unorderedLines.size() < 2) return CL_INVALID_ARG_SIZE;
+    cl_int error = 0;
+    cl::Buffer linesBuffer;
+    error |= UploadLines(unorderedLines, linesBuffer);
+    if (error != CL_SUCCESS)
+      UploadLines(unorderedLines, linesBuffer);
+    error |= ComputeLineLCPs_p(linesBuffer, zpoints, unorderedLines.size(), resln.mbits);
+    error |= RadixSortLines_p(linesBuffer, sortedLinesBuffer, unorderedLines.size(), resln.mbits);
+    return error;
   }
 
-  //Colors should be initialized as -1. run for each internal node.
-  cl_int FindAmbiguousCells_p(OctNode *octree, unsigned int octreeSize, floatn octreeCenter, float octreeWidth, 
-    int* leafColors, int* smallestContainingCells, unsigned int numSCCS, Line* orderedLines, unsigned int numLines, float2* points, unsigned int gid ) {
-    OctNode node = octree[gid];
-    //If that node contains leaves...
-    if (node.leaf != 0) {
-      //for each leaf...
-      floatn parentcenter = getNodeCenterFromOctree(octree, gid, octreeSize, octreeWidth);
-      const float width = octreeWidth / (1 << (node.level + 1));
-      const float shift = width / 2.0;
-      for (int leafKey = 0; leafKey < 1 << DIM; ++leafKey) {
-        node = octree[gid];
-        if ((1 << leafKey) & node.leaf) {
-          floatn center = parentcenter;
-          center.x += (leafKey & (1 << 0)) ? shift : -shift;
-          center.y += (leafKey & (1 << 1)) ? shift : -shift;
+  cl_int FindConflictCells_s(cl::Buffer sortedLinesBuffer, cl_int numLines, cl::Buffer octreeBuffer, OctNode* octree,
+    unsigned int numOctNodes, floatn octreeCenter, float octreeWidth, vector<ConflictPair> &conflictPairs, float2* points) {
+    //Two lines are required for an ambigous cell to appear.
+    if (numLines < 2) return CL_INVALID_ARG_SIZE;
+    cl_int error = 0;
+    vector<int> boundingBoxes;
+    cl::Buffer boundingBoxesBuffer;
+    error |= ComputeLineBoundingBoxes_p(sortedLinesBuffer, octreeBuffer, boundingBoxesBuffer, numLines);
+    error |= DownloadBoundingBoxes(boundingBoxesBuffer, boundingBoxes, numLines);
 
-          const floatn minimum = { center.x - shift + octreeCenter.x, center.y - shift + octreeCenter.y };
-          const floatn maximum = { center.x + shift + octreeCenter.x, center.y + shift + octreeCenter.y };
-
-          //For each node from the current to the root
-          int nodeKey = gid;
-          do {
-            //Check to see if The current node is a bounding box.
-            int firstIndex = getIndexUsingBoundingBox(nodeKey, node.level, orderedLines, smallestContainingCells, numLines);
-            while (firstIndex > 0 && smallestContainingCells[firstIndex - 1] == smallestContainingCells[firstIndex]) firstIndex--;
-
-            //If it is a bounding box...
-            if (firstIndex != -1) {
-              unsigned int currentIndex = firstIndex;
-              //For each line this node is a bounding box to...
-              do {
-                //Paint the leaves that intersect the line.
-                if (doLineBoxTest((const floatn*)&points[orderedLines[currentIndex].firstIndex], 
-                    (const floatn*)&points[orderedLines[currentIndex].secondIndex], 
-                    (const floatn*)&minimum, (const floatn*)&maximum)) {
-                  if (leafColors[4 * gid + leafKey] == -1) {
-                    leafColors[4 * gid + leafKey] = orderedLines[currentIndex].color;
-                  }
-                  else if (leafColors[4 * gid + leafKey] != orderedLines[currentIndex].color) {
-                    leafColors[4 * gid + leafKey] = -2;
-                  }
-                }
-                currentIndex++;
-              } while (currentIndex < numSCCS && smallestContainingCells[currentIndex] == smallestContainingCells[firstIndex]);
-            }
-            nodeKey = node.parent;
-            if (nodeKey >= 0) node = octree[nodeKey];
-          } while (nodeKey >= 0);
-        }
-      }
+    vector<Line> sortedLines(numLines);
+    error |= DownloadLines(sortedLinesBuffer, sortedLines, numLines);
+    ConflictPair initialPair;
+    initialPair.i[0] = initialPair.i[1] = -1;
+    conflictPairs.resize(4 * numOctNodes, initialPair);
+    for (unsigned int i = 0; i < numOctNodes; ++i) {
+      FindConflictCells(octree, numOctNodes, octreeCenter, octreeWidth, conflictPairs.data(),
+        boundingBoxes.data(), boundingBoxes.size(), sortedLines.data(), sortedLines.size(), points, i);
     }
-    return CL_SUCCESS;
-  }
-
-  cl_int FindAmbiguousCells_s(
-    vector<Line> unorderedLines, 
-    vector<Line> orderedLines, 
-    vector<int> boundingBoxes, 
-    vector<float2> points,
-    vector<BigUnsigned> zpoints, 
-    vector<OctNode> octree, 
-    const unsigned int octreeSize, 
-    float octreeWidth, 
-    float2 octreeCenter,
-    std::vector<glm::vec3> &offsets,
-    std::vector<glm::vec3> &colors,
-    std::vector<float> &scales) {
-    offsets.clear();
-    colors.clear();
-    scales.clear();
-
-    //cout << endl;
-    //for (int i = 0; i < boundingBoxes.size(); ++i) {
-    //  printf("%3d, {bb: %3d l: %3d lvl: %3d lcp_len: ", i, boundingBoxes[i], orderedLines[i], orderedLines[i].level);
-    //  printf("%3d}\n", orderedLines[i].lcpLength);
-    //}
-
-    struct NodeColors { int colors[4] = { -1, -1, -1, -1 }; };
-    vector<NodeColors> nodeColors_vec(octree.size());
-
-
-    offsets.push_back(glm::vec3(VEC_X(points[0]), VEC_Y(points[0]), 0.0));
-    colors.push_back(glm::vec3(1.0, 0.0, 0.0));
-    scales.push_back(.01);
-
-    offsets.push_back(glm::vec3(VEC_X(points[1]), VEC_Y(points[1]), 0.0));
-    colors.push_back(glm::vec3(1.0, 0.0, 0.0));
-    scales.push_back(.01);
-
-
-    //For each internal node
-    for (int i = 0; i < octreeSize; ++i) {
-      OctNode node = octree[i];
-
-      //If that node contains leaves...
-      if (node.leaf != 0) {
-        //initialize leaves with color -1. 
-        struct NodeColors &nodeColors = nodeColors_vec[i];
-
-        //for each leaf...
-        floatn parentcenter = getNodeCenterFromOctree(octree.data(), i, octreeSize, octreeWidth);
-        const float width = octreeWidth / (1 << (node.level + 1));
-        const float shift = width / 2.0;
-        for (int leafKey = 0; leafKey < 1 << DIM; ++leafKey) {
-          node = octree[i];
-          if ((1 << leafKey) & node.leaf) {
-            floatn center = parentcenter;
-            center.x += (leafKey & (1 << 0)) ? shift : -shift;
-            center.y += (leafKey & (1 << 1)) ? shift : -shift;
-
-            const floatn minimum = { center.x - shift + VEC_X(octreeCenter), center.y - shift + VEC_Y(octreeCenter) };
-            const floatn maximum = { center.x + shift + VEC_X(octreeCenter), center.y + shift + VEC_Y(octreeCenter) };
-
-            //For each node from the current to the root
-            int nodeKey = i;
-            do {
-              //Check to see if The current node is a bounding box.
-              int firstIndex = getIndexUsingBoundingBox(nodeKey, node.level, orderedLines.data(), boundingBoxes.data(), orderedLines.size());
-              while (firstIndex > 0 && boundingBoxes[firstIndex - 1] == boundingBoxes[firstIndex]) firstIndex--;
-
-              //If it is a bounding box...
-              if (firstIndex != -1) {
-                unsigned int currentIndex = firstIndex;
-                //For each line this node is a bounding box to...
-                do {
-                  //Paint the leaves that intersect the line.
-                  if (doLineBoxTest((const floatn*)&points[orderedLines[currentIndex].firstIndex], (const floatn*)&points[orderedLines[currentIndex].secondIndex], (const floatn*)&minimum, (const floatn*)&maximum)) {
-
-                    if (nodeColors.colors[leafKey] == -1) {
-                      nodeColors.colors[leafKey] = orderedLines[currentIndex].color;
-                    }
-                    else if (nodeColors.colors[leafKey] != orderedLines[currentIndex].color) {
-                      nodeColors.colors[leafKey] = -2;
-
-                      //Draw the ambiguous
-                      offsets.push_back(glm::vec3(center.x + VEC_X(octreeCenter), center.y + VEC_Y(octreeCenter), 0.8));
-                      colors.push_back(glm::vec3(1.0, 0.0, 0.0));
-                      scales.push_back(width);
-                    }
-                  }
-                  currentIndex++;
-                } while (currentIndex < boundingBoxes.size() && boundingBoxes[currentIndex] == boundingBoxes[firstIndex]);
-              }
-              nodeKey = node.parent;
-              if (nodeKey >= 0) node = octree[nodeKey];
-            } while (nodeKey >= 0);
-          }
-        }
-      }
-    }
-
-    return CL_SUCCESS;
+    return error;
   }
 }
 
@@ -958,7 +791,7 @@ namespace Kernels {
     error |= CLFW::get(result, "result", sizeof(BigUnsigned) * globalSize);
 
     error |= UniquePredicate(input, predicate, globalSize);
-    error |= StreamScan_p(predicate, address, globalSize);
+    error |= StreamScan_p(predicate, address, globalSize, "UniqueIntermediate");
     error |= SingleCompact(input, result, predicate, address, globalSize);
 
     input = result;
@@ -1021,7 +854,8 @@ namespace Kernels {
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits) {
     cl_int error = 0;
     size_t globalSize = nextPow2(size);
-    error |= CLFW::get(zpoints, "zpoints", globalSize * sizeof(BigUnsigned));
+    bool old;
+    error |= CLFW::get(zpoints, "zpoints", globalSize * sizeof(BigUnsigned), old, CLFW::DefaultContext, CL_MEM_READ_ONLY);
     cl::Kernel kernel = CLFW::Kernels["PointsToMortonKernel"];
     error |= kernel.setArg(0, zpoints);
     error |= kernel.setArg(1, points);

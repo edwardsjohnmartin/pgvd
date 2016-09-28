@@ -110,9 +110,9 @@ void focus_cb(GLFWwindow* window, int focused) {
 
 void refresh() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  if (Options::showObjects)
-    Data::lines->render();
   if (Options::showOctree)
     Data::octree->draw();
+  if (Options::showObjects)
+    Data::lines->render();
   glfwSwapBuffers(GLUtilities::window);
 }
