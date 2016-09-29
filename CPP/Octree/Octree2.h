@@ -20,13 +20,13 @@ class Octree2 {
  private:
   std::vector<OctNode> octree;
   //std::vector<CellIntersections> cell_intersections;
-  //std::vector<floatn> intersections;
-  std::vector<float2> karras_points;
-  std::vector<intn> qpoints;
+  //std::vector<float_n> intersections;
+  std::vector<float_2> karras_points;
+  std::vector<int_n> qpoints;
   std::vector<Line> lines;
-  std::vector<intn> extra_qpoints;
+  std::vector<int_n> extra_qpoints;
   BoundingBox bb;
-  //vector<floatn> _origins;
+  //vector<float_n> _origins;
   //vector<float> _lengths;
   Resln resln;
 
@@ -51,7 +51,7 @@ class Octree2 {
   Octree2();
   
   //int processArgs(int argc, char** argv);
-  //void build(const std::vector<floatn>& points, const BoundingBox* customBB);
+  //void build(const std::vector<float_n>& points, const BoundingBox* customBB);
   void build(const PolyLines* lines);
   typedef struct {
     float offset[3];
@@ -59,10 +59,10 @@ class Octree2 {
     float color[3];
   } Instance;
   std::vector<Instance> instances;
-  //void getZPoints(vector<BigUnsigned> &zpoints, const std::vector<intn> &qpoints);
+  //void getZPoints(vector<BigUnsigned> &zpoints, const std::vector<int_n> &qpoints);
   //int getNode(BigUnsigned lcp, int lcpLength, OctNode *octree);
 
-  //void set(std::vector<OctNode>& octree_, const BoundingBox<floatn>& bb_) {
+  //void set(std::vector<OctNode>& octree_, const BoundingBox<float_n>& bb_) {
   //  octree = octree_;
   //  bb = bb_;
   //  buildOctVertices();
@@ -72,25 +72,25 @@ class Octree2 {
   void draw();
 
  private:
-  /*floatn obj2Oct(const floatn& v) const;
-  floatn oct2Obj(const intn& v) const;
+  /*float_n obj2Oct(const float_n& v) const;
+  float_n oct2Obj(const int_n& v) const;
   GLfloat oct2Obj(int dist) const;
-  glm::vec3 toVec3(floatn p) const;
+  glm::vec3 toVec3(float_n p) const;
 
   */
   
   /* Drawing Methods */
   void addOctreeNodes();
-  void addOctreeNodes(int index, floatn offset, float scale, float3 color);
-  void addLeaf(int internalIndex, int leafIndex, float3 color);
+  void addOctreeNodes(int index, float_n offset, float scale, float_3 color);
+  void addLeaf(int internalIndex, int leafIndex, float_3 color);
   void findAmbiguousCells();
    /*
   void addNode(BigUnsigned lcp, int lcpLength, float colorStrength = 0.0);
   */
   /* Unused */
   //void FindMultiCells(const PolyLines& lines);
-  //void Find(const floatn& p);
-  //std::vector<OctreeUtils::CellIntersection> Walk(const floatn& a, const floatn& b);
+  //void Find(const float_n& p);
+  //std::vector<OctreeUtils::CellIntersection> Walk(const float_n& a, const float_n& b);
 
 };
 

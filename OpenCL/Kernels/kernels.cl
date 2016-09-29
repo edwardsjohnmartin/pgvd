@@ -1,8 +1,9 @@
 #include "./OpenCL/C/ZOrder/z_order.h"
 #include "./OpenCL/C/Line/Line.h"
+#include "./OpenCL/C/CellResolution/CellResolution.h"
 __kernel void PointsToMortonKernel(
   __global BigUnsigned *inputBuffer,
-  __global intn *points,
+  __global int_n *points,
   const unsigned int size,
   const unsigned int bits
   ) 
@@ -10,7 +11,7 @@ __kernel void PointsToMortonKernel(
  const size_t gid = get_global_id(0);
  const size_t lid = get_local_id(0);
  BigUnsigned tempBU;
- intn tempPoint = points[gid];
+ int_n tempPoint = points[gid];
 
  if (gid < size) {
    xyz2z(&tempBU, tempPoint, bits);
@@ -215,4 +216,21 @@ __kernel void ComputeLineBoundingBoxesKernel(
   OctNode node = octree[boundingBoxes[gid]];
   barrier(CLK_LOCAL_MEM_FENCE);
   lines[gid].level = (short)node.level;
+}
+
+__kernel void FindConflictCellsKernel(
+  __global OctNode *octree, 
+  __global float_2* points,
+  __global Line* orderedLines, 
+  __global int* smallestContainingCells, 
+  __global ConflictPair* conflictPairs, 
+  unsigned int numOctNodes, 
+  unsigned int numSCCS, 
+  unsigned int numLines, 
+  float_n octreeCenter, 
+  float octreeWidth
+  ) {
+  const int gid = get_global_id(0);
+  FindConflictCells(octree, numOctNodes, octreeCenter, octreeWidth, conflictPairs,
+        smallestContainingCells, numSCCS, orderedLines, numLines, points, gid);
 }

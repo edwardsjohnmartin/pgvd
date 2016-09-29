@@ -4,28 +4,28 @@
 #include "./BoundingBox.h"
 #endif
 
-void BB_initialize(BoundingBox *bb, const floatn* minimum, const floatn* maximum) {
+void BB_initialize(BoundingBox *bb, const float_n* minimum, const float_n* maximum) {
   bb->initialized = true;
   copy_fvfv(&bb->minimum, minimum);
   copy_fvfv(&bb->maximum, maximum);
 }
 
-void BB_center(const BoundingBox *bb, floatn *center) {
+void BB_center(const BoundingBox *bb, float_n *center) {
   add_fvfv(center, &bb->minimum, &bb->maximum);
   div_fvf(center, center, 2.0F);
 }
 
-void BB_size(const BoundingBox *bb, floatn *size) {
+void BB_size(const BoundingBox *bb, float_n *size) {
   subt_fvfv(size, &bb->maximum, &bb->minimum);
 }
 
 void BB_max_size(const BoundingBox *bb, float *m) {
-  floatn size;
+  float_n size;
   BB_size(bb, &size);
   max_in_fv(m, &size);
 }
 
-bool BB_contains_point(const BoundingBox *bb, floatn *point, const float epsilon) {
+bool BB_contains_point(const BoundingBox *bb, float_n *point, const float epsilon) {
   for (int i = 0; i < DIM; ++i)
     if ((point->s[i] <= bb->minimum.s[i] - epsilon) ||
         (point->s[i] >= bb->maximum.s[i] + epsilon)) 
@@ -36,7 +36,7 @@ bool BB_contains_point(const BoundingBox *bb, floatn *point, const float epsilon
 // Returns the smallest square bounding box that contains
 // bb and has identical origin.
 void BB_make_square(BoundingBox *result, const BoundingBox *bb) {
-  floatn size;
+  float_n size;
   float dwidth;
   
   BB_size(bb, &size);
@@ -46,7 +46,7 @@ void BB_make_square(BoundingBox *result, const BoundingBox *bb) {
 }
 
 void BB_make_centered_square(BoundingBox *result, const BoundingBox *bb) {
-  floatn size;
+  float_n size;
   float dwidth;
   BB_size(bb, &size);
   max_in_fv(&dwidth, &size);
@@ -62,11 +62,11 @@ void BB_make_centered_square(BoundingBox *result, const BoundingBox *bb) {
 }
 
 void BB_scale(BoundingBox *result, const BoundingBox *bb, const float f) {
-  floatn size;
+  float_n size;
   BB_size(bb, &size);
   mult_fvf(&size, &size, f);
 
-  floatn newMax;
+  float_n newMax;
   copy_fvfv(&newMax, &bb->minimum);
   add_fvfv(&newMax, &newMax, &size);
 
@@ -74,25 +74,25 @@ void BB_scale(BoundingBox *result, const BoundingBox *bb, const float f) {
 }
 
 void BB_scale_centered(BoundingBox *result, const BoundingBox *bb, const float f) {
-  floatn s;
+  float_n s;
   BB_size(bb, &s);
   mult_fvf(&s, &s, f);
   div_fvf(&s, &s, 2.0F);
 
-  floatn c;
+  float_n c;
   BB_center(bb, &c);
 
-  floatn minp;
+  float_n minp;
   subt_fvfv(&minp, &c, &s);
   
-  floatn maxp;
+  float_n maxp;
   add_fvfv(&maxp, &c, &s);
 
   BB_initialize(&result, &minp, &maxp);
 }
 
 bool BB_is_square(const BoundingBox *bb) {
-  floatn s;
+  float_n s;
   BB_size(bb, &s);
   float a = s.s[0];
   for (int i = 1; i < DIM; ++i) {

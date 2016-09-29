@@ -18,19 +18,19 @@ class PolyLines {
  private:
   int capacity;
   int size;
-  glm::vec3* points;
+  float_3* points;
   // Index of last+1 point in a line
   std::vector<int> lasts;
-  std::vector<cl_float3> colors;
+  std::vector<float_3> colors;
 
   GLuint pointsVboId;
   GLuint pointsVaoId;
 
  public:
-  PolyLines() : capacity(1024), size(0), points(new glm::vec3[capacity]) {
+  PolyLines() : capacity(1024), size(0), points(new float_3[capacity]) {
     glGenBuffers(1, &pointsVboId);
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
-    glBufferData(GL_ARRAY_BUFFER, capacity*sizeof(glm::vec3), points, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, capacity*sizeof(float_3), points, GL_STATIC_DRAW);
     glGenVertexArrays(1, &pointsVaoId);
     glBindVertexArray(pointsVaoId);
     glEnableVertexAttribArray(Shaders::lineProgram->position_id);
@@ -47,67 +47,73 @@ class PolyLines {
     lasts.clear();
   }
 
-  void addPoint(const cl_float2& p) {
+  void addPoint(const float_2& p) {
     using namespace std;
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 
     if (size == capacity) {
-      glm::vec3* temp = new glm::vec3[capacity*2];
-      memcpy(temp, points, capacity*sizeof(glm::vec3));
+      float_3* temp = new float_3[capacity*2];
+      memcpy(temp, points, capacity*sizeof(float_3));
       delete [] points;
       points = temp;
       capacity *= 2;
       glBufferData(
-          GL_ARRAY_BUFFER, capacity*sizeof(glm::vec3), points, GL_STATIC_DRAW);
+          GL_ARRAY_BUFFER, capacity*sizeof(float_3), points, GL_STATIC_DRAW);
       cout << "Updating capacity to " << capacity << endl;
     }
-    points[size] = glm::vec3(p.s[0], p.s[1], 0.0);
+	X_(points[size]) = X_(p);
+	Y_(points[size]) = Y_(p);
+	Z_(points[size]) = 0.0;
 
     glBufferSubData(
-        GL_ARRAY_BUFFER, size*sizeof(glm::vec3),
-        sizeof(glm::vec3), points+size);
+        GL_ARRAY_BUFFER, size*sizeof(float_3),
+        sizeof(float_3), points+size);
 
     ++size;
     lasts.back() = size;
   }
 
   // This is a test method for the fit program. It is not for general use.
-  void replacePoint(const cl_float2& p, const int lineIdx, const int vertexIdx) {
+  void replacePoint(const float_2& p, const int lineIdx, const int vertexIdx) {
     using namespace std;
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 
     int i = (lineIdx == 0) ? vertexIdx + 0 : vertexIdx + 2;
-    points[i] = glm::vec3(p.s[0], p.s[1], 0.0);
+	X_(points[i]) = X_(p);
+	Y_(points[i]) = Y_(p);
+	Z_(points[i]) = 0.0;
 
     glBufferSubData(
-        GL_ARRAY_BUFFER, i*sizeof(glm::vec3),
-        sizeof(glm::vec3), points+i);
+        GL_ARRAY_BUFFER, i*sizeof(float_3),
+        sizeof(float_3), points+i);
   }
 
-  void setPoint(const cl_float2& p, bool first) {
+  void setPoint(const float_2& p, bool first) {
     int i = first ? 0 : 1;
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
-    points[i] = glm::vec3(p.s[0], p.s[1], 0.0);
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*i, sizeof(glm::vec3), points + i);
+	X_(points[i]) = X_(p);
+	Y_(points[i]) = Y_(p);
+	Z_(points[i]) = 0.0;
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(float_3)*i, sizeof(float_3), points + i);
   }
 
-  void newLine(const cl_float2& p) {
+  void newLine(const float_2& p) {
     lasts.push_back(0);
     colors.push_back(Color::randomColor());
     addPoint(p);
   }
 
-  std::vector<std::vector<cl_float2>> getPolygons() const {
+  std::vector<std::vector<float_2>> getPolygons() const {
     using namespace std;
-    vector<vector<cl_float2>> ret;
+    vector<vector<float_2>> ret;
 
     int first = 0;
     for (int i = 0; i < lasts.size(); ++i) {
       const int last = lasts[i];
-      vector<cl_float2> polygon;
+      vector<float_2> polygon;
       for (int j = first; j < last; ++j) {
-        const glm::vec3& p = points[j];
-        polygon.push_back({p.x, p.y});
+        float_3 p = points[j];
+        polygon.push_back({X_(p), Y_(p)});
       }
       if (polygon.size() > 1) {
         ret.push_back(polygon);
@@ -153,7 +159,7 @@ class PolyLines {
     glBindVertexArray(pointsVaoId);
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId); //Think this isn't required after vao setup.
     print_error("Polylines0.1");
-    glVertexAttribPointer( Shaders::lineProgram->position_id, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribPointer( Shaders::lineProgram->position_id, 4, GL_FLOAT, GL_FALSE, 0, NULL);
     print_error("Polylines0.2");
     glEnableVertexAttribArray(Shaders::lineProgram->position_id);
     print_error("Polylines0.3");
@@ -174,7 +180,7 @@ class PolyLines {
     for (int i = 0; i < lasts.size(); ++i) {
       const int len = lasts[i]-first;
 
-      cl_float3 color = colors[i];
+      float_3 color = colors[i];
       glUniform3fv(Shaders::lineProgram->color_uniform_id, 1, color.s);
 
       if (Options::showObjectVertices) {

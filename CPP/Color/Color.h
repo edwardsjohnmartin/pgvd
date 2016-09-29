@@ -4,8 +4,8 @@
 #include <ctime>
 #include <cstdlib>
 namespace Color {
-  inline cl_float3 randomColor() {
-    cl_float3 c = { 0.0, 0.0, 0.0 };
+  inline float_3 randomColor() {
+    float_3 c = { 0.0, 0.0, 0.0 };
     int degree = rand()%360;
     int hueSection = degree/60;
     switch ( hueSection ) {

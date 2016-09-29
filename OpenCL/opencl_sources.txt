@@ -2,5 +2,6 @@
 ./OpenCL/C/ParallelAlgorithms/ParallelAlgorithms.c
 ./OpenCL/C/BinaryRadixTree/BuildBRT.c
 ./OpenCL/C/Octree/BuildOctree.c
+./OpenCL/C/CellResolution/CellResolution.c
 ./OpenCL/Kernels/kernels.cl
 ./OpenCL/Kernels/TestKernels.cl

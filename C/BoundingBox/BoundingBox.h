@@ -24,19 +24,19 @@
 
 typedef struct BoundingBox {
   bool initialized;
-  floatn minimum;
-  floatn maximum;
+  float_n minimum;
+  float_n maximum;
 } BoundingBox;
 
-void BB_initialize(BoundingBox *bb, const floatn* minimum, const floatn* maximum);
+void BB_initialize(BoundingBox *bb, const float_n* minimum, const float_n* maximum);
 
-void BB_center(const BoundingBox *bb, floatn *center);
+void BB_center(const BoundingBox *bb, float_n *center);
 
-void BB_size(const BoundingBox *bb, floatn *size);
+void BB_size(const BoundingBox *bb, float_n *size);
 
 void BB_max_size(const BoundingBox *bb, float *m);
 
-bool BB_contains_point(const BoundingBox *bb, floatn *point, const float epsilon);
+bool BB_contains_point(const BoundingBox *bb, float_n *point, const float epsilon);
 
 // Returns the smallest square bounding box that contains
 // bb and has identical origin.

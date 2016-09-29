@@ -124,11 +124,11 @@ class LinesProgram {
   }
 
   void setColor(const int seed) {
-    cl_float3 color = Color::randomColor(seed);
+    float_3 color = Color::randomColor(seed);
     glUniform3fv(colorId, 1, color.s);
   }
 
-  void setColor(const cl_float3& color) {
+  void setColor(const float_3& color) {
     glUniform3fv(colorId, 1, color.s);
   }
 

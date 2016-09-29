@@ -3,14 +3,14 @@
 
 #ifdef __OPENCL_VERSION__
 #define VEC_ACCESS(v, a) (v.a)
-#define VEC_X(v) VEC_ACCESS(v, x)
-#define VEC_Y(v) VEC_ACCESS(v, y)
-#define VEC_Z(v) VEC_ACCESS(v, z)
+#define X_(v) VEC_ACCESS(v, x)
+#define Y_(v) VEC_ACCESS(v, y)
+#define Z_(v) VEC_ACCESS(v, z)
 #else
 #define VEC_ACCESS(v, a) (v.s[a])
-#define VEC_X(v) VEC_ACCESS(v, 0)
-#define VEC_Y(v) VEC_ACCESS(v, 1)
-#define VEC_Z(v) VEC_ACCESS(v, 2)
+#define X_(v) VEC_ACCESS(v, 0)
+#define Y_(v) VEC_ACCESS(v, 1)
+#define Z_(v) VEC_ACCESS(v, 2)
 #endif
 
 /* Testing methods */
@@ -51,12 +51,12 @@ namespace Kernels {
 
 /* Uploaders */
 namespace Kernels {
-  cl_int UploadPoints(const vector<intn> &points, cl::Buffer &pointsBuffer) {
+  cl_int UploadPoints(const vector<int_n> &points, cl::Buffer &pointsBuffer) {
     startBenchmark("Uploading points");
     cl_int error = 0;
     cl_int roundSize = nextPow2(points.size());
-    error |= CLFW::get(pointsBuffer, "pointsBuffer", sizeof(intn)*roundSize);
-    error |= CLFW::DefaultQueue.enqueueWriteBuffer(pointsBuffer, CL_TRUE, 0, sizeof(intn) * points.size(), points.data());
+    error |= CLFW::get(pointsBuffer, "pointsBuffer", sizeof(int_n)*roundSize);
+    error |= CLFW::DefaultQueue.enqueueWriteBuffer(pointsBuffer, CL_TRUE, 0, sizeof(int_n) * points.size(), points.data());
     stopBenchmark();
     return error;
   }
@@ -93,9 +93,9 @@ namespace Kernels {
     return error;
   }
 
-  cl_int DownloadPoints(vector<intn> &points, cl::Buffer &pointsBuffer, cl_int size) {
+  cl_int DownloadPoints(vector<int_n> &points, cl::Buffer &pointsBuffer, cl_int size) {
     startBenchmark("Downloading points");
-    cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(pointsBuffer, CL_TRUE, 0, sizeof(cl_int2) * size, points.data());
+    cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(pointsBuffer, CL_TRUE, 0, sizeof(int_2) * size, points.data());
     stopBenchmark();
     return error;
   }
@@ -628,7 +628,7 @@ namespace Kernels {
     return CL_SUCCESS;
   }
 
-  cl_int BuildOctree_s(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits) {
+  cl_int BuildOctree_s(const vector<int_n>& points, vector<OctNode> &octree, int bits, int mbits) {
     if (points.empty()) {
       throw logic_error("Zero points not supported");
       return -1;
@@ -638,7 +638,7 @@ namespace Kernels {
     vector<BigUnsigned> zpoints(roundNumPoints);
 
     //Points to Z Order
-    PointsToMorton_s(points.size(), bits, (intn*)points.data(), zpoints.data());
+    PointsToMorton_s(points.size(), bits, (int_n*)points.data(), zpoints.data());
 
     //Sort and unique Z points
     sort(zpoints.rbegin(), zpoints.rend(), weakCompareBU);
@@ -724,16 +724,16 @@ namespace Kernels {
     return (result.len == 0) ? 0 : result.blk[0];
   }
 
-  floatn getNodeCenterFromLCP(BigUnsigned *LCP, unsigned int LCPLength, float octreeWidth) {
+  float_n getNodeCenterFromLCP(BigUnsigned *LCP, unsigned int LCPLength, float octreeWidth) {
     unsigned int level = LCPLength / DIM;
     unsigned int lcpShift = LCPLength % DIM;
-    floatn center = { 0.0, 0.0 };
+    float_n center = { 0.0, 0.0 };
     float centerShift = octreeWidth / (2.0 * (1 << level));
 
     for (int i = 0; i < level; ++i) {
       unsigned quadrant = getQuadrant(LCP, lcpShift, i);
-      center.x += (quadrant & (1 << 0)) ? centerShift : -centerShift;
-      center.y += (quadrant & (1 << 1)) ? centerShift : -centerShift;
+      X_(center) += (quadrant & (1 << 0)) ? centerShift : -centerShift;
+      Y_(center) += (quadrant & (1 << 1)) ? centerShift : -centerShift;
 #if DIM == 3
       center.z += (quadrant & (1 << 2)) ? centerShift : -centerShift;
 #endif
@@ -756,7 +756,7 @@ namespace Kernels {
   }
 
   cl_int FindConflictCells_s(cl::Buffer sortedLinesBuffer, cl_int numLines, cl::Buffer octreeBuffer, OctNode* octree,
-    unsigned int numOctNodes, floatn octreeCenter, float octreeWidth, vector<ConflictPair> &conflictPairs, float2* points) {
+    unsigned int numOctNodes, float_n octreeCenter, float octreeWidth, vector<ConflictPair> &conflictPairs, float_2* points) {
     //Two lines are required for an ambigous cell to appear.
     if (numLines < 2) return CL_INVALID_ARG_SIZE;
     cl_int error = 0;
@@ -867,7 +867,7 @@ namespace Kernels {
     return error;
   };
 
-  cl_int PointsToMorton_s(cl_int size, cl_int bits, intn* points, BigUnsigned* result) {
+  cl_int PointsToMorton_s(cl_int size, cl_int bits, int_n* points, BigUnsigned* result) {
     startBenchmark("PointsToMorton_s");
     int nextPowerOfTwo = nextPow2(size);
     for (int gid = 0; gid < nextPowerOfTwo; ++gid) {

@@ -39,10 +39,10 @@ bool equalsBigUnsigned(BigUnsigned& a, BigUnsigned &b) {
 
 // dwidth is passed in for performance reasons. It is equal to
 //   float dwidth = bb.max_size();
-intn Quantize(
-    const floatn& p, const Resln& resln,
+int_n Quantize(
+    const float_n& p, const Resln& resln,
     const BoundingBox& bb, const float dwidth, const bool clamped) {
-  intn q = {0,0};
+  int_n q = {0,0};
   int effectiveWidth = resln.width-1;
   if (clamped) {
     effectiveWidth = resln.width;
@@ -65,25 +65,25 @@ intn Quantize(
   return q;
 }
 
-vector<intn> Quantize(
-    const floatn* points, const unsigned int numPoints, 
+vector<int_n> Quantize(
+    const float_n* points, const unsigned int numPoints, 
     const Resln& resln,
     const BoundingBox* bb, const bool clamped) {
-  if (numPoints <0) return vector<intn>();
+  if (numPoints <0) return vector<int_n>();
 
   float dwidth;
   BB_max_size(bb, &dwidth);
   if (dwidth == 0) {
-    vector<intn> ret;
+    vector<int_n> ret;
     ret.push_back({0,0});
     return ret;
   }
 
   // Quantize points to integers
-  vector<intn> qpoints(numPoints);
+  vector<int_n> qpoints(numPoints);
   for (int i = 0; i < numPoints; ++i) {
-    const floatn& p = points[i];
-    const intn q = Quantize(p, resln, *bb, dwidth, clamped);
+    const float_n& p = points[i];
+    const int_n q = Quantize(p, resln, *bb, dwidth, clamped);
     qpoints[i] = q;
   }
   
