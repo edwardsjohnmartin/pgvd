@@ -21,26 +21,24 @@ endif()
 # Use external dependencies
 #------------------------------------------------------------
 
-include_directories(${PROJECT_SOURCE_DIR})
-
 find_package(OpenGL REQUIRED)
-include_directories(${OPENGL_INCLUDE_DIR})
+include_directories(SYSTEM ${OPENGL_INCLUDE_DIR})
 
 # use GLFW
 find_package(GLFW REQUIRED)
-include_directories(${GLFW_INCLUDE_DIR})
+include_directories(SYSTEM ${GLFW_INCLUDE_DIR})
 
 # use GLEW
 find_package(GLEW REQUIRED)
-include_directories(${GLEW_INCLUDE_DIR})
+include_directories(SYSTEM ${GLEW_INCLUDE_DIR})
 
 # use GLM
 find_package(GLM REQUIRED)
-include_directories(${GLM_INCLUDE_DIR})
+include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 
 # use OpenCL
 find_package(OpenCL REQUIRED)
-include_directories(${OPENCL_INCLUDE_DIR})
+include_directories(SYSTEM ${OPENCL_INCLUDE_DIR})
 
 # use CLFW (OpenCL must be included first.)
 add_subdirectory(Dependencies/CLFW)

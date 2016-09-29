@@ -195,6 +195,8 @@ class PolyLines {
     }
     print_error("Polylines");
   }
+
+  void readFile(const char *filename);
 };
 
 #endif
