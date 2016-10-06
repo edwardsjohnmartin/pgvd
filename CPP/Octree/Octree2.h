@@ -24,7 +24,6 @@ class Octree2 {
   std::vector<float_2> karras_points;
   std::vector<int_n> qpoints;
   std::vector<Line> lines;
-  std::vector<int_n> extra_qpoints;
   BoundingBox bb;
   //vector<float_n> _origins;
   //vector<float> _lengths;

@@ -33,10 +33,12 @@ namespace Kernels {
   void stopBenchmark();
 
   int nextPow2(int num);
-  cl_int UploadPoints(const vector<int_n> &points, cl::Buffer &pointsBuffer);
+	cl_int UploadKarrasPoints(const vector<float_2> &points, cl::Buffer &karrasPointsBuffer);
+  cl_int UploadQuantizedPoints(const vector<int_n> &points, cl::Buffer &pointsBuffer);
   cl_int UploadLines(const vector<Line> &lines, cl::Buffer &linesBuffer);
   cl_int DownloadLines(cl::Buffer &linesBuffer, vector<Line> &lines, cl_int size);
   cl_int DownloadBoundingBoxes(cl::Buffer &boundingBoxesBuffer, vector<int> &boundingBoxes, cl_int size);
+	cl_int DownloadConflictPairs(vector<ConflictPair> &conflictPairsVec, cl::Buffer &conflictPairsBuffer, cl_int size);
   cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits);
   cl_int PointsToMorton_s(cl_int size, cl_int bits, int_n* points, BigUnsigned* result);
   cl_int BitPredicate(cl::Buffer &input, cl::Buffer &predicate, unsigned int &index, unsigned char compared, cl_int globalSize);
@@ -71,7 +73,8 @@ namespace Kernels {
   cl_int SortLinesByLvlThenVal_p(vector<Line> &unorderedLines, cl::Buffer &sortedLinesBuffer, cl::Buffer &zpoints, const Resln &resln);
   cl_int FindConflictCells_s(cl::Buffer sortedLinesBuffer, cl_int numLines, cl::Buffer octreeBuffer, OctNode* octree,
     unsigned int numOctNodes, float_n octreeCenter, float octreeWidth, vector<ConflictPair> &conflictPairs, float_2* points);
-
+	cl_int FindConflictCells_p(cl::Buffer &sortedLinesBuffer, cl_int numLines, cl::Buffer &octreeBuffer,
+		unsigned int numOctNodes, float_n &octreeCenter, float octreeWidth, cl::Buffer &conflictPairs, cl::Buffer &points);
   inline std::string buToString(BigUnsigned bu, int len) {
     std::string representation = "";
     if (len == 0)

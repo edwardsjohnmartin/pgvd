@@ -61,9 +61,9 @@ class PolyLines {
           GL_ARRAY_BUFFER, capacity*sizeof(float_3), points, GL_STATIC_DRAW);
       cout << "Updating capacity to " << capacity << endl;
     }
-	X_(points[size]) = X_(p);
-	Y_(points[size]) = Y_(p);
-	Z_(points[size]) = 0.0;
+		X_(points[size]) = X_(p);
+		Y_(points[size]) = Y_(p);
+		Z_(points[size]) = 0.0;
 
     glBufferSubData(
         GL_ARRAY_BUFFER, size*sizeof(float_3),
@@ -79,9 +79,9 @@ class PolyLines {
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 
     int i = (lineIdx == 0) ? vertexIdx + 0 : vertexIdx + 2;
-	X_(points[i]) = X_(p);
-	Y_(points[i]) = Y_(p);
-	Z_(points[i]) = 0.0;
+		X_(points[i]) = X_(p);
+		Y_(points[i]) = Y_(p);
+		Z_(points[i]) = 0.0;
 
     glBufferSubData(
         GL_ARRAY_BUFFER, i*sizeof(float_3),
@@ -91,9 +91,9 @@ class PolyLines {
   void setPoint(const float_2& p, bool first) {
     int i = first ? 0 : 1;
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
-	X_(points[i]) = X_(p);
-	Y_(points[i]) = Y_(p);
-	Z_(points[i]) = 0.0;
+		X_(points[i]) = X_(p);
+		Y_(points[i]) = Y_(p);
+		Z_(points[i]) = 0.0;
     glBufferSubData(GL_ARRAY_BUFFER, sizeof(float_3)*i, sizeof(float_3), points + i);
   }
 

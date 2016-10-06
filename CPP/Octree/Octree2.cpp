@@ -86,11 +86,11 @@ Octree2::Octree2() {
 
 void Octree2::build(const PolyLines *polyLines) {
   using namespace std;
+  cl::Buffer quantizedPointsBuffer, karrasPointsBuffer, zpoints, zpointsCopy, sortedLinesBuffer;
   karras_points.clear();
-  extra_qpoints.clear();
+  quantized_points.clear();
   octree.clear();
-  instances.clear();
-  qpoints.clear();
+  gl_instances.clear();
 
   const vector<vector<float_2>>& polygons = polyLines->getPolygons();
   lines = polyLines->getLines();
@@ -106,7 +106,7 @@ void Octree2::build(const PolyLines *polyLines) {
     karras_points.push_back(polygon.back());
   }
 
-  // Compute bounding box
+  //0. Compute bounding box
   //Probably should be parallelized...
   float_n minimum;
   float_n maximum;
@@ -120,46 +120,51 @@ void Octree2::build(const PolyLines *polyLines) {
   BB_make_centered_square(&bb, &bb);
   
   //1. Quantize the cartesian points. MOVE TO OPENCL...
-  qpoints = Karras::Quantize((float_n*)karras_points.data(), karras_points.size(), resln, &bb);
+	Kernels::UploadKarrasPoints(karras_points, karrasPointsBuffer);
+  quantized_points = Karras::Quantize((float_n*)karras_points.data(), karras_points.size(), resln, &bb);
 
   //2. Convert points to Z-Order
   CLFW::DefaultQueue = CLFW::Queues[0];
-  cl::Buffer pointsBuffer, zpoints, zpointsCopy, sortedLinesBuffer;
-  Kernels::UploadPoints(qpoints, pointsBuffer);
-  Kernels::PointsToMorton_p(pointsBuffer, zpoints, qpoints.size(), resln.bits);
+  Kernels::UploadQuantizedPoints(quantized_points, quantizedPointsBuffer);
+  Kernels::PointsToMorton_p(quantizedPointsBuffer, zpoints, quantized_points.size(), resln.bits);
   CLFW::DefaultQueue.finish();
 
   //3A. Sort lines by level, then value.
   CLFW::DefaultQueue = CLFW::Queues[1];
   Kernels::SortLinesByLvlThenVal_p(lines, sortedLinesBuffer, zpoints, resln);
   
-  if (qpoints.size() > 1) {
+  if (quantized_points.size() > 1) {
     //3B. Create a vertex octree with using Karras' algorithm
     CLFW::DefaultQueue = CLFW::Queues[0];
-    Kernels::BuildOctree_p(zpoints, qpoints.size(), octree, resln.bits, resln.mbits);
+    Kernels::BuildOctree_p(zpoints, quantized_points.size(), octree, resln.bits, resln.mbits);
 
     assert(CLFW::Queues[0].finish() == CL_SUCCESS);
     assert(CLFW::Queues[1].finish() == CL_SUCCESS);
-
-    //4. Identify ambiguous cells
-    cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
-    float_n octreeCenter;
-    float octreeWidth;
-    BB_max_size(&bb, &octreeWidth);
-    BB_center(&bb, &octreeCenter);
-    vector<ConflictPair> conflictPairs;
-    Kernels::FindConflictCells_s(sortedLinesBuffer, lines.size(), octreeBuffer, octree.data(), octree.size(), octreeCenter, octreeWidth, conflictPairs, karras_points.data());
-    assert(CLFW::Queues[0].finish() == CL_SUCCESS);
     addOctreeNodes();
+
+		if (lines.size() > 1) {
+			//4. Identify ambiguous cells
+			cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
+			float_n octreeCenter;
+			float octreeWidth;
+			BB_max_size(&bb, &octreeWidth);
+			BB_center(&bb, &octreeCenter);
+			cl::Buffer conflictPairsBuffer;
+			Kernels::FindConflictCells_p(sortedLinesBuffer, lines.size(), octreeBuffer, octree.size(), 
+				octreeCenter, octreeWidth, conflictPairsBuffer, karrasPointsBuffer);
+			vector<ConflictPair> conflictPairs;
+			Kernels::DownloadConflictPairs(conflictPairs, conflictPairsBuffer, octree.size() * 4);
+			assert(CLFW::Queues[0].finish() == CL_SUCCESS);
     
-    if (lines.size() > 1)
-      for (int i = 0; i < octree.size(); ++i) {
-        for (int j = 0; j < 4; j++) {
-          if (conflictPairs[4 * i + j].i[0] == -2) {
-            addLeaf(i, j, { 1.0, 0.0, 0.0 });
-          }
-        }
-      }
+			if (lines.size() > 1)
+				for (int i = 0; i < octree.size(); ++i) {
+					for (int j = 0; j < 4; j++) {
+						if (conflictPairs[4 * i + j].i[0] == -2) {
+							addLeaf(i, j, { 1.0, 0.0, 0.0 });
+						}
+					}
+				}
+		}
   }
 }
 
@@ -179,7 +184,7 @@ void Octree2::addOctreeNodes() {
 }
 void Octree2::addOctreeNodes(int index, float_n offset, float scale, float_3 color) {
   Instance i = { X_(offset), Y_(offset), 0.0, scale, X_(color), Y_(color), Z_(color) };
-  instances.push_back(i);
+  gl_instances.push_back(i);
   if (index != -1) {
     OctNode current = octree[index];
     scale /= 2.0;
@@ -224,19 +229,19 @@ void Octree2::addLeaf(int internalIndex, int childIndex, float_3 color) {
     , width
     , { X_(color), Y_(color), Z_(color) }
   };
-  instances.push_back(i);
+  gl_instances.push_back(i);
 }
 
 void Octree2::draw() {
   Shaders::boxProgram->use();
   glBindVertexArray(boxProgram_vao);
   glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * instances.size(), instances.data(), GL_STREAM_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * gl_instances.size(), gl_instances.data(), GL_STREAM_DRAW);
   glm::mat4 identity(1.0);
   glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
   glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
   assert(glGetError() == GL_NO_ERROR);
   glLineWidth( 2.0);
-  glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, instances.size());
+  glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, gl_instances.size());
   glBindVertexArray(0);
 }

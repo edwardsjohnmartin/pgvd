@@ -51,7 +51,17 @@ namespace Kernels {
 
 /* Uploaders */
 namespace Kernels {
-  cl_int UploadPoints(const vector<int_n> &points, cl::Buffer &pointsBuffer) {
+	cl_int UploadKarrasPoints(const vector<float_2> &points, cl::Buffer &karrasPointsBuffer) {
+		startBenchmark("Uploading Karras points");
+		cl_int error = 0;
+		cl_int roundSize = nextPow2(points.size());
+		error |= CLFW::get(karrasPointsBuffer, "karrasPointsBuffer", sizeof(float_2)*roundSize);
+		error |= CLFW::DefaultQueue.enqueueWriteBuffer(karrasPointsBuffer, CL_TRUE, 0, sizeof(float_2) * points.size(), points.data());
+		stopBenchmark();
+		return error;
+	}
+
+  cl_int UploadQuantizedPoints(const vector<int_n> &points, cl::Buffer &pointsBuffer) {
     startBenchmark("Uploading points");
     cl_int error = 0;
     cl_int roundSize = nextPow2(points.size());
@@ -106,6 +116,14 @@ namespace Kernels {
     stopBenchmark();
     return error;
   }
+
+	cl_int DownloadConflictPairs(vector<ConflictPair> &conflictPairsVec, cl::Buffer &conflictPairsBuffer, cl_int size) {
+		startBenchmark("Downloading conflict pairs");
+		conflictPairsVec.resize(size);
+		cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(conflictPairsBuffer, CL_TRUE, 0, sizeof(ConflictPair) * size, conflictPairsVec.data());
+		stopBenchmark();
+		return error;
+	}
 }
 
 /* Reduce Kernels */
@@ -776,6 +794,42 @@ namespace Kernels {
     }
     return error;
   }
+	
+	cl_int FindConflictCells_p(cl::Buffer &sortedLinesBuffer, cl_int numLines, cl::Buffer &octreeBuffer,
+		unsigned int numOctNodes, float_n &octreeCenter, float octreeWidth, cl::Buffer &conflictPairs, cl::Buffer &points) {
+		//Two lines are required for an ambigous cell to appear.
+		if (numLines < 2) return CL_INVALID_ARG_SIZE;
+		cl::CommandQueue &queue = CLFW::DefaultQueue;
+		cl::Kernel &kernel = CLFW::Kernels["FindConflictCellsKernel"];
+		
+		cl::Buffer boundingBoxesBuffer, initialConflictPairsBuffer;
+		cl_int error = ComputeLineBoundingBoxes_p(sortedLinesBuffer, octreeBuffer, boundingBoxesBuffer, numLines); //needs a better name
+
+		bool isOld;
+		ConflictPair initialPair;
+		initialPair.i[0] = initialPair.i[1] = -1;
+		
+		error |= CLFW::get(conflictPairs, "conflictPairs", 4 * nextPow2(numOctNodes) * sizeof(ConflictPair));
+		error |= CLFW::get(initialConflictPairsBuffer, "initialConflictPairs", 4 * nextPow2(numOctNodes) * sizeof(ConflictPair), isOld);
+		if (!isOld) {
+			error |= queue.enqueueFillBuffer<ConflictPair>(initialConflictPairsBuffer, { initialPair }, 0, 4 * nextPow2(numOctNodes) * sizeof(ConflictPair));
+		}
+		error |= queue.enqueueCopyBuffer(initialConflictPairsBuffer, conflictPairs, 0, 0, 4 * nextPow2(numOctNodes) * sizeof(ConflictPair));
+
+		error |= kernel.setArg(0, octreeBuffer);
+		error |= kernel.setArg(1, points);
+		error |= kernel.setArg(2, sortedLinesBuffer);
+		error |= kernel.setArg(3, boundingBoxesBuffer); //rename to SCC
+		error |= kernel.setArg(4, conflictPairs);
+		error |= kernel.setArg(5, numOctNodes);
+		error |= kernel.setArg(6, numLines); //Pretty sure numSCCS = numLines
+		error |= kernel.setArg(7, numLines);
+		error |= kernel.setArg(8, octreeCenter);
+		error |= kernel.setArg(9, octreeWidth);
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numOctNodes), cl::NullRange);
+		
+		return error;
+	}
 }
 
 /* Hybrid Kernels */

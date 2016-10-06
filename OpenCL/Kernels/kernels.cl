@@ -229,8 +229,14 @@ __kernel void FindConflictCellsKernel(
   unsigned int numLines, 
   float_n octreeCenter, 
   float octreeWidth
-  ) {
+) {
   const int gid = get_global_id(0);
-  FindConflictCells(octree, numOctNodes, octreeCenter, octreeWidth, conflictPairs,
-        smallestContainingCells, numSCCS, orderedLines, numLines, points, gid);
+  if (gid == 0)
+    for (int i = 0; i < numOctNodes; ++i) {
+      FindConflictCells(octree, numOctNodes, octreeCenter, octreeWidth, conflictPairs,
+           smallestContainingCells, numSCCS, orderedLines, numLines, points, i);
+      // for (int j = 0; j < 4; ++j) {
+      //   conflictPairs[4 * i + j].i[0] = -3;
+      // }
+    }
 }
