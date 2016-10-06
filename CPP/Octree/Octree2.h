@@ -22,7 +22,7 @@ class Octree2 {
   //std::vector<CellIntersections> cell_intersections;
   //std::vector<float_n> intersections;
   std::vector<float_2> karras_points;
-  std::vector<int_n> qpoints;
+  std::vector<int_n> quantized_points;
   std::vector<Line> lines;
   BoundingBox bb;
   //vector<float_n> _origins;
@@ -57,7 +57,7 @@ class Octree2 {
     float scale;
     float color[3];
   } Instance;
-  std::vector<Instance> instances;
+  std::vector<Instance> gl_instances;
   //void getZPoints(vector<BigUnsigned> &zpoints, const std::vector<int_n> &qpoints);
   //int getNode(BigUnsigned lcp, int lcpLength, OctNode *octree);
 
