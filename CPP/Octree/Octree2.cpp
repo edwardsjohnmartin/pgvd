@@ -6,16 +6,7 @@
 
 #include "./Octree2.h"
 #include "../Karras/Karras.h" //TODO: parallelize quantization
-//#include "../opencl/Geom.h"
-//#include "../Kernels/Kernels.h"
-//#include "../Timer/timer.h"
-//
-//extern "C" {
-//#include "../../C/BinaryRadixTree/BuildBRT.h" //Does this need to be included?
-//}
-//
-////OctCell fnode;
-//
+
 Octree2::Octree2() {
   const int n = 4;
   glm::vec3 drawVertices[n];
