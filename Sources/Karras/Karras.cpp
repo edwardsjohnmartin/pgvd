@@ -5,8 +5,9 @@
 #include <memory>
 #include <string>
 
-#include "clfw.hpp"
 #include "../Kernels/Kernels.h"
+#include "../../C/BoundingBox/BoundingBox.h"
+#include "clfw.hpp"
 #include "../Timer/timer.h"
 
 using std::cout;
