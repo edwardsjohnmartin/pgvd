@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "Kernels.h"
+#include  "../Kernels/Kernels.h"
 
 /* Testing methods */
 namespace Kernels {
