@@ -1,4 +1,0 @@
-set (GL_UTILITIES_SRC 
-	${CMAKE_CURRENT_SOURCE_DIR}/gl_utils.h 
-	${CMAKE_CURRENT_SOURCE_DIR}/gl_utils.cpp 
-	PARENT_SCOPE)

@@ -186,7 +186,7 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
   sources.clear();
   char* text = 0;
   long temp;
-  loadFile("./OpenCL/opencl_sources.txt", &text, &temp);
+  loadFile("./SharedSources/OpenCL/opencl_sources.txt", &text, &temp);
   try {
     char* file = strtok(text, "\n\r\n\0");
     do {
@@ -199,7 +199,7 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
     } while (file != NULL);
   }
   catch (...) {
-    Print("Unable to open ./OpenCL/opencl_sources.txt!!", errorFG, errorBG);
+    Print("Unable to open ./SharedSources/OpenCL/opencl_sources.txt!!", errorFG, errorBG);
   }
   return CL_SUCCESS;
 }

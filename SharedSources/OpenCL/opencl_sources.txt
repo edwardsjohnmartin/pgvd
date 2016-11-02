@@ -1,0 +1,8 @@
+./SharedSources/BigUnsigned/BigUnsigned.c
+./SharedSources/ParallelAlgorithms/ParallelAlgorithms.c
+./SharedSources/BinaryRadixTree/BuildBRT.c
+./SharedSources/Octree/BuildOctree.c
+./SharedSources/CellResolution/ConflictCellDetection.cpp
+./SharedSources/CellResolution/Conflict.cpp
+./SharedSources/OpenCL/Kernels/kernels.cl
+./SharedSources/OpenCL/Kernels/TestKernels.cl
