@@ -1,6 +1,6 @@
 #include <iostream>
-#include "clfw.hpp"
 #include "GLUtilities/gl_utils.h"
+#include "clfw.hpp"
 #include "Events/events.h"
 #include "Shaders/Shaders.hpp"
 #include "Polylines/Polylines.h"

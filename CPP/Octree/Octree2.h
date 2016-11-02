@@ -1,8 +1,8 @@
 #ifndef __OCTREE_2_H__
 #define __OCTREE_2_H__
 
-#include "clfw.hpp"
 #include "../Shaders/Shaders.hpp"
+#include "clfw.hpp"
 #include "../Polylines/Polylines.h"
 #include "../GLUtilities/gl_utils.h"
 #include "../Options/Options.h"

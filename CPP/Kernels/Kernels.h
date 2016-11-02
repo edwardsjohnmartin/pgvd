@@ -1,4 +1,5 @@
 #pragma once
+#include "../GLUtilities/gl_utils.h"
 #ifdef __APPLE__
 #include "OpenCL/cl.hpp"
 #else
@@ -13,7 +14,7 @@
 #include "../Timer/timer.h"
 #include "../../C/Vector/vec_n.h"
 
-#include "../GLUtilities/gl_utils.h"
+// #include "../GLUtilities/gl_utils.h"
 #include "./glm/gtc/matrix_transform.hpp"
 extern "C" {
   #include "../../C/ZOrder/z_order.h"

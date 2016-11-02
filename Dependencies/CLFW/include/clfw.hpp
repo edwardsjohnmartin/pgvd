@@ -9,7 +9,7 @@
 
 /* Included files */
 #ifdef __APPLE__
-#include "OpenCL/opencl.h"
+#include "OpenCL/cl.hpp"
 #else
 #include <CL/cl.hpp>
 #endif
