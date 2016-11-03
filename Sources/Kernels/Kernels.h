@@ -53,7 +53,7 @@ namespace Kernels {
     cl_int GetFourWayPrefixSum_p(cl::Buffer &input, cl::Buffer &fourWayPrefix, unsigned int index, unsigned char compared, cl_int size);
     cl_int GetFourWayPrefixSum_s(BigUnsigned* input, unsigned int *fourWayPrefix, unsigned int index, unsigned char compared, cl_int size);
     cl_int UniquePredicate(cl::Buffer &input, cl::Buffer &predicate, cl_int globalSize);
-    cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize, string intermediateName);
+    cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize, string intermediateName, bool exclusive = true);
     cl_int StreamScan_s(unsigned int* buffer, unsigned int* result, const int size);
     cl_int SingleCompact(cl::Buffer &input, cl::Buffer &result, cl::Memory &predicate, cl::Buffer &address, cl_int globalSize);
     cl_int DoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize);
@@ -84,6 +84,11 @@ namespace Kernels {
         OctreeData od, cl::Buffer &conflicts, cl::Buffer &points);
     cl_int SampleConflictCounts_s(unsigned int totalOctnodes, Conflict *conflicts, unsigned int *totalAdditionalPoints,
         Line* orderedlines, intn* quantizedPoints, vector<intn> &newPoints);
+    cl_int CountResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
+        cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &resolutionCounts, cl::Buffer &predicates);
+    cl_int GetResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
+        cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &resolutionCounts,
+        cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints);
 
     inline std::string buToString(BigUnsigned bu, int len) {
         std::string representation = "";

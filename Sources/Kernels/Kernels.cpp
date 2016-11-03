@@ -334,7 +334,7 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize, string intermediateName) {
+    cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize, string intermediateName, bool exclusive) {
         cl_int error = 0;
         bool isOld;
         cl::Kernel *kernel = &CLFW::Kernels["StreamScanKernel"];
@@ -353,6 +353,7 @@ namespace Kernels {
         error |= kernel->setArg(2, intermediate);
         error |= kernel->setArg(3, cl::__local(localSize * sizeof(cl_int)));
         error |= kernel->setArg(4, cl::__local(localSize * sizeof(cl_int)));
+        //error |= kernel->setArg(5, exclusive);
         error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
         return error;
     };
@@ -827,17 +828,18 @@ namespace Kernels {
     cl_int SampleConflictCounts_s(unsigned int totalOctnodes, Conflict *conflicts, unsigned int *totalAdditionalPoints,
         Line* orderedlines, intn* quantizedPoints, vector<intn> &newPoints) {
         *totalAdditionalPoints = 0;
+        int currentTotalPoints = 0;
         //This is inefficient. We should only iterate over the conflict leaves, not all leaves. (reduce to find total conflicts)
         for (int i = 0; i < totalOctnodes * 4; ++i) {
             if (conflicts[i].color == -2)
             {
                 Line firstLine = orderedlines[conflicts[i].i[0]];
                 Line secondLine = orderedlines[conflicts[i].i[1]];
-                *totalAdditionalPoints = sample_conflict_count(quantizedPoints[firstLine.firstIndex], quantizedPoints[firstLine.secondIndex],
+                currentTotalPoints = sample_conflict_count(quantizedPoints[firstLine.firstIndex], quantizedPoints[firstLine.secondIndex],
                     quantizedPoints[secondLine.firstIndex], quantizedPoints[secondLine.secondIndex],
                     conflicts[i].origin, conflicts[i].width);
 
-                floatn* samples = new floatn[*totalAdditionalPoints];
+                floatn* samples = new floatn[currentTotalPoints];
                 floatn_array sample_array = make_floatn_array(samples);
                 
                 sample_conflict(
@@ -845,12 +847,13 @@ namespace Kernels {
                     quantizedPoints[secondLine.firstIndex], quantizedPoints[secondLine.secondIndex],
                     conflicts[i].origin, conflicts[i].width, &sample_array);
 
-                for (int i = 0; i < *totalAdditionalPoints; ++i) {
+                for (int i = 0; i < currentTotalPoints; ++i) {
                     newPoints.push_back(convert_intn(sample_array.array[i]));
                 }
+                *totalAdditionalPoints += currentTotalPoints;
 
                 //Bug here...
-                if (*totalAdditionalPoints == 0) {
+                if (currentTotalPoints == 0) {
                     printf("Origin: %d %d Width %d (%d %d) (%d %d) : (%d %d) (%d %d) \n", conflicts[i].origin.x, conflicts[i].origin.y,
                         conflicts[i].width, quantizedPoints[firstLine.firstIndex].x, quantizedPoints[firstLine.firstIndex].y,
                         quantizedPoints[firstLine.secondIndex].x, quantizedPoints[firstLine.secondIndex].y,
@@ -861,6 +864,44 @@ namespace Kernels {
         }
         return CL_SUCCESS;
     }
+
+    cl_int CountResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
+        cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &resolutionCounts, cl::Buffer &predicates) {
+        cl::CommandQueue &queue = CLFW::DefaultQueue;
+        cl::Kernel &kernel = CLFW::Kernels["CountResolutionPointsKernel"];
+
+        cl_int error = CLFW::get(resolutionCounts, "resolutionCounts", 4 * nextPow2(totalOctnodes) * sizeof(cl_int));
+        error |= CLFW::get(predicates, "resolutionPredicates", 4 * nextPow2(totalOctnodes) * sizeof(cl_int));
+
+        error |= kernel.setArg(0, conflicts);
+        error |= kernel.setArg(1, orderedLines);
+        error |= kernel.setArg(2, quantizedPoints);
+        error |= kernel.setArg(3, predicates);
+        error |= kernel.setArg(4, resolutionCounts);
+        error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalOctnodes * 4), cl::NullRange);
+        return error;
+    }
+
+    cl_int GetResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
+        cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &resolutionCounts, 
+        cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints) {
+
+        cl::CommandQueue &queue = CLFW::DefaultQueue;
+        cl::Kernel &kernel = CLFW::Kernels["GetResolutionPointsKernel"];
+        cl_int error = 0;
+
+        error |= kernel.setArg(0, conflicts);
+        error |= kernel.setArg(1, orderedLines);
+        error |= kernel.setArg(2, quantizedPoints);
+        error |= kernel.setArg(3, predicates);
+        error |= kernel.setArg(4, resolutionCounts);
+        error |= kernel.setArg(5, scannedCounts);
+        error |= kernel.setArg(6, resolutionPoints);
+        error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalOctnodes * 4), cl::NullRange);
+
+        return error;
+    }
+
 }
 
 /* Hybrid Kernels */

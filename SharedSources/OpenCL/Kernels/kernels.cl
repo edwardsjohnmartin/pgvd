@@ -249,7 +249,7 @@ __kernel void FindConflictCellsKernel(
           numLines, qPoints, gid);
 }
 
-__kernel void CountConflictPointsKernel(
+__kernel void CountResolutionPointsKernel(
   __global Conflict* conflicts,
   __global Line* orderedLines,
   __global intn* qPoints,
@@ -273,5 +273,45 @@ __kernel void CountConflictPointsKernel(
 
   barrier(CLK_GLOBAL_MEM_FENCE);
   counts[gid] = totalAdditionalPoints;
-  predicates[gid] = (c.color == -2) ? 1 : 0; 
+  predicates[gid] = (totalAdditionalPoints > 0) ? 1 : 0; 
+}
+
+__kernel void GetResolutionPointsKernel(
+  __global Conflict* conflicts,
+  __global Line* orderedLines,
+  __global intn* qPoints,
+  __global int* predicates,
+  __global int* counts,
+  __global int* scannedCounts,
+  __global intn* resolutionPoints
+  ) 
+{
+  const int gid = get_global_id(0);
+  Conflict c = conflicts[gid];
+  int predicator = predicates[gid];
+  int totalPoints = counts[gid];
+  int offset = scannedCounts[gid];
+  
+  floatn samples[totalPoints]; //Variable length arrays are not supported.
+  floatn_array sample_array = make_floatn_array(&samples);
+  
+  if (predicator == 1)
+  {
+    Line firstLine = orderedLines[c.i[0]];
+    Line secondLine = orderedLines[c.i[1]];
+    intn q1 = qPoints[firstLine.firstIndex];
+    intn q2 = qPoints[firstLine.secondIndex];
+    intn r1 = qPoints[secondLine.firstIndex];
+    intn r2 = qPoints[secondLine.secondIndex];
+    sample_conflict( q1, q2, r1, r2, c.origin, c.width, &sample_array);
+  }
+  
+  //This is really bad in terms of efficient global memory usage... 
+  //800ms * i number of points is a step bottleneck and will slow this kernel down dramatically...
+  if (predicator == 1) {
+    for (int i = 0; i < totalPoints; ++i)
+    {
+      resolutionPoints[offset + i] = convert_intn(sample_array.array[i]);
+    }
+  } 
 }
