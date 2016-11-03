@@ -163,27 +163,27 @@ void Octree2::getResolutionPoints() {
         karras_points.push_back(UnquantizePoint(&resolutionPoints[i], &bb.minimum, resln.width, bb.maxwidth));
     }
 
-    //Parallel version
-    cl::Buffer resolutionCounts, resolutionPredicates, scannedCounts, resolutionPointsBuffer;
-    vector<intn> gpuResolutionPoints(gputotalAdditionalPoints);
-    assert(Kernels::CountResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, quantizedPointsBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
-    assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int))==CL_SUCCESS);
-    assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()), "resolutionIntermediate", false) == CL_SUCCESS);
-    assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, (Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int), &gputotalAdditionalPoints)==CL_SUCCESS);
-    assert(CLFW::get(scannedCounts, "ResPts", Kernels::nextPow2(gputotalAdditionalPoints) * sizeof(intn))==CL_SUCCESS);
-    assert(Kernels::GetResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, quantizedPointsBuffer, resolutionCounts, scannedCounts, resolutionPredicates, resolutionPointsBuffer) == CL_SUCCESS);
-    assert(CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, gputotalAdditionalPoints * sizeof(intn), gpuResolutionPoints.data())==CL_SUCCESS);
+    ////Parallel version
+    //cl::Buffer resolutionCounts, resolutionPredicates, scannedCounts, resolutionPointsBuffer;
+    //vector<intn> gpuResolutionPoints(gputotalAdditionalPoints);
+    //assert(Kernels::CountResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, quantizedPointsBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
+    //assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int))==CL_SUCCESS);
+    //assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()), "resolutionIntermediate", false) == CL_SUCCESS);
+    //assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, (Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int), &gputotalAdditionalPoints)==CL_SUCCESS);
+    //assert(CLFW::get(scannedCounts, "ResPts", Kernels::nextPow2(gputotalAdditionalPoints) * sizeof(intn))==CL_SUCCESS);
+    //assert(Kernels::GetResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, quantizedPointsBuffer, resolutionCounts, scannedCounts, resolutionPredicates, resolutionPointsBuffer) == CL_SUCCESS);
+    //assert(CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, gputotalAdditionalPoints * sizeof(intn), gpuResolutionPoints.data())==CL_SUCCESS);
 
-    //Tests
-    vector<int> testCounts(4 * octree.size());
-    cout << "total additional points " <<" = " << totalAdditionalPoints << endl;
-    assert(gputotalAdditionalPoints == totalAdditionalPoints);  //Total points by both must match
+    ////Tests
+    //vector<int> testCounts(4 * octree.size());
+    //cout << "total additional points " <<" = " << totalAdditionalPoints << endl;
+    //assert(gputotalAdditionalPoints == totalAdditionalPoints);  //Total points by both must match
 
-    //Each resolution point must match.
-    for (int i = 0; i < resolutionPoints.size(); i++) {
-        cout << "res point " << i <<": " << resolutionPoints[i] <<  " vs " << gpuResolutionPoints[i] << endl;
-        assert(gpuResolutionPoints[i] == resolutionPoints[i]);
-    }
+    ////Each resolution point must match.
+    //for (int i = 0; i < resolutionPoints.size(); i++) {
+    //    cout << "res point " << i <<": " << resolutionPoints[i] <<  " vs " << gpuResolutionPoints[i] << endl;
+    //    assert(gpuResolutionPoints[i] == resolutionPoints[i]);
+    //}
 
     using namespace GLUtilities;
     for (int i = 0; i < resolutionPoints.size(); ++i) {
