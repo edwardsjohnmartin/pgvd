@@ -52,6 +52,7 @@ add_subdirectory(Sources)
 
 if(APPLE)
   add_definitions(-D__MAC__ -DAPPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -framework OpenCL")
 endif(APPLE)
 
 option(BUILD_2D_PGVD "Build 2D PGVD" ON)

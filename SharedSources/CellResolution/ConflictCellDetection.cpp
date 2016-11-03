@@ -1,10 +1,10 @@
 #ifndef __OPENCL_VERSION__
+#include "../../Sources/GLUtilities/Sketcher.h"
 #include "../BigUnsigned/BigUnsigned.h"
 #include "../Line/Line.h"
 #include "../Vector/vec.h"
 #include "ConflictCellDetection.h"
 #include "../Quantize/Quantize.h"
-#include "../../Sources/GLUtilities/Sketcher.h"
 #define __local
 #define __global
 #else

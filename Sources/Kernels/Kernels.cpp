@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "../GLUtilities/gl_utils.h"
 #include  "../Kernels/Kernels.h"
 
 /* Testing methods */

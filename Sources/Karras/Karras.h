@@ -1,6 +1,8 @@
 #ifndef __KARRAS_H__
 #define __KARRAS_H__
 
+#include "../GLUtilities/gl_utils.h"
+
 #include <vector>
 #include <stdexcept>
 
