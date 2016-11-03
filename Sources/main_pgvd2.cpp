@@ -33,7 +33,7 @@ void InitializeGLFW(int width = 1024, int height = 1024) {
 int main(int argc, char** argv) {
   using namespace std;
   CLFW::Initialize(true, true, 2);
-  InitializeGLFW(512, 512);
+  InitializeGLFW();
   Shaders::create();
   Data::lines = new PolyLines();
 	//Data::lines->newLine({ -.5,-.5 });
