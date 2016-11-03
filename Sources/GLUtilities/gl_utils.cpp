@@ -279,7 +279,11 @@ namespace GLUtilities {
       print_programme_info_log(*programme);
       return false;
     }
-    assert(is_programme_valid(*programme));
+    GLchar info[100000];
+    int length;
+    glGetProgramInfoLog(*programme, 100000, &length, info);
+    printf("INFO: %s\n", info);
+    // assert(is_programme_valid(*programme));
     // delete shaders here to free memory
     glDeleteShader(vert);
     glDeleteShader(frag);
@@ -300,19 +304,13 @@ namespace GLUtilities {
     while (glGetError() != GL_NO_ERROR);
   }
 
-  void print_error(const std::string& prefix, const bool stop) {
-    GLenum error = glGetError();
-    print_error(error, prefix, stop);
-  }
+  // void print_error(const std::string& prefix, const bool stop) {
+  //   GLenum error = glGetError();
+  //   print_error(error, prefix, stop);
+  // }
 
-  void print_error(
-    const GLenum error, const std::string& prefix, const bool stop) {
-    if (error == GL_NO_ERROR) {
-      return;
-    }
-
-    using namespace std;
-    string msg;
+std::string get_gl_error_msg(GLenum error) {
+  std::string msg;
 
     switch (error) {
     case GL_NO_ERROR:
@@ -343,6 +341,17 @@ namespace GLUtilities {
       msg = "Unrecognized error";
       break;
     }
+    return msg;
+}
+
+  void print_error(
+    const GLenum error, const std::string& prefix, const bool stop) {
+    if (error == GL_NO_ERROR) {
+      return;
+    }
+
+    using namespace std;
+    string msg = get_gl_error_msg(error);
 
     msg = prefix + ": glError: " + msg;
     cout << msg << endl;
@@ -351,5 +360,15 @@ namespace GLUtilities {
       // throw logic_error(msg);
       exit(1);
     }
+  }
+
+  void print_error(const GLenum error, const char* file, int line_number) {
+    if (error == GL_NO_ERROR) {
+      return;
+    }
+
+    using namespace std;
+    string msg = get_gl_error_msg(error);
+    cout << file << " line " << line_number << ": glError: " << msg << endl;
   }
 }

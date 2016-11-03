@@ -7,8 +7,8 @@
 extern "C" {
   #include "../../SharedSources/Line/Line.h"
 }
-#include "../../SharedSources/Vector/vec.h"
 #include "../../Sources/Shaders/Shaders.hpp"
+#include "../../SharedSources/Vector/vec.h"
 #include "../Options/Options.h"
 #include "../Color/Color.h"
 #include <cstring>
@@ -127,27 +127,27 @@ class PolyLines {
     Shaders::lineProgram->use();
     glUniform1f(Shaders::lineProgram->pointSize_id, 5.0);
 
-    print_error("Polylines0");
+    print_gl_error();
 
     glBindVertexArray(pointsVaoId);
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId); //Think this isn't required after vao setup.
-    print_error("Polylines0.1");
+    print_gl_error();
     glVertexAttribPointer( Shaders::lineProgram->position_id, sizeof(floatn)/sizeof(cl_float), GL_FLOAT, GL_FALSE, 0, NULL);
-    print_error("Polylines0.2");
+    print_gl_error();
     glEnableVertexAttribArray(Shaders::lineProgram->position_id);
-    print_error("Polylines0.3");
+    print_gl_error();
 
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
     glEnable(GL_LINE_SMOOTH);
     glLineWidth(1.0);
     GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-      if (error == GL_INVALID_VALUE) {
-        // Line widths of >1 not supported on Mac OS X. No big deal.
-      } else {
-        print_error(error, "Polylines0.4");
-      }
-    }
+    // if (error != GL_NO_ERROR) {
+    //   if (error == GL_INVALID_VALUE) {
+    //     // Line widths of >1 not supported on Mac OS X. No big deal.
+    //   } else {
+    //     print_gl_error(error, "Polylines0.4");
+    //   }
+    // }
 
     int first = 0;
     for (int i = 0; i < lasts.size(); ++i) {
@@ -158,15 +158,15 @@ class PolyLines {
 
       if (Options::showObjectVertices) {
         glDrawArrays(GL_POINTS, first, len);
-        print_error("Polylines1");
+        print_gl_error();
       }
       if (Options::showObjects) {
         glDrawArrays(GL_LINE_STRIP, first, len);
-        print_error("Polylines2");
+        print_gl_error();
       }
       first = lasts[i];
     }
-    print_error("Polylines");
+    print_gl_error();
   }
 };
 
