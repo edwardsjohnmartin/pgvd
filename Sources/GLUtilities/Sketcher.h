@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
-#include "../../SharedSources/Vector/vec.h"
 #include "../Shaders/Shaders.hpp"
+#include "../../SharedSources/Vector/vec.h"
 #include "../GLUtilities/gl_utils.h"
 #include <glm/glm.hpp>
 using namespace std;
@@ -100,36 +100,48 @@ namespace GLUtilities {
             //glBindBuffer(GL_ARRAY_BUFFER, boxesVBO);
         }
     public:
-        void drawPoints() {
-            glEnable(GL_POINT_SMOOTH);
-            glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+      void drawPoints() {
+        print_gl_error();
+        glEnable(GL_POINT_SMOOTH);
+        glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+        ignore_gl_error();
 
-            Shaders::sketchProgram->use();
-            glBindVertexArray(pointsVAO);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * points.size(), points.data(), GL_STREAM_DRAW);
-            glm::mat4 identity(1.0F);
-            glUniformMatrix4fv(Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
-            glUniform1f(Shaders::sketchProgram->pointSize_id, 10.0);
-            glDrawArraysInstanced(GL_POINTS, 0, 1, points.size());
-            assert(glGetError() == GL_NO_ERROR);
-            glBindVertexArray(0);
-        }
-        void drawLines() {
-            glEnable(GL_LINE_SMOOTH);
-            glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+        is_programme_valid(Shaders::sketchProgram->program);
 
-            Shaders::sketchProgram->use();
-            glBindVertexArray(linesVAO);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(Line) * lines.size(), lines.data(), GL_STREAM_DRAW);
-            glm::mat4 identity(1.0F);
-            glUniformMatrix4fv(Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
-            glUniform1f(Shaders::sketchProgram->pointSize_id, 10.0);
-            glDrawArrays(GL_LINES, 0, 2 * lines.size());
-            assert(glGetError() == GL_NO_ERROR);
-            glBindVertexArray(0);
-        }
+        print_gl_error();
+        Shaders::sketchProgram->use();
+        print_gl_error();
+        glBindVertexArray(pointsVAO);
+        print_gl_error();
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        print_gl_error();
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * points.size(), points.data(), GL_STREAM_DRAW);
+        print_gl_error();
+        glm::mat4 identity(1.0F);
+        print_gl_error();
+        glUniformMatrix4fv(Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
+        print_gl_error();
+        glUniform1f(Shaders::sketchProgram->pointSize_id, 10.0);
+        print_gl_error();
+        glDrawArraysInstanced(GL_POINTS, 0, 1, points.size());
+        print_gl_error();
+        glBindVertexArray(0);
+      }
+      void drawLines() {
+        glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+
+        Shaders::sketchProgram->use();
+        glBindVertexArray(linesVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Line) * lines.size(), lines.data(), GL_STREAM_DRAW);
+        glm::mat4 identity(1.0F);
+        glUniformMatrix4fv(Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
+        glUniform1f(Shaders::sketchProgram->pointSize_id, 10.0);
+        glDrawArrays(GL_LINES, 0, 2 * lines.size());
+        print_gl_error();
+        glBindVertexArray(0);
+      }
         void drawBoxes() {
             //cout << "drawing boxes!" << endl;
         }

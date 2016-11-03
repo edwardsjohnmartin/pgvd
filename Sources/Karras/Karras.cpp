@@ -5,8 +5,8 @@
 #include <memory>
 #include <string>
 
-#include "clfw.hpp"
 #include "../Kernels/Kernels.h"
+#include "clfw.hpp"
 #include "../Timer/timer.h"
 
 using std::cout;

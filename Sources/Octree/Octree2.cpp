@@ -4,6 +4,7 @@
 
 #include <cstdio>
 
+#include "../GLUtilities/gl_utils.h"
 #include "./Octree2.h"
 
 Octree2::Octree2() {
@@ -32,7 +33,7 @@ Octree2::Octree2() {
     glEnableVertexAttribArray(Shaders::boxProgram->offset_id);
     glEnableVertexAttribArray(Shaders::boxProgram->scale_id);
     glEnableVertexAttribArray(Shaders::boxProgram->color_id);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     float points[] = {
       -.5, -.5, -.5,  -.5, -.5, +.5,
       +.5, -.5, +.5,  +.5, -.5, -.5,
@@ -45,31 +46,31 @@ Octree2::Octree2() {
       4, 5, 5, 6, 6, 7, 7, 4,
     };
     glBindBuffer(GL_ARRAY_BUFFER, positions_vbo);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, position_indices_vbo);
     fprintf(stderr, "position_indices_vbo: %d\n", position_indices_vbo);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glVertexAttribPointer(Shaders::boxProgram->position_id, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glVertexAttribPointer(Shaders::boxProgram->offset_id, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), 0);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glVertexAttribPointer(Shaders::boxProgram->scale_id, 1, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3 * sizeof(float)));
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glVertexAttribPointer(Shaders::boxProgram->color_id, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(4 * sizeof(float)));
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glVertexAttribDivisor(Shaders::boxProgram->offset_id, 1);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glVertexAttribDivisor(Shaders::boxProgram->scale_id, 1);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
     glVertexAttribDivisor(Shaders::boxProgram->color_id, 1);
     glBindVertexArray(0);
-    assert(glGetError() == GL_NO_ERROR);
+    print_gl_error();
 
     resln = make_resln(1 << 8);
 }
@@ -356,15 +357,22 @@ void Octree2::addConflictCells() {
 }
 
 void Octree2::draw() {
-    Shaders::boxProgram->use();
-    glBindVertexArray(boxProgram_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * gl_instances.size(), gl_instances.data(), GL_STREAM_DRAW);
-    glm::mat4 identity(1.0);
-    glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
-    glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
-    assert(glGetError() == GL_NO_ERROR);
-    glLineWidth(2.0);
-    glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, gl_instances.size());
-    glBindVertexArray(0);
+  Shaders::boxProgram->use();
+  print_gl_error();
+  glBindVertexArray(boxProgram_vao);
+  print_gl_error();
+  glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+  print_gl_error();
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * gl_instances.size(), gl_instances.data(), GL_STREAM_DRAW);
+  print_gl_error();
+  glm::mat4 identity(1.0);
+  glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
+  glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
+  print_gl_error();
+  glLineWidth(2.0);
+  ignore_gl_error();
+  glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, gl_instances.size());
+  print_gl_error();
+  glBindVertexArray(0);
+  print_gl_error();
 }

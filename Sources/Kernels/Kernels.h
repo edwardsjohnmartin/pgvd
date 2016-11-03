@@ -1,9 +1,11 @@
 #pragma once
 #ifdef __APPLE__
-#include "OpenCL/cl.hpp"
+// #include "OpenCL/cl.hpp"
+#include "./cl.hpp"
 #else
 #include <CL/cl.hpp>
 #endif
+#include "../GLUtilities/gl_utils.h"
 #include "clfw.hpp"
 #include <iostream>
 #include <fstream>
@@ -13,7 +15,6 @@
 #include "../Timer/timer.h"
 #include "../../SharedSources/Vector/vec.h"
 
-#include "../GLUtilities/gl_utils.h"
 #include "./glm/gtc/matrix_transform.hpp"
 #include "../../SharedSources/ZOrder/z_order.h"
 #include "../../SharedSources/CellResolution/Conflict.h"

@@ -57,7 +57,18 @@ namespace GLUtilities {
   GLuint create_program_from_files(
     const char* vert_file_name, const char* frag_file_name
   );
-  void print_error(const std::string& prefix = "", const bool stop = false);
+  // void print_error(const std::string& prefix = "", const bool stop = false);
   void print_error(const GLenum error, const std::string& prefix = "",
     const bool stop = false);
+void print_error(const GLenum error, const char* file, int line_number);
+
+  bool is_programme_valid(GLuint sp);
 }
+
+#define print_gl_error() { \
+  GLenum error = glGetError(); \
+  GLUtilities::print_error(error, __FILE__, __LINE__); \
+}
+
+#define ignore_gl_error() { glGetError(); }
+

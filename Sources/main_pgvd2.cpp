@@ -21,7 +21,7 @@ void InitializeGLFW(int width = 1024, int height = 1024) {
   GLUtilities::window_width = width;
   restart_gl_log();
   start_gl();
-  print_error("new a");
+  print_gl_error();
   glfwSetWindowTitle(window, "Parallel GVD");
   InitializeGLFWEventCallbacks();
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -33,7 +33,7 @@ void InitializeGLFW(int width = 1024, int height = 1024) {
 int main(int argc, char** argv) {
   using namespace std;
   CLFW::Initialize(true, true, 2);
-  InitializeGLFW();
+  InitializeGLFW(512, 512);
   Shaders::create();
   Data::lines = new PolyLines();
 	//Data::lines->newLine({ -.5,-.5 });
