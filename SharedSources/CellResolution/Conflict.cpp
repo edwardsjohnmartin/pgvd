@@ -895,15 +895,24 @@ int sample_conflict_count(
     const intn q0, const intn q1, const intn r0, const intn r1,
     const intn origin, const int width) {
 
-    floatn_array samples = make_floatn_array(0);
-    sample_conflict(q0, q1, r0, r1, origin, width, &samples);
-    return samples.i;
+  floatn_array samples = make_floatn_array(0);
+  sample_conflict(q0, q1, r0, r1, origin, width, &samples);
+  // sample_conflict(make_intn(0,3), make_intn(3, 0),
+  //                 make_intn(3,3), make_intn(0, 0),
+  //                 make_intn(1,1), 1, &samples);
+
+  return samples.i;
 }
 
 void sample_conflict(
     const intn q0, const intn q1, const intn r0, const intn r1,
     const intn origin, const int width, floatn_array* samples) {
-    floatn v = convert_floatn(q1 - q0);
-    floatn w = convert_floatn(r1 - r0);
-    return sample_conflict_impl(q0, v, r0, w, origin, width, samples);
+  floatn v = convert_floatn(q1 - q0);
+  floatn w = convert_floatn(r1 - r0);
+  return sample_conflict_impl(q0, v, r0, w, origin, width, samples);
+  // floatn v = convert_floatn(make_intn(3,0) - make_intn(0,3));
+  // floatn w = convert_floatn(make_intn(0,0) - make_intn(3,3));
+  // sample_conflict_impl(make_intn(0,3), v,
+  //                      make_intn(3,3), w,
+  //                      make_intn(1,1), 1, samples);
 }
