@@ -36,9 +36,9 @@ private:
     std::vector<glm::vec3> colors;
     std::vector<float> scales;
 
-    GLuint drawVertices_vbo;
+   /* GLuint drawVertices_vbo;
     GLuint drawIndices_vbo;
-    GLuint vao;
+    GLuint vao;*/
 
     GLuint boxProgram_vao;
     GLuint positions_vbo;

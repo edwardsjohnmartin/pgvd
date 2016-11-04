@@ -12,15 +12,6 @@
 //------------------------------------------------------------
 //------------------------------------------------------------
 
-inline void floatn_array_add(const floatn* value, floatn_array* array) {
-    if (array->array) {
-        array->array[array->i++] = *value;
-    }
-    else {
-        array->i++;
-    }
-}
-
 //------------------------------------------------------------
 // Vector functions
 //------------------------------------------------------------
@@ -36,7 +27,7 @@ inline float ncross(const floatn* u, const floatn* v) {
 typedef struct LineSegment {
     floatn p0, p1;
 } LineSegment;
-inline LineSegment make_segment_from_points(const floatn* p0, const floatn* p1) {
+inline LineSegment make_segment_from_point(const floatn* p0, const floatn* p1) {
     LineSegment s = { *p0, *p1 };
     return s;
 }
@@ -77,11 +68,11 @@ inline std::ostream& operator<<(std::ostream& out, const BB& bb) {
     return out;
 }
 #endif
-//inline BB make_bb() {
-//  BB bb = { make_floatn(0,0), 0, 0, true };
-//  return bb;
-//}
-inline BB make_bb(const floatn* origin, const float w) {
+inline BB make_bb() {
+    BB bb = { make_floatn(0,0), 0, 0, true };
+    return bb;
+}
+inline BB make_bb_from_data(const floatn* origin, const float w) {
     BB bb = { *origin, w, w, false };
     return bb;
 }
@@ -167,15 +158,15 @@ float beta_f(const bool opposite,
 typedef struct Ray {
     floatn p0, v;
 } Ray;
-inline Ray make_ray_from_segment(const LineSegment* s) {
+inline Ray make_ray(const LineSegment* s) {
     Ray r = { s->p0, s->p1 - s->p0 };
     return r;
 }
-inline Ray make_ray_from_point_and_vec(const floatn* p0, const floatn* v) {
+inline Ray make_ray_from_point(const floatn* p0, const floatn* v) {
     Ray r = { *p0, *v };
     return r;
 }
-inline LineSegment make_segment_from_ray(const Ray* r) {
+inline LineSegment make_segment(const Ray* r) {
     LineSegment s = { r->p0, r->p0 + r->v };
     return s;
 }
@@ -244,10 +235,10 @@ inline bool clip_ray(
 
     if (t1 < 0) return false;
     if (t0 < 0) {
-        *result = make_segment_from_points(&r->p0, &p1);
+        *result = make_segment_from_point(&r->p0, &p1);
     }
     else {
-        *result = make_segment_from_points(&p0, &p1);
+        *result = make_segment_from_point(&p0, &p1);
     }
     return true;
 }
@@ -257,7 +248,7 @@ LineSegment clip_segment(
     const LineSegment* s_, const BB* bb, bool* valid) {
     LineSegment s = *s_;
 
-    Ray r = make_ray_from_segment(&s);
+    Ray r = make_ray(&s);
     int num_intersections;
     float t0, t1;
     ray_box_intersection(&r, bb, &num_intersections, &t0, &t1);
@@ -433,8 +424,7 @@ inline void ray_box_intersection(
 // point.
 void clip_v_half(LineSegment* a, LineSegment* b,
     const bool a_half, const bool b_half) {
-    floatn origin = make_floatn(0, 0);
-    BB bb = make_bb(&origin, 0);
+    BB bb = make_bb();
     add_to_bb(&a->p1, &bb);
     add_to_bb(&b->p1, &bb);
     if (a_half) {
@@ -506,15 +496,15 @@ int get_line_segment_pairs(
     LineSegmentPair pairs[],
     const floatn* origin, const float width) {
 
-    Ray r0 = make_ray_from_segment(s0_);
-    Ray r1 = make_ray_from_segment(s1_);
+    Ray r0 = make_ray(s0_);
+    Ray r1 = make_ray(s1_);
     if (dot(r0.v, r1.v) < 0) {
         reverse_ray(&r0);
     }
-    LineSegment s0 = make_segment_from_ray(&r0);
-    LineSegment s1 = make_segment_from_ray(&r1);
+    LineSegment s0 = make_segment(&r0);
+    LineSegment s1 = make_segment(&r1);
 
-    BB bb = make_bb(origin, width);
+    BB bb = make_bb_from_data(origin, width);
 
     const floatn v0 = r0.v;
     const floatn v0n = v0*-1;
@@ -535,11 +525,11 @@ int get_line_segment_pairs(
     const bool half_intersection = (a_half != b_half);
     const bool full_intersection = (!a_half && !b_half);
 
-    Ray a = make_ray_from_point_and_vec(&p, &v0);
-    Ray b = make_ray_from_point_and_vec(&p, &v1);
+    Ray a = make_ray_from_point(&p, &v0);
+    Ray b = make_ray_from_point(&p, &v1);
     // In the negative directions
-    Ray an = make_ray_from_point_and_vec(&p, &v0n);
-    Ray bn = make_ray_from_point_and_vec(&p, &v1n);
+    Ray an = make_ray_from_point(&p, &v0n);
+    Ray bn = make_ray_from_point(&p, &v1n);
     int n;
     int i = 0;
     if (parallel) {
@@ -553,7 +543,7 @@ int get_line_segment_pairs(
                 clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
-                Ray bc_ray = make_ray_from_segment(&bc);
+                Ray bc_ray = make_ray(&bc);
                 float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
                 float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
@@ -564,7 +554,7 @@ int get_line_segment_pairs(
                 }
             }
             else if (inside_box(&bc.p1, &bb)) {
-                Ray ac_ray = make_ray_from_segment(&ac);
+                Ray ac_ray = make_ray(&ac);
                 float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
                 float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
@@ -581,7 +571,7 @@ int get_line_segment_pairs(
                 clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
-                Ray bc_ray = make_ray_from_segment(&bc);
+                Ray bc_ray = make_ray(&bc);
                 float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
                 float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
@@ -592,7 +582,7 @@ int get_line_segment_pairs(
                 }
             }
             else if (inside_box(&bc.p1, &bb)) {
-                Ray ac_ray = make_ray_from_segment(&ac);
+                Ray ac_ray = make_ray(&ac);
                 float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
                 float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
@@ -609,7 +599,7 @@ int get_line_segment_pairs(
                 clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
-                Ray bc_ray = make_ray_from_segment(&bc);
+                Ray bc_ray = make_ray(&bc);
                 float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
                 float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
@@ -620,7 +610,7 @@ int get_line_segment_pairs(
                 }
             }
             else if (inside_box(&bc.p1, &bb)) {
-                Ray ac_ray = make_ray_from_segment(&ac);
+                Ray ac_ray = make_ray(&ac);
                 float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
                 float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
@@ -637,7 +627,7 @@ int get_line_segment_pairs(
                 clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
-                Ray bc_ray = make_ray_from_segment(&bc);
+                Ray bc_ray = make_ray(&bc);
                 float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
                 float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
@@ -648,7 +638,7 @@ int get_line_segment_pairs(
                 }
             }
             else if (inside_box(&bc.p1, &bb)) {
-                Ray ac_ray = make_ray_from_segment(&ac);
+                Ray ac_ray = make_ray(&ac);
                 float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
                 float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
@@ -709,7 +699,7 @@ float beta_f(const bool opposite,
     }
 }
 
-void add_sample(
+void add_sample_debug(
     const float s,
     const floatn p_origin, const floatn u,
     const floatn p_origin_t, const floatn u_t,
@@ -717,43 +707,65 @@ void add_sample(
     const floatn r0_t, const floatn w_t,
     const bool opposite,
     const floatn origin0, const int width0,
-    const LineTransform T,
-    floatn_array* samples) {
+    const LineTransform T) {
 
     const floatn p = p_origin + u*s;
-    // cout << "s = " << s << " p = " << p << endl;
 
-    if (!inside_square(&p, &origin0, width0)) return;
+    if (!inside_square(&p, &origin0, width0)) {
+        return;
+    }
+}
 
-    floatn_array_add(&p, samples);
+floatn get_sample(const int i, const LinePair* lp) {
+    const int max_i = lp->num_samples;
+    const float alpha = lp->alpha;
+    const float k1_even = lp->k1_even;
+    const float k2_even = lp->k2_even;
+    const float k1_odd = lp->k1_odd;
+    const float k2_odd = lp->k2_odd;
+    const floatn p_origin = lp->p_origin;
+    const floatn u = lp->u;
+
+    float s;
+    if (i == 0) {
+        s = lp->s0;
+    }
+    else if (i == 1) {
+        s = lp->s1;
+    }
+    else if (i % 2 == 0) {
+        const float po = pow(lp->alpha, i / 2);
+        s = lp->k1_even + lp->k2_even * po;
+    }
+    else {
+        const float po = pow(lp->alpha, i / 2);
+        s = lp->k1_odd + lp->k2_odd * po;
+    }
+    return lp->p_origin + lp->u*s;
 }
 
 // origin_ is the clipped origin, along with width and height.
 // origin0 and width0 are the original cell bounds.
 void sample_v_conflict(
+    LinePair* line_pair,
     floatn q0, floatn v,
     floatn r0, floatn w,
     floatn origin_, int width, int height,
-    floatn origin0, int width0,
-    floatn_array* samples) {
+    floatn origin0, int width0) {
     // p = p0 + su
     // q = q0 + tv
     // r = r0 + fw
 
     // Handle starting with an intersection
-#ifdef __OPENCL_VERSION__
-    if ((q0.x == r0.x) && (q0.y == r0.y)) {
+    //error: THIS COMPARISON IS BROKEN ON OPENCL!!!
+    if (q0.x == r0.x && q0.y == r0.y) {
         // HACK. Just moving the points one unit along their vectors.
         q0 = q0 + v / length(v);
         r0 = r0 + w / length(w);
+        // q0 = q0 + (v*0.1) / length(v);
+        // r0 = r0 + (w*0.1) / length(w);
     }
-#else
-    if (q0 == r0) {
-        // HACK. Just moving the points one unit along their vectors.
-        q0 = q0 + v / length(v);
-        r0 = r0 + w / length(w);
-    }
-#endif
+
     orientLines(&q0, &v, &r0, &w);
 
     floatn p_origin = (q0 + r0) / 2;
@@ -771,10 +783,6 @@ void sample_v_conflict(
         &num_intersections, &s0, &sn);
     if (s0 < 0) {
         s0 = 0;
-    }
-    if (sn < 0) {
-        sn = 0;
-        printf("Error: sn < 0\n");
     }
 
     LineTransform T;
@@ -797,17 +805,15 @@ void sample_v_conflict(
     float a0 = a_f(opposite, s0, &p_origin, &q0, &r0, &u, &v, &w);
 
     const float s1 = s0 + a0 / (2 * u.x);
-    const float k1_even = alpha*s0 + beta -
-        (alpha*alpha*s0 + alpha*beta - alpha*s0) / (alpha - 1);
-    const float k1_odd = alpha*s1 + beta -
-        (alpha*alpha*s1 + alpha*beta - alpha*s1) / (alpha - 1);
+    const float k1_even = beta / (1 - alpha);
+    const float k1_odd = beta / (1 - alpha);
     const float k2_even = (alpha*s0 + beta - s0) / (alpha - 1);
     const float k2_odd = (alpha*s1 + beta - s1) / (alpha - 1);
 
     const float log_alpha = log(alpha);
     const int max_even = (int)ceil(log((sn - k1_even) / k2_even) / log_alpha);
     const int max_odd = (int)ceil(log((sn - k1_odd) / k2_odd) / log_alpha);
-    const int max_i = max_even + max_odd + 2;
+    int max_i = max_even + max_odd + 2;
 
     // After getting the s values we transform the bisector back to the original
     // frame. Get a copy of the transformed values first.
@@ -819,15 +825,11 @@ void sample_v_conflict(
     const floatn u_t = u;
     revertLineTransform(&T, &q0, &r0, &p_origin, &v, &w, &u);
 
-    if (max_i > 0) {
-        add_sample(s0, p_origin, u, p_origin_t, u_t, q0_t, v_t, r0_t, w_t,
-            opposite, origin0, width0, T, samples);
-        if (max_i > 1) {
-            add_sample(s1, p_origin, u, p_origin_t, u_t, q0_t, v_t, r0_t, w_t,
-                opposite, origin0, width0, T, samples);
-        }
-    }
-    for (int i = 2; i < max_i; ++i) {
+    // Sometimes we end up with max_i which puts a point outside the box.
+    // Remove any points beyond the bounds.
+    bool max_done = false;
+    while (max_i > 0 && !max_done) {
+        const int i = max_i - 1;
         const float po = pow(alpha, i / 2);
         float s;
         if (i % 2 == 0) {
@@ -836,37 +838,57 @@ void sample_v_conflict(
         else {
             s = k1_odd + k2_odd * po;
         }
-        add_sample(s, p_origin, u, p_origin_t, u_t, q0_t, v_t, r0_t, w_t,
-            opposite, origin0, width0, T, samples);
+        const floatn p = p_origin + u*s;
+        if (inside_square(&p, &origin0, width0)) {
+            max_done = true;
+        }
+        else {
+            --max_i;
+        }
     }
+
+    line_pair->num_samples = max_i;
+    line_pair->s0 = s0;
+    line_pair->s1 = s1;
+    line_pair->alpha = alpha;
+    line_pair->k1_even = k1_even;
+    line_pair->k2_even = k2_even;
+    line_pair->k1_odd = k1_odd;
+    line_pair->k2_odd = k2_odd;
+    line_pair->p_origin = p_origin;
+    line_pair->u = u;
 }
 
 // The lines are given in "original" parameter space, where the endpoints
 // are q0_, q1_, r0_, and r1_.
-void sample_conflict_impl(
-    const intn q0_int, const floatn v_,
-    const intn r0_int, const floatn w_,
-    intn origin__, int width, floatn_array* samples) {
+void sample_conflict_impl(ConflictInfo* info,
+    const intn q0_int, const intn q1_int,
+    const intn r0_int, const intn r1_int,
+    intn origin__, int width) {
 
     const floatn q0_ = convert_floatn(q0_int);
-    const floatn q1_ = q0_ + v_;
+    const floatn q1_ = convert_floatn(q1_int);
     const floatn r0_ = convert_floatn(r0_int);
-    const floatn r1_ = r0_ + w_;
+    const floatn r1_ = convert_floatn(r1_int);
 
     floatn origin_ = convert_floatn(origin__);
     floatn origin0 = origin_;
     int width0 = width;
     int height = width;
 
-    LineSegment s0 = make_segment_from_points(&q0_, &q1_);
-    LineSegment s1 = make_segment_from_points(&r0_, &r1_);
+    LineSegment s0 = make_segment_from_point(&q0_, &q1_);
+    LineSegment s1 = make_segment_from_point(&r0_, &r1_);
 
     LineSegmentPair pairs[4];
+    // Get "v" or "pair" lines
     const int num_pairs = get_line_segment_pairs(
         &s0, &s1, pairs, &origin_, width);
+    info->num_samples = 0;
 
-    const BB bb_ = make_bb(&origin_, width);
+    const BB bb_ = make_bb_from_data(&origin_, width);
 
+    info->offsets[0] = 0;
+    int idx = 0;
     for (int i = 0; i < num_pairs; ++i) {
         LineSegment* a = &pairs[i].s0;
         LineSegment* b = &pairs[i].s1;
@@ -875,44 +897,50 @@ void sample_conflict_impl(
         *a = clip_segment(a, &bb_, &a_valid);
         *b = clip_segment(b, &bb_, &b_valid);
 
-        floatn origin = make_floatn(0, 0);
-        BB small_bb = make_bb(&origin, 0);
+        BB small_bb = make_bb();
         add_to_bb(&a->p0, &small_bb);
         add_to_bb(&a->p1, &small_bb);
         add_to_bb(&b->p0, &small_bb);
         add_to_bb(&b->p1, &small_bb);
 
         if (a_valid && b_valid && small_bb.w >= 1 && small_bb.h >= 1) {
-            sample_v_conflict(a->p0, a->p1 - a->p0,
+            sample_v_conflict(&(info->line_pairs[idx]), a->p0, a->p1 - a->p0,
                 b->p0, b->p1 - b->p0,
-                small_bb.o, small_bb.w, small_bb.h, origin0, width0,
-                samples);
+                small_bb.o, small_bb.w, small_bb.h, origin0, width0);
+            info->num_samples += info->line_pairs[idx].num_samples;
+            if (idx < 3) {
+                info->offsets[idx + 1] =
+                    info->offsets[idx] + info->line_pairs[idx].num_samples;
+            }
+            ++idx;
         }
+        info->num_line_pairs = idx;
     }
 }
 
-int sample_conflict_count(
+void sample_conflict_count(
+    ConflictInfo* info,
     const intn q0, const intn q1, const intn r0, const intn r1,
     const intn origin, const int width) {
 
-  floatn_array samples = make_floatn_array(0);
-  sample_conflict(q0, q1, r0, r1, origin, width, &samples);
-  // sample_conflict(make_intn(0,3), make_intn(3, 0),
-  //                 make_intn(3,3), make_intn(0, 0),
-  //                 make_intn(1,1), 1, &samples);
-
-  return samples.i;
+    sample_conflict_impl(info, q0, q1, r0, r1, origin, width);
+    //sample_conflict_impl(info, make_intn(0, 3), make_intn(3, 0),
+    //    make_intn(3, 3), make_intn(0, 0),
+    //    make_intn(1, 1), 1);
 }
 
-void sample_conflict(
-    const intn q0, const intn q1, const intn r0, const intn r1,
-    const intn origin, const int width, floatn_array* samples) {
-  floatn v = convert_floatn(q1 - q0);
-  floatn w = convert_floatn(r1 - r0);
-  return sample_conflict_impl(q0, v, r0, w, origin, width, samples);
-  // floatn v = convert_floatn(make_intn(3,0) - make_intn(0,3));
-  // floatn w = convert_floatn(make_intn(0,0) - make_intn(3,3));
-  // sample_conflict_impl(make_intn(0,3), v,
-  //                      make_intn(3,3), w,
-  //                      make_intn(1,1), 1, samples);
+void sample_conflict_kernel(const int i, ConflictInfo* info, floatn* samples) {
+    // k will be the local sample index
+    int k = i;
+    // j is the line pair index
+    int j = 0;
+    // This for loop will iterate no more than 3 times
+    while (k >= info->line_pairs[j].num_samples) {
+        k -= info->line_pairs[j].num_samples;
+        ++j;
+    }
+
+    const LinePair* line_pair = &info->line_pairs[j];
+    const floatn p = get_sample(k, line_pair);
+    *samples = p;
 }

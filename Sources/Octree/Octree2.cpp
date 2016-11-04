@@ -9,20 +9,19 @@
 
 Octree2::Octree2() {
     const int n = 4;
-    glm::vec3 drawVertices[n];
+    /*glm::vec3 drawVertices[n];
     drawVertices[0] = glm::vec3(-0.5, -0.5, 0);
     drawVertices[1] = glm::vec3(0.5, -0.5, 0);
     drawVertices[2] = glm::vec3(0.5, 0.5, 0);
-    drawVertices[3] = glm::vec3(-0.5, 0.5, 0);
+    drawVertices[3] = glm::vec3(-0.5, 0.5, 0);*/
 
-    glGenBuffers(1, &drawVertices_vbo);
+    /*glGenBuffers(1, &drawVertices_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);
-    glBufferData(
-        GL_ARRAY_BUFFER, n * sizeof(glm::vec3), drawVertices, GL_STATIC_DRAW);
+    glBufferData( GL_ARRAY_BUFFER, n * sizeof(glm::vec3), drawVertices, GL_STATIC_DRAW);*/
 
-    glGenVertexArrays(1, &vao);
+    /*glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, drawVertices_vbo);*/
 
     glGenBuffers(1, &positions_vbo);
     glGenBuffers(1, &instance_vbo);
@@ -151,33 +150,58 @@ void Octree2::identifyConflictCells() {
 }
 
 void Octree2::getResolutionPoints() {
+    if (lines.size() < 2) return;
 
-    //Serial version
-    unsigned int totalAdditionalPoints = 0;
-    unsigned int gputotalAdditionalPoints = 0;
-    resolutionPoints.resize(0);
-    Kernels::DownloadQPoints(quantized_points, CLFW::Buffers["quantizedPoints"], totalPoints);
-    Kernels::SampleConflictCounts_s(octree.size(), conflicts.data(), &totalAdditionalPoints, orderedLines.data(),
-        quantized_points.data(), resolutionPoints);
-    for (int i = 0; i < resolutionPoints.size(); ++i) {
-        karras_points.push_back(UnquantizePoint(&resolutionPoints[i], &bb.minimum, resln.width, bb.maxwidth));
-    }
-
-    ////Parallel version
-    //cl::Buffer resolutionCounts, resolutionPredicates, scannedCounts, resolutionPointsBuffer;
+    ////Serial version
+    //unsigned int totalAdditionalPoints = 0;
+    //unsigned int gputotalAdditionalPoints = 0;
+    //Kernels::DownloadQPoints(quantized_points, CLFW::Buffers["qPoints"], totalPoints);
+    //Kernels::DownloadConflicts(conflicts, conflictsBuffer, 4 * octree.size());
+    //Kernels::SampleConflictCounts_s(octree.size(), conflicts.data(), &totalAdditionalPoints, orderedLines.data(),
+    //    quantized_points.data(), resolutionPoints);
+    //for (int i = 0; i < resolutionPoints.size(); ++i) {
+    //    karras_points.push_back(UnquantizePoint(&resolutionPoints[i], &bb.minimum, resln.width, bb.maxwidth));
+    //}
+    int gputotalAdditionalPoints = 0;
+    //Parallel version
+    cl::Buffer conflictInfoBuffer, resolutionCounts, resolutionPredicates, scannedCounts, resolutionPointsBuffer;
     //vector<intn> gpuResolutionPoints(gputotalAdditionalPoints);
-    //assert(Kernels::CountResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, quantizedPointsBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
-    //assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int))==CL_SUCCESS);
-    //assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()), "resolutionIntermediate", false) == CL_SUCCESS);
-    //assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, (Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int), &gputotalAdditionalPoints)==CL_SUCCESS);
-    //assert(CLFW::get(scannedCounts, "ResPts", Kernels::nextPow2(gputotalAdditionalPoints) * sizeof(intn))==CL_SUCCESS);
-    //assert(Kernels::GetResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, quantizedPointsBuffer, resolutionCounts, scannedCounts, resolutionPredicates, resolutionPointsBuffer) == CL_SUCCESS);
-    //assert(CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, gputotalAdditionalPoints * sizeof(intn), gpuResolutionPoints.data())==CL_SUCCESS);
+    assert(Kernels::GetResolutionPointsInfo_p(octree.size(), conflictsBuffer, sortedLinesBuffer, 
+        quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
+    assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int))==CL_SUCCESS);
+    assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()), 
+        "resolutionIntermediate", false) == CL_SUCCESS);
+    assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, 
+        (octree.size() * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int), 
+        &gputotalAdditionalPoints)==CL_SUCCESS);
+    assert(CLFW::get(resolutionPointsBuffer, "ResPts", 
+        Kernels::nextPow2(gputotalAdditionalPoints) * sizeof(intn))==CL_SUCCESS);
+    assert(Kernels::GetResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, 
+        quantizedPointsBuffer, conflictInfoBuffer, scannedCounts, resolutionPredicates,
+        resolutionPointsBuffer) == CL_SUCCESS);
+
+    //vector<int> scannedCountsVec(4 * octree.size());
+    //CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, 0, sizeof(cl_int) * 4 * octree.size(), scannedCountsVec.data());
+    //for (int i = 0; i < scannedCountsVec.size(); ++i) {
+    //    cout << i << " " << scannedCountsVec[i] << endl;
+    //}
+    if (gputotalAdditionalPoints < 0)
+    {
+        cout << "Error! gputotalAdditionalPoints is less than 0!" << endl;
+        return;
+    }
+    vector<intn> gpuResolutionPoints(gputotalAdditionalPoints);
+    CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, sizeof(intn)*gputotalAdditionalPoints, gpuResolutionPoints.data());
+    //assert(CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, 
+    //gputotalAdditionalPoints * sizeof(intn), gpuResolutionPoints.data())==CL_SUCCESS);
 
     ////Tests
     //vector<int> testCounts(4 * octree.size());
     //cout << "total additional points " <<" = " << totalAdditionalPoints << endl;
-    //assert(gputotalAdditionalPoints == totalAdditionalPoints);  //Total points by both must match
+    
+    //Total points by both must match
+    //if (gputotalAdditionalPoints != totalAdditionalPoints) 
+      //  cout<<"Warning, GPU additional points count does not match CPU addition points count"<<endl;  
 
     ////Each resolution point must match.
     //for (int i = 0; i < resolutionPoints.size(); i++) {
@@ -185,10 +209,14 @@ void Octree2::getResolutionPoints() {
     //    assert(gpuResolutionPoints[i] == resolutionPoints[i]);
     //}
 
+    resolutionPoints.resize(0);
     using namespace GLUtilities;
-    for (int i = 0; i < resolutionPoints.size(); ++i) {
-        intn q = resolutionPoints[i];
+    for (int i = 0; i < gpuResolutionPoints.size(); ++i) {
+        intn q = gpuResolutionPoints[i];
         floatn newp = UnquantizePoint(&q, &bb.minimum, resln.width, bb.maxwidth);
+
+        resolutionPoints.push_back(q);
+
         GLUtilities::Point p = { { newp.x, newp.y , 0.0, 1.0 },{ 1.0,0.0,0.0,1.0 } };
         Sketcher::instance()->add(p);
     }
@@ -208,8 +236,8 @@ void Octree2::insertResolutionPoints() {
         }
         else {
             cl::Buffer oldQPointsBuffer = quantizedPointsBuffer;
-            CLFW::Buffers["quantizedPoints"] = cl::Buffer(CLFW::Contexts[0], CL_MEM_READ_WRITE, nextPow2(original + additional) * sizeof(intn));
-            quantizedPointsBuffer = CLFW::Buffers["quantizedPoints"];
+            CLFW::Buffers["qPoints"] = cl::Buffer(CLFW::Contexts[0], CL_MEM_READ_WRITE, nextPow2(original + additional) * sizeof(intn));
+            quantizedPointsBuffer = CLFW::Buffers["qPoints"];
             error |= CLFW::DefaultQueue.enqueueCopyBuffer(oldQPointsBuffer, quantizedPointsBuffer, 0, 0, original * sizeof(intn));
             error |= CLFW::DefaultQueue.enqueueWriteBuffer(quantizedPointsBuffer, CL_TRUE, original * sizeof(intn), additional * sizeof(intn), resolutionPoints.data());
         }
@@ -242,10 +270,11 @@ void Octree2::build(const PolyLines *polyLines) {
     makeZOrderPoints();
 
     vector<intn> qpoints_vec(karras_points.size());
-    CLFW::DefaultQueue.enqueueReadBuffer(CLFW::Buffers["quantizedPoints"], CL_TRUE, 0, sizeof(intn) * karras_points.size(), qpoints_vec.data());
+    CLFW::DefaultQueue.enqueueReadBuffer(CLFW::Buffers["qPoints"], CL_TRUE, 0, sizeof(intn) * karras_points.size(), qpoints_vec.data());
 
     intn test = QuantizePoint(&karras_points[0], &bb.minimum, resln.width, bb.maxwidth);
 
+    int i = 0;
     do {
         totalItterations++;
         CLFW::DefaultQueue = CLFW::Queues[0];
@@ -276,7 +305,8 @@ void Octree2::build(const PolyLines *polyLines) {
         orderedLines.resize(lines.size());
         Kernels::DownloadLines(sortedLinesBuffer, orderedLines, orderedLines.size());
         getResolutionPoints();
-    } while (previousSize != octree.size() && resolutionPoints.size() != 0);
+        i++;
+    } while (previousSize != octree.size() && resolutionPoints.size() != 0 || i < 1);
 
     /* Add the octnodes so they'll be rendered with OpenGL. */
     addOctreeNodes();
@@ -357,22 +387,22 @@ void Octree2::addConflictCells() {
 }
 
 void Octree2::draw() {
-  Shaders::boxProgram->use();
-  print_gl_error();
-  glBindVertexArray(boxProgram_vao);
-  print_gl_error();
-  glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-  print_gl_error();
-  glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * gl_instances.size(), gl_instances.data(), GL_STREAM_DRAW);
-  print_gl_error();
-  glm::mat4 identity(1.0);
-  glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
-  glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
-  print_gl_error();
-  glLineWidth(2.0);
-  ignore_gl_error();
-  glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, gl_instances.size());
-  print_gl_error();
-  glBindVertexArray(0);
-  print_gl_error();
+    Shaders::boxProgram->use();
+    print_gl_error();
+    glBindVertexArray(boxProgram_vao);
+    print_gl_error();
+    glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+    print_gl_error();
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * gl_instances.size(), gl_instances.data(), GL_STREAM_DRAW);
+    print_gl_error();
+    glm::mat4 identity(1.0);
+    glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
+    glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
+    print_gl_error();
+    glLineWidth(2.0);
+    ignore_gl_error();
+    glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, gl_instances.size());
+    print_gl_error();
+    glBindVertexArray(0);
+    print_gl_error();
 }

@@ -17,13 +17,14 @@
 //------------------------------------------------------------
 // Usage:
 //
-// const int n = sample_conflict_count(
-//     q0, q1, r0, r1, origin, width);
+// ConflictInfo info;
+// sample_conflict_count(
+//     &info, q0, q1, r0, r1, origin, width, NULL, NULL);
+// const int n = info.num_samples;
 // floatn* samples = new floatn[n];
-// floatn_array sample_array = make_floatn_array(samples);
-// sample_conflict(
-//     q0, q1, r0, r1, origin, width,
-//     &sample_array, NULL, NULL);
+// for (int i = 0; i < info.num_samples; ++i) {
+//   sample_conflict_kernel(i, &info, samples);
+// }
 //
 // q0 and q1 are the endpoints of one line segment; r0 and r1
 // are the endpoints of the other line segment. origin is the
@@ -34,25 +35,36 @@
 // in the samples variable.
 //------------------------------------------------------------
 
-// This struct does NOT have dynamic allocation or even bounds checking.
-// Rather, it is a convenience for easily adding points to a pre-allocated
-// array.
-typedef struct floatn_array {
-  floatn* array;
-  int i;
-} floatn_array;
-inline floatn_array make_floatn_array(floatn* array) {
-  floatn_array fa = { array, 0 };
-  return fa;
-}
+typedef struct LinePair {
+    int num_samples;
+    float s0;
+    float s1;
+    float alpha;
+    float k1_even;
+    float k2_even;
+    float k1_odd;
+    float k2_odd;
+    floatn p_origin;
+    floatn u;
+} LinePair;
 
-int sample_conflict_count(
+typedef struct ConflictInfo {
+    int num_samples;
+    int num_line_pairs;
+    LinePair line_pairs[4];
+    int offsets[4];
+    int currentNode;
+} ConflictInfo;
+
+// Returns the number of samples needed to resolve a conflict in cell
+// located at origin with the given width.
+// int sample_conflict_count(
+void sample_conflict_count(
+    ConflictInfo* info,
     const intn q0, const intn q1, const intn r0, const intn r1,
     const intn origin, const int width);
 
-void sample_conflict(
-    const intn q0, const intn q1, const intn r0, const intn r1,
-    const intn origin, const int width, floatn_array* samples);
+void sample_conflict_kernel(const int i, ConflictInfo* info, floatn* samples);
 
 #endif
 #ifndef __OPENCL_VERSION__

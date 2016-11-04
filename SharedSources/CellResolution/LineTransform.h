@@ -1,7 +1,9 @@
 #ifndef __LINE_TRANSFORM_H__
 #define __LINE_TRANSFORM_H__
 
+#ifndef M_PI
 #define M_PI 3.14159
+#endif
 
 inline void floatn_swap(floatn* a, floatn* b) {
   floatn temp = *a;

@@ -85,10 +85,10 @@ namespace Kernels {
         OctreeData od, cl::Buffer &conflicts, cl::Buffer &points);
     cl_int SampleConflictCounts_s(unsigned int totalOctnodes, Conflict *conflicts, unsigned int *totalAdditionalPoints,
         Line* orderedlines, intn* quantizedPoints, vector<intn> &newPoints);
-    cl_int CountResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
-        cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &resolutionCounts, cl::Buffer &predicates);
+    cl_int GetResolutionPointsInfo_p(unsigned int totalOctnodes, cl::Buffer &conflicts, cl::Buffer &orderedLines, 
+        cl::Buffer &quantizedPoints, cl::Buffer &conflictInfoBuffer, cl::Buffer &resolutionCounts, cl::Buffer &predicates);
     cl_int GetResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
-        cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &resolutionCounts,
+        cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &conflictInfoBuffer,
         cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints);
 
     inline std::string buToString(BigUnsigned bu, int len) {

@@ -15,7 +15,7 @@ void ShaderProgram::getAttributes() {
 
 void ShaderProgram::getUniforms() {
   matrix_id = glGetUniformLocation(program, "matrix");
-  pointSize_id = glGetUniformLocation(program, "pointSize");
+  pointSize_id = glGetUniformLocation(program, "point_size");
   color_uniform_id = glGetUniformLocation(program, "color");
 }
 
