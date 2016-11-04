@@ -24,6 +24,7 @@
 // Options
 //------------------------------------------------------------------------------
 namespace Options {
+extern int device;
   //std::vector<std::string> filenames;
   extern unsigned char max_level;
   //int tri_threshold;
@@ -57,6 +58,8 @@ namespace Options {
 
   extern bool zoomMode;
   //bool jitter;
+
+bool processArg(int& i, char** argv);
 
 // public:
 //  Options()

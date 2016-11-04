@@ -12,6 +12,7 @@
 // **    sci.utah.edu/~jedwards/research/gvd/index.html **
 // *******************************************************/
 //
+#include <cstdlib>
 //#include <algorithm>
 //#include <cstring>
 //#include <fstream>
@@ -25,7 +26,7 @@
 // Options
 //------------------------------------------------------------------------------
 namespace Options {
-  //std::vector<std::string> filenames;
+  // std::vector<std::string> filenames;
   unsigned char max_level;
   //int tri_threshold;
   //bool simple_dist;
@@ -57,6 +58,97 @@ namespace Options {
   bool showOctree;
 
   bool zoomMode;
+
+bool processArg(int& i, char** argv) {
+  int orig_i = i;
+  if (strcmp(argv[i], "-l") == 0) {
+    ++i;
+    max_level = atoi(argv[i]);
+    ++i;
+  // } else if (strcmp(argv[i], "-f") == 0) {
+  //   ++i;
+  //   ifstream in(argv[i]);
+  //   string f;
+  //   getline(in, f);
+  //   while (in && !f.empty()) {
+  //     filenames.push_back(f);
+  //     getline(in, f);
+  //   }
+  //   ++i;
+  // } else if (strcmp(argv[i], "-a") == 0) {
+  //   ++i;
+  //   o.ambiguous_max_level = atoi(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "-x") == 0) {
+  //   ++i;
+  //   o.test_axis = 0;
+  // } else if (strcmp(argv[i], "-y") == 0) {
+  //   ++i;
+  //   o.test_axis = 1;
+  // } else if (strcmp(argv[i], "-z") == 0) {
+  //   ++i;
+  //   o.test_axis = 2;
+  // } else if (strcmp(argv[i], "--tl") == 0) {
+  //   ++i;
+  //   o.test_num = atoi(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "--no-buffer") == 0) {
+  //   o.make_buffer = false;
+  //   ++i;
+  // } else if (strcmp(argv[i], "-h") == 0) {
+  //   o.help = true;
+  //   ++i;
+  // } else if (strcmp(argv[i], "--gpu") == 0) {
+  //   o.gpu = true;
+  //   ++i;
+  // } else if (strcmp(argv[i], "--cpu") == 0) {
+  //   o.gpu = false;
+  //   ++i;
+  // } else if (strcmp(argv[i], "--opencl-log") == 0) {
+  //   o.opencl_log = true;
+  //   ++i;
+  // } else if (strcmp(argv[i], "--cell-of-interest") == 0) {
+  //   ++i;
+  //   o.cell_of_interest = atoi(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "--level-of-interest") == 0) {
+  //   ++i;
+  //   o.level_of_interest = atoi(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "--karras") == 0) {
+  //   ++i;
+  //   o.karras_iterations = atoi(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "--test") == 0) {
+  //   ++i;
+  //   o.test = atoi(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "--bb-scale") == 0) {
+  //   ++i;
+  //   o.bb_scale = atof(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "--rs") == 0) {
+  //   o.restricted_surface = true;
+  //   ++i;
+  // } else if (strcmp(argv[i], "--center") == 0) {
+  //   ++i;
+  //   o.center = atoi(argv[i]);
+  //   ++i;
+  // } else if (strcmp(argv[i], "--showObjectVertices") == 0) {
+  //   ++i;
+  //   o.showObjectVertices = true;
+  // } else if (strcmp(argv[i], "--hideObjects") == 0) {
+  //   ++i;
+  //   o.showObjects = false;
+  // } else if (strcmp(argv[i], "--jitter") == 0) {
+  //   ++i;
+  //   o.jitter = true;
+  // } else if (strcmp(argv[i], "--showOctree") == 0) {
+  //   ++i;
+  //   o.showOctree = true;
+  } 
+  return i != orig_i;
+}
 }
 
 //
