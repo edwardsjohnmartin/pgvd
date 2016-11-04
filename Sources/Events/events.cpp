@@ -57,15 +57,15 @@ static void Q(bool down) {
 }
 
 void LeftMouse(bool down, int mods) {
-    md.leftDown = down;
-    if ((mods & GLFW_MOD_SHIFT) == 0) {
-        Data::lines->newLine({ md.x, -md.y });
-    }
-    else {
-        Data::lines->addPoint({ md.x, -md.y });
-        Data::octree->build(Data::lines);
-        refresh();
-    }
+  // md.leftDown = down;
+  if ((mods & GLFW_MOD_SHIFT) == 0) {
+    Data::lines->newLine({ md.x, -md.y });
+  }
+  else {
+    Data::lines->addPoint({ md.x, -md.y });
+    Data::octree->build(Data::lines);
+    refresh();
+  }
 
 }
 
@@ -92,10 +92,14 @@ void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
 }
 
 void mouse_cb(GLFWwindow* window, int button, int action, int mods) {
-    if (action == GLFW_PRESS)
-        button == GLFW_MOUSE_BUTTON_LEFT ? LeftMouse(DOWN, mods) : RightMouse(DOWN, mods);
-    else if (action == GLFW_RELEASE)
-        button == GLFW_MOUSE_BUTTON_LEFT ? LeftMouse(UP, mods) : RightMouse(UP, mods);
+  if (action == GLFW_PRESS) {
+    button == GLFW_MOUSE_BUTTON_LEFT ? LeftMouse(DOWN, mods) : RightMouse(DOWN, mods);
+    md.leftDown = DOWN;
+  }
+  else if (action == GLFW_RELEASE) {
+    // button == GLFW_MOUSE_BUTTON_LEFT ? LeftMouse(UP, mods) : RightMouse(UP, mods);
+    md.leftDown = UP;
+  }
 }
 
 void mouse_move_cb(GLFWwindow* window, double xpos, double ypos) {

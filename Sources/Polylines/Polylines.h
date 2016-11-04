@@ -61,7 +61,7 @@ class PolyLines {
           GL_ARRAY_BUFFER, capacity*sizeof(floatn), points, GL_STATIC_DRAW);
       cout << "Updating capacity to " << capacity << endl;
     }
-		points[size] = p;
+    points[size] = p;
 
     glBufferSubData(
         GL_ARRAY_BUFFER, size*sizeof(floatn),

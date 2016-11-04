@@ -38,6 +38,12 @@ namespace Kernels {
     }
 }
 
+std::ostream& operator<<(std::ostream& out, const BrtNode& node) {
+  out << node.left << " " << node.left_leaf << " " << node.right_leaf << " " <<
+      Kernels::buToString(node.lcp) << " " << node.lcp_length << " " << node.parent;
+  return out;
+}
+
 /* Uploaders */
 namespace Kernels {
     cl_int UploadKarrasPoints(const vector<floatn> &points, cl::Buffer &karrasPointsBuffer) {
@@ -595,7 +601,8 @@ namespace Kernels {
 
         //Read in the required octree size
         cl_int octreeSize;
-        error |= CLFW::DefaultQueue.enqueueReadBuffer(scannedSplits, CL_TRUE, sizeof(int)*(size - 2), sizeof(int), &octreeSize);
+        error |= CLFW::DefaultQueue.enqueueReadBuffer(scannedSplits, CL_TRUE,
+                                                      sizeof(cl_int)*(size - 2), sizeof(cl_int), &octreeSize);
         cl_int roundOctreeSize = nextPow2(octreeSize);
 
         //Create an octree buffer.
@@ -669,10 +676,12 @@ namespace Kernels {
         int currentSize = numZPoints;
         cl_int error = 0;
         cl::Buffer sortedZPoints, internalBRTNodes;
+
         error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
         error |= UniqueSorted(sortedZPoints, currentSize);
         error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
         error |= BinaryRadixToOctree_p(internalBRTNodes, octree, currentSize);
+
         return error;
     }
 }
