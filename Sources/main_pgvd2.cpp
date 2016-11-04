@@ -30,6 +30,27 @@ void InitializeGLFW(int width = 1024, int height = 1024) {
   glfwSwapBuffers(window);
 }
 
+void readMesh(const string& filename) {
+  ifstream in(filename.c_str());
+  if (!in) {
+    cerr << "Failed to read " << filename << endl;
+    return;
+  }
+  float x, y;
+  in >> x >> y;
+  if (!in.eof()) {
+    Data::lines->newLine({ x, y });
+  }
+
+  while (!in.eof()) {
+    in >> x >> y;
+    if (!in.eof()) {
+      Data::lines->addPoint({ x, y });
+    }
+  }
+  in.close();
+}
+
 int processArgs(int argc, char** argv) {
   using namespace Options;
 
@@ -46,42 +67,37 @@ int processArgs(int argc, char** argv) {
   //   PrintUsage();
   //   exit(0);
   // }
+
   for (; i < argc; ++i) {
     string filename(argv[i]);
     cout << filename << endl;
-    // ReadMesh(filename);
-    // Data::lines->newLine({ md.x, -md.y });
-    // Data::lines->addPoint({ md.x, -md.y });
-    // Data::octree->build(Data::lines);
+    filenames.push_back(filename);
   }
-
-  // int num_edges = 0;
-  // for (int i = 0; i < polygons.size(); ++i) {
-  //   num_edges += polygons[i].size();
-  // }
-
-  // PrintCommands();
-  // cout << "Number of objects: " << polygons.size() << endl;
-  // cout << "Number of polygon edges: " << num_edges << endl;
 }
 
 int main(int argc, char** argv) {
   using namespace std;
-  CLFW::Initialize(true, true, 2);
-  InitializeGLFW(512, 512);
-  Shaders::create();
-  Data::lines = new PolyLines();
-	//Data::lines->newLine({ -.5,-.5 });
-	//Data::lines->addPoint({ .5,.5 });
-
-  Options::showObjects = true;
-  Options::showOctree = true;
-  Options::max_level = 6;
-  Options::device = -1;
-
-  Data::octree = new Octree2();
 
   processArgs(argc, argv);
+
+  // Options::showObjects = true;
+  // Options::showOctree = true;
+  // Options::max_level = 6;
+  // Options::device = -1;
+
+  CLFW::Initialize(true, true, 2);
+  InitializeGLFW();
+  Shaders::create();
+  Data::lines = new PolyLines();
+  Data::octree = new Octree2();
+
+  for (int i = 0; i < Options::filenames.size(); ++i) {
+    readMesh(Options::filenames[i]);
+  }
+  if (!Options::filenames.empty()) {
+    Data::octree->build(Data::lines);
+    refresh();
+  }
 
   /* Event loop */
   while (!glfwWindowShouldClose(GLUtilities::window)) {

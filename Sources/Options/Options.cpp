@@ -26,8 +26,9 @@
 // Options
 //------------------------------------------------------------------------------
 namespace Options {
-  // std::vector<std::string> filenames;
-  unsigned char max_level;
+int device = -1;
+  std::vector<std::string> filenames;
+  unsigned char max_level = 6;
   //int tri_threshold;
   //bool simple_dist;
   //bool timings;
@@ -54,8 +55,8 @@ namespace Options {
 
   // Render settings
   bool showObjectVertices;
-  bool showObjects;
-  bool showOctree;
+bool showObjects = true;
+  bool showOctree = true;
 
   bool zoomMode;
 
@@ -64,6 +65,11 @@ bool processArg(int& i, char** argv) {
   if (strcmp(argv[i], "-l") == 0) {
     ++i;
     max_level = atoi(argv[i]);
+    ++i;
+  } else if (strcmp(argv[i], "-d") == 0) {
+    printf("Setting device\n");
+    ++i;
+    device = atoi(argv[i]);
     ++i;
   // } else if (strcmp(argv[i], "-f") == 0) {
   //   ++i;

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 #include <set>
 #include <map>
@@ -25,7 +26,7 @@
 //------------------------------------------------------------------------------
 namespace Options {
 extern int device;
-  //std::vector<std::string> filenames;
+extern std::vector<std::string> filenames;
   extern unsigned char max_level;
   //int tri_threshold;
   //bool simple_dist;

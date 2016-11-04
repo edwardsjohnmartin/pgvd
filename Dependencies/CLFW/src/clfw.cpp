@@ -1,6 +1,8 @@
 ﻿#include <iostream>
 #include "clfw.hpp"
 
+#include "../../../Sources/Options/Options.h"
+
 //using namespace std;
 //using namespace cl;
 /* Verbose things */
@@ -290,13 +292,15 @@ cl_int CLFW::query(cl::Device &device) {
   for (cl_uint i = 0; i < Devices.size(); ++i)
     Print("[" + std::to_string(i) + "] : " + Devices[i].getInfo<CL_DEVICE_NAME>(), infoFG, infoBG, true);
 
-  int selection;
-  do {
-    while (!(std::cin >> selection)) {
-      std::cin.clear();
-      while (std::cin.get() != '\n') continue;
-    }
-  } while (selection >= Devices.size());
+  int selection = Options::device;
+  if (selection == -1) {
+    do {
+      while (!(std::cin >> selection)) {
+        std::cin.clear();
+        while (std::cin.get() != '\n') continue;
+      }
+    } while (selection >= Devices.size());
+  }
 
   device = Devices[selection];
   Print("Selected " + device.getInfo<CL_DEVICE_NAME>(), successFG, successBG, true);
