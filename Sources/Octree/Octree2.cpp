@@ -91,18 +91,16 @@ inline floatn max_floatn(const floatn a, const floatn b) {
 }
 
 void Octree2::generatePoints(const PolyLines *polyLines) {
-    const vector<vector<floatn>>& polygons = polyLines->getPolygons();
-    lines = polyLines->getLines();
+  const vector<vector<floatn>> polygons = polyLines->getPolygons();
+  lines = polyLines->getLines();
 
-    // Get all vertices into a 1D array (karras_points).
-    for (int i = 0; i < polygons.size(); ++i) {
-        const vector<floatn>& polygon = polygons[i];
-        for (int j = 0; j < polygon.size() - 1; ++j) {
-            karras_points.push_back(polygon[j]);
-        }
-        karras_points.push_back(polygon.back());
+  // Get all vertices into a 1D array (karras_points).
+  for (int i = 0; i < polygons.size(); ++i) {
+    const vector<floatn>& polygon = polygons[i];
+    for (int j = 0; j < polygon.size(); ++j) {
+      karras_points.push_back(polygon[j]);
     }
-    if (polygons.empty()) return;
+  }
 }
 
 void Octree2::computeBoundingBox() {
@@ -252,7 +250,7 @@ void Octree2::build(const PolyLines *polyLines) {
 
     Sketcher::instance()->clear();
 
-    int totalItterations = 0;
+    int totalIterations = 0;
     int previousSize;
 
     karras_points.clear();
@@ -276,7 +274,7 @@ void Octree2::build(const PolyLines *polyLines) {
 
     int i = 0;
     do {
-        totalItterations++;
+        totalIterations++;
         CLFW::DefaultQueue = CLFW::Queues[0];
         previousSize = octree.size();
 
@@ -313,7 +311,7 @@ void Octree2::build(const PolyLines *polyLines) {
     /* Add conflict cells so they'll be rendered with OpenGL. */
     addConflictCells();
 
-    cout << "Total itterations: " << totalItterations << endl;
+    cout << "Total iterations: " << totalIterations << endl;
 }
 
 /* Drawing Methods */

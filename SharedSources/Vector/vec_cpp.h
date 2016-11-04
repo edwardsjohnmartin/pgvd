@@ -49,38 +49,31 @@ typedef cl_double4 double4;
 // Define our own type
 //------------------------------------------------------------
 template <class NumType, int NumDims>
-// struct MyVec {
-//   NumType s[NumDims];
-// };
-union MyVec {
+union MyVec2 {
+  struct { NumType s[NumDims]; };
+  struct { NumType x, y; };
+};
+
+template <class NumType, int NumDims>
+union MyVec3 {
   struct { NumType s[NumDims]; };
   struct { NumType x, y, z, w; };
 };
 
-// #define __extension__
-// typedef union {
-//     int s[4];
-// #if defined( __GNUC__) && ! defined( __STRICT_ANSI__ )
-//    __extension__ struct{ cl_int  x, y, z, w; };
-//    __extension__ struct{ cl_int  s0, s1, s2, s3; };
-//    __extension__ struct{ cl_int2 lo, hi; };
-// #endif
-// } MyVec;
+typedef MyVec2<unsigned char, 2> bool2;
+typedef MyVec2<int, 2> int2;
+typedef MyVec2<float, 2> float2;
+typedef MyVec2<double, 2> double2;
 
-typedef MyVec<unsigned char, 2> bool2;
-typedef MyVec<int, 2> int2;
-typedef MyVec<float, 2> float2;
-typedef MyVec<double, 2> double2;
+typedef MyVec3<int, 3> int3;
+typedef MyVec3<float, 3> float3;
+typedef MyVec3<double, 3> double3;
+typedef MyVec3<unsigned char, 3> bool3;
 
-typedef MyVec<int, 3> int3;
-typedef MyVec<float, 3> float3;
-typedef MyVec<double, 3> double3;
-typedef MyVec<unsigned char, 3> bool3;
-
-typedef MyVec<unsigned char, 4> bool4;
-typedef MyVec<int, 4> int4;
-typedef MyVec<float, 4> float4;
-typedef MyVec<double, 4> double4;
+typedef MyVec3<unsigned char, 4> bool4;
+typedef MyVec3<int, 4> int4;
+typedef MyVec3<float, 4> float4;
+typedef MyVec3<double, 4> double4;
 #endif
 
 //------------------------------------------------------------
