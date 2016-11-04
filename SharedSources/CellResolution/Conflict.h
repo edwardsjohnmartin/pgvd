@@ -13,7 +13,6 @@
 	#define __global
 #endif
 
-
 //------------------------------------------------------------
 // Usage:
 //
@@ -36,24 +35,25 @@
 //------------------------------------------------------------
 
 typedef struct LinePair {
-    int num_samples;
-    float s0;
-    float s1;
-    float alpha;
-    float k1_even;
-    float k2_even;
-    float k1_odd;
-    float k2_odd;
+    cl_int num_samples;
+    cl_float s0;
+    cl_float s1;
+    cl_float alpha;
+    cl_float k1_even;
+    cl_float k2_even;
+    cl_float k1_odd;
+    cl_float k2_odd;
     floatn p_origin;
     floatn u;
 } LinePair;
 
 typedef struct ConflictInfo {
-    int num_samples;
-    int num_line_pairs;
+    cl_int num_samples;
+    cl_int num_line_pairs;
     LinePair line_pairs[4];
-    int offsets[4];
-    int currentNode;
+    cl_int offsets[4];
+    cl_int currentNode;
+    unsigned char padding[4];
 } ConflictInfo;
 
 // Returns the number of samples needed to resolve a conflict in cell

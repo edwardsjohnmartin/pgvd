@@ -83,11 +83,11 @@ namespace Kernels {
         vector<Conflict> &conflictPairs, intn* qpoints);
     cl_int FindConflictCells_p(cl::Buffer &sortedLinesBuffer, cl_int numLines, cl::Buffer &octreeBuffer,
         OctreeData od, cl::Buffer &conflicts, cl::Buffer &points);
-    cl_int SampleConflictCounts_s(unsigned int totalOctnodes, Conflict *conflicts, unsigned int *totalAdditionalPoints,
-        Line* orderedlines, intn* quantizedPoints, vector<intn> &newPoints);
+    cl_int SampleConflictCounts_s(unsigned int totalOctnodes, Conflict *conflicts, int *totalAdditionalPoints,
+        vector<int> &counts, Line* orderedlines, intn* quantizedPoints, vector<intn> &newPoints);
     cl_int GetResolutionPointsInfo_p(unsigned int totalOctnodes, cl::Buffer &conflicts, cl::Buffer &orderedLines, 
         cl::Buffer &quantizedPoints, cl::Buffer &conflictInfoBuffer, cl::Buffer &resolutionCounts, cl::Buffer &predicates);
-    cl_int GetResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
+    cl_int GetResolutionPoints_p(unsigned int totalOctnodes, unsigned int totalAdditionalPoints, cl::Buffer &conflicts,
         cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &conflictInfoBuffer,
         cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints);
 

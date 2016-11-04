@@ -259,6 +259,7 @@ __kernel void CountResolutionPointsKernel(
   ) 
 {
   const int gid = get_global_id(0);
+  resolutionCounts[gid] = -1;
   Conflict c = conflicts[gid];
   int totalAdditionalPoints = 0;
   ConflictInfo info;
@@ -274,7 +275,6 @@ __kernel void CountResolutionPointsKernel(
     intn r2 = qPoints[secondLine.secondIndex];
     sample_conflict_count(&info, q1, q2, r1, r2, c.origin, c.width);
   }
-
   barrier(CLK_GLOBAL_MEM_FENCE);
   info_array[gid] = info;
   predicates[gid] = (info.num_samples > 0) ? 1 : 0; 

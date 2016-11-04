@@ -59,7 +59,7 @@ inline LineSegmentPair make_line_segment_pair(const LineSegment* s0, const LineS
 //------------------------------------------------------------
 typedef struct BB {
     floatn o; // origin
-    float w, h; // width and height
+    cl_float w, h; // width and height
     bool empty;
 } BB;
 #ifdef __cplusplus
@@ -734,11 +734,11 @@ floatn get_sample(const int i, const LinePair* lp) {
         s = lp->s1;
     }
     else if (i % 2 == 0) {
-        const float po = pow(lp->alpha, i / 2);
+        const float po = pow(lp->alpha, i / 2.0F);
         s = lp->k1_even + lp->k2_even * po;
     }
     else {
-        const float po = pow(lp->alpha, i / 2);
+        const float po = pow(lp->alpha, i / 2.0F);
         s = lp->k1_odd + lp->k2_odd * po;
     }
     return lp->p_origin + lp->u*s;
@@ -830,7 +830,7 @@ void sample_v_conflict(
     bool max_done = false;
     while (max_i > 0 && !max_done) {
         const int i = max_i - 1;
-        const float po = pow(alpha, i / 2);
+        const float po = pow(alpha, i / 2.0F);
         float s;
         if (i % 2 == 0) {
             s = k1_even + k2_even * po;

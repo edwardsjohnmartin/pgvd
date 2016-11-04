@@ -149,45 +149,59 @@ void Octree2::identifyConflictCells() {
 
 void Octree2::getResolutionPoints() {
     if (lines.size() < 2) return;
+    resolutionPoints.resize(0);
 
-    ////Serial version
-    //unsigned int totalAdditionalPoints = 0;
-    //unsigned int gputotalAdditionalPoints = 0;
-    //Kernels::DownloadQPoints(quantized_points, CLFW::Buffers["qPoints"], totalPoints);
-    //Kernels::DownloadConflicts(conflicts, conflictsBuffer, 4 * octree.size());
-    //Kernels::SampleConflictCounts_s(octree.size(), conflicts.data(), &totalAdditionalPoints, orderedLines.data(),
-    //    quantized_points.data(), resolutionPoints);
-    //for (int i = 0; i < resolutionPoints.size(); ++i) {
-    //    karras_points.push_back(UnquantizePoint(&resolutionPoints[i], &bb.minimum, resln.width, bb.maxwidth));
-    //}
     int gputotalAdditionalPoints = 0;
     //Parallel version
     cl::Buffer conflictInfoBuffer, resolutionCounts, resolutionPredicates, scannedCounts, resolutionPointsBuffer;
-    //vector<intn> gpuResolutionPoints(gputotalAdditionalPoints);
     assert(Kernels::GetResolutionPointsInfo_p(octree.size(), conflictsBuffer, sortedLinesBuffer, 
         quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
+
+    /*vector<int> test(1);
+    CLFW::DefaultQueue.enqueueReadBuffer(resolutionCounts, CL_TRUE, 0, sizeof(cl_int), test.data());
+    cout << test[0] << " =? " << sizeof(ConflictInfo) << endl;*/
+
+    
+
     assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int))==CL_SUCCESS);
     assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()), 
         "resolutionIntermediate", false) == CL_SUCCESS);
     assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, 
         (octree.size() * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int), 
         &gputotalAdditionalPoints)==CL_SUCCESS);
-    assert(CLFW::get(resolutionPointsBuffer, "ResPts", 
-        Kernels::nextPow2(gputotalAdditionalPoints) * sizeof(intn))==CL_SUCCESS);
-    assert(Kernels::GetResolutionPoints_p(octree.size(), conflictsBuffer, sortedLinesBuffer, 
+
+    if (gputotalAdditionalPoints < 0) {
+        cout << "warning: additional total " << gputotalAdditionalPoints << endl;
+        return;
+    }
+
+    assert(Kernels::GetResolutionPoints_p(octree.size(), gputotalAdditionalPoints, conflictsBuffer, sortedLinesBuffer,
         quantizedPointsBuffer, conflictInfoBuffer, scannedCounts, resolutionPredicates,
         resolutionPointsBuffer) == CL_SUCCESS);
 
-    //vector<int> scannedCountsVec(4 * octree.size());
-    //CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, 0, sizeof(cl_int) * 4 * octree.size(), scannedCountsVec.data());
-    //for (int i = 0; i < scannedCountsVec.size(); ++i) {
-    //    cout << i << " " << scannedCountsVec[i] << endl;
+    //if (gputotalAdditionalPoints < 0) {
+    //    cout << "parallel" << endl;
+    //    vector<int> testVec(4 * octree.size());
+    //    CLFW::DefaultQueue.enqueueReadBuffer(resolutionCounts, CL_TRUE, 0, sizeof(cl_int) * 4 * octree.size(), testVec.data());
+    //    for (int i = 0; i < testVec.size(); ++i) {
+    //        cout << i << " " << testVec[i] << endl;
+    //    }
+
+    //    cout << "serial" << endl;
+    //    int totalAdditionalPoints = 0;
+    //    //unsigned int gputotalAdditionalPoints = 0;
+    //    Kernels::DownloadQPoints(quantized_points, CLFW::Buffers["qPoints"], totalPoints);
+    //    Kernels::DownloadConflicts(conflicts, conflictsBuffer, 4 * octree.size());
+    //    vector<int> testcounts(octree.size() * 4);
+    //    Kernels::SampleConflictCounts_s(octree.size(), conflicts.data(), &totalAdditionalPoints, testcounts, orderedLines.data(),
+    //        quantized_points.data(), resolutionPoints);
+    //    for (int i = 0; i < testcounts.size(); ++i) {
+    //        //karras_points.push_back(UnquantizePoint(&resolutionPoints[i], &bb.minimum, resln.width, bb.maxwidth));
+    //        cout <<i<<" "<< testcounts[i] << endl;
+    //    }
+
     //}
-    if (gputotalAdditionalPoints < 0)
-    {
-        cout << "Error! gputotalAdditionalPoints is less than 0!" << endl;
-        return;
-    }
+
     vector<intn> gpuResolutionPoints(gputotalAdditionalPoints);
     CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, sizeof(intn)*gputotalAdditionalPoints, gpuResolutionPoints.data());
     //assert(CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, 
@@ -207,7 +221,6 @@ void Octree2::getResolutionPoints() {
     //    assert(gpuResolutionPoints[i] == resolutionPoints[i]);
     //}
 
-    resolutionPoints.resize(0);
     using namespace GLUtilities;
     for (int i = 0; i < gpuResolutionPoints.size(); ++i) {
         intn q = gpuResolutionPoints[i];

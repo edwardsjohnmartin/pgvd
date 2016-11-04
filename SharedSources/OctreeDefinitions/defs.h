@@ -93,6 +93,10 @@ static __CONST__ int kSubAdded = 19;
 //}
 #endif // __cplusplus
 
+#else
+typedef int cl_int;
+typedef float cl_float;
+typedef double cl_double;
 #endif
 
 //------------------------------------------------------------

@@ -835,14 +835,15 @@ namespace Kernels {
         return error;
     }
 
-    cl_int SampleConflictCounts_s(unsigned int totalOctnodes, Conflict *conflicts, unsigned int *totalAdditionalPoints,
-        Line* orderedLines, intn* qPoints, vector<intn> &newPoints) {
+    cl_int SampleConflictCounts_s(unsigned int totalOctnodes, Conflict *conflicts, int *totalAdditionalPoints,
+        vector<int> &counts, Line* orderedLines, intn* qPoints, vector<intn> &newPoints) {
         cout << "series" << endl;
         *totalAdditionalPoints = 0;
-        int currentTotalPoints = 0;
         //This is inefficient. We should only iterate over the conflict leaves, not all leaves. (reduce to find total conflicts)
         for (int i = 0; i < totalOctnodes * 4; ++i) {
             Conflict c = conflicts[i];
+            int currentTotalPoints = 0;
+
             if (conflicts[i].color == -2)
             {
                 ConflictInfo info;
@@ -872,8 +873,7 @@ namespace Kernels {
                 //        qPoints[secondLine.secondIndex].x, qPoints[secondLine.secondIndex].y);
                 //}
             }
-            cout << i << " " << qPoints[orderedLines[c.i[0]].firstIndex].x << endl;
-
+            counts[i] = currentTotalPoints;
             //    cl_int color;
             //cl_int i[2];
             //cl_float i2[2];
@@ -888,10 +888,12 @@ namespace Kernels {
         cl::CommandQueue &queue = CLFW::DefaultQueue;
         cl::Kernel &kernel = CLFW::Kernels["CountResolutionPointsKernel"];
 
+        int globalSize = nextPow2(totalOctnodes * 4);
+
         //TODO: Change this. Currently, this buffer is way too large...
-        cl_int error = CLFW::get(conflictInfoBuffer, "conflictInfoBuffer", 4 * nextPow2(totalOctnodes) * sizeof(ConflictInfo));
-        error |= CLFW::get(resolutionCounts, "resolutionCounts", 4 * nextPow2(totalOctnodes) * sizeof(cl_int));
-        error |= CLFW::get(predicates, "resolutionPredicates", 4 * nextPow2(totalOctnodes) * sizeof(cl_int));
+        cl_int error = CLFW::get(conflictInfoBuffer, "conflictInfoBuffer", globalSize * sizeof(ConflictInfo));
+        error |= CLFW::get(resolutionCounts, "resolutionCounts", globalSize * sizeof(cl_int));
+        error |= CLFW::get(predicates, "resolutionPredicates", globalSize * sizeof(cl_int));
 
         error |= kernel.setArg(0, conflicts);
         error |= kernel.setArg(1, orderedLines);
@@ -903,13 +905,15 @@ namespace Kernels {
         return error;
     }
 
-    cl_int GetResolutionPoints_p(unsigned int totalOctnodes, cl::Buffer &conflicts,
+    cl_int GetResolutionPoints_p(unsigned int totalOctnodes, unsigned int totalAdditionalPoints, cl::Buffer &conflicts,
         cl::Buffer &orderedLines, cl::Buffer &qPoints, cl::Buffer &conflictInfoBuffer,
         cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints) {
 
         cl::CommandQueue &queue = CLFW::DefaultQueue;
         cl::Kernel &kernel = CLFW::Kernels["GetResolutionPointsKernel"];
         cl_int error = 0;
+
+        error |= CLFW::get(resolutionPoints, "ResPts", nextPow2(totalAdditionalPoints) * sizeof(intn));
 
         error |= kernel.setArg(0, conflicts);
         error |= kernel.setArg(1, orderedLines);
