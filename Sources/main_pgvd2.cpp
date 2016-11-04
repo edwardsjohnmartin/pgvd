@@ -73,6 +73,8 @@ int processArgs(int argc, char** argv) {
     cout << filename << endl;
     filenames.push_back(filename);
   }
+  //TODO: fix this.
+  return 0;
 }
 
 int main(int argc, char** argv) {

@@ -102,10 +102,10 @@ void Octree2::generatePoints(const PolyLines *polyLines) {
       karras_points.push_back(polygon[j]);
     }
   }
-  cout << "num points = " << karras_points.size() << endl;
+  /*cout << "num points = " << karras_points.size() << endl;
   for (int i = 0; i < karras_points.size(); ++i) {
     cout << karras_points[i] << endl;
-  }
+  }*/
 }
 
 void Octree2::computeBoundingBox() {
