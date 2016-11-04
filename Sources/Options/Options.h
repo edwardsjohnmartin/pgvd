@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 #include <set>
 #include <map>
@@ -24,7 +25,8 @@
 // Options
 //------------------------------------------------------------------------------
 namespace Options {
-  //std::vector<std::string> filenames;
+extern int device;
+extern std::vector<std::string> filenames;
   extern unsigned char max_level;
   //int tri_threshold;
   //bool simple_dist;
@@ -57,6 +59,8 @@ namespace Options {
 
   extern bool zoomMode;
   //bool jitter;
+
+bool processArg(int& i, char** argv);
 
 // public:
 //  Options()

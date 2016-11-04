@@ -71,7 +71,8 @@ Octree2::Octree2() {
     glBindVertexArray(0);
     print_gl_error();
 
-    resln = make_resln(1 << 8);
+    // resln = make_resln(1 << 8);
+    resln = make_resln(1 << Options::max_level);
 }
 
 inline floatn min_floatn(const floatn a, const floatn b) {
@@ -100,6 +101,10 @@ void Octree2::generatePoints(const PolyLines *polyLines) {
     for (int j = 0; j < polygon.size(); ++j) {
       karras_points.push_back(polygon[j]);
     }
+  }
+  cout << "num points = " << karras_points.size() << endl;
+  for (int i = 0; i < karras_points.size(); ++i) {
+    cout << karras_points[i] << endl;
   }
 }
 
