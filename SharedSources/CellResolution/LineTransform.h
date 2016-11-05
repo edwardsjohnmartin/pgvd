@@ -143,8 +143,8 @@ typedef struct LineTransform {
 //  // }
 //
 //
-  float _m[9];
-  float _m_inv[9];
+  cl_float _m[9];
+  cl_float _m_inv[9];
   bool _swap;
 } LineTransform;
 

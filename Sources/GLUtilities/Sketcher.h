@@ -106,7 +106,7 @@ namespace GLUtilities {
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
         ignore_gl_error();
 
-        is_programme_valid(Shaders::sketchProgram->program);
+        //is_programme_valid(Shaders::sketchProgram->program);
 
         print_gl_error();
         Shaders::sketchProgram->use();

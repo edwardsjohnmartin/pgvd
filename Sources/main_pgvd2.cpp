@@ -28,6 +28,7 @@ void InitializeGLFW(int width = 1024, int height = 1024) {
   glClear(GL_COLOR_BUFFER_BIT);
   glDisable(GL_DEPTH_TEST);
   glfwSwapBuffers(window);
+  glfwSwapInterval(1);
 }
 
 void readMesh(const string& filename) {

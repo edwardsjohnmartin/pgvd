@@ -94,6 +94,7 @@ static __CONST__ int kSubAdded = 19;
 #endif // __cplusplus
 
 #else
+typedef short cl_short;
 typedef int cl_int;
 typedef float cl_float;
 typedef double cl_double;
@@ -111,10 +112,6 @@ typedef double cl_double;
 #define nullptr 0
 #endif
 
-// If changing kGradation, change also kNumIncidentVertices
-// below.  No two adjacent cells can differ in level by more
-// than kGradation.
-static __CONST__ int kGradation = 1;
 
 #ifdef OCT2D
 //------------------------------------------------------------
@@ -188,10 +185,6 @@ typedef uchar level_t;
 #ifndef __OPENCL_VERSION__
 static __CONST__ level_t kMaxLevel = 24;
 #endif
-
-// Width in each dimension
-static __CONST__ index_t kWidth = 0x1 << 25; // 2^{kMaxLevel+1}
-
 // inline index_t Level2CellWidth(const level_t level) {
 //   return kWidth >> level;
 // }

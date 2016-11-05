@@ -41,10 +41,15 @@ namespace Kernels {
     cl_int UploadKarrasPoints(const vector<floatn> &points, cl::Buffer &karrasPointsBuffer);
     cl_int UploadQuantizedPoints(const vector<intn> &points, cl::Buffer &pointsBuffer);
     cl_int UploadLines(const vector<Line> &lines, cl::Buffer &linesBuffer);
+    
+    cl_int DownloadInts(cl::Buffer &integersBuffer, vector<int> &integers, cl_int size);
     cl_int DownloadLines(cl::Buffer &linesBuffer, vector<Line> &lines, cl_int size);
     cl_int DownloadBoundingBoxes(cl::Buffer &boundingBoxesBuffer, vector<int> &boundingBoxes, cl_int size);
     cl_int DownloadConflicts(vector<Conflict> &conflictPairsVec, cl::Buffer &conflictPairsBuffer, cl_int size);
     cl_int DownloadQPoints(vector<intn> &points, cl::Buffer &pointsBuffer, cl_int size);
+    cl_int DownloadFloatnPoints(vector<floatn> &points, cl::Buffer &pointsBuffer, cl_int size);
+    cl_int DownloadZPoints(vector<BigUnsigned> &zpoints, cl::Buffer &zpointsBuffer, cl_int size);
+
     cl_int QuantizePoints_p(cl_uint numPoints, cl::Buffer &unquantizedPoints, cl::Buffer &quantizedPoints, const floatn minimum, const int reslnWidth, const float bbWidth);
     cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits);
     cl_int PointsToMorton_s(cl_int size, cl_int bits, intn* points, BigUnsigned* result);
@@ -91,20 +96,5 @@ namespace Kernels {
         cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &conflictInfoBuffer,
         cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints);
 
-    inline std::string buToString(BigUnsigned bu, int len) {
-        std::string representation = "";
-        if (len == 0)
-        {
-            representation += "NULL";
-        }
-        else {
-            //int shift = len%DIM;
-           // len -= shift;
-            for (int i = len - 1; i >= 0; --i) {
-                representation += std::to_string(getBUBit(&bu, i));
-            }
-        }
-
-        return representation;
-    }
+    std::string buToString(BigUnsigned bu);
 }

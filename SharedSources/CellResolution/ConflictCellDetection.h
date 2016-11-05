@@ -22,6 +22,13 @@ typedef struct {
     //unsigned char padding[8]; //we should see if we can take advantage/remove this padding.
 } Conflict;
 
+#ifdef __cplusplus
+inline std::ostream& operator<<(std::ostream& os, const Conflict& c) {
+    os << "color: "<< c.color << " i:[" <<c.i[0] << ", " << c.i[1] << "]" << " width: " << c.width << " origin: " <<c.origin;
+    return os;
+}
+#endif
+
 /* Ambiguous cells code */
 bool liangBarskey(floatn *min, floatn *max, floatn *p1, floatn *p2);
 

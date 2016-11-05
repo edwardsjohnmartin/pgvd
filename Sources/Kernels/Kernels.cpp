@@ -4,7 +4,6 @@
 
 /* Testing methods */
 namespace Kernels {
-
     bool benchmarking = false;
     Timer timer;
 
@@ -22,7 +21,7 @@ namespace Kernels {
 
     int nextPow2(int num) { return max((int)pow(2, ceil(log(num) / log(2))), 8); }
 
-    inline std::string buToString(BigUnsigned bu) {
+    std::string buToString(BigUnsigned bu) {
         std::string representation = "";
         if (bu.len == 0)
         {
@@ -71,7 +70,6 @@ namespace Kernels {
         cl_int error = 0;
         cl_int roundSize = nextPow2(lines.size());
         error |= CLFW::get(linesBuffer, "linesBuffer", sizeof(Line)*roundSize);
-        error |= CLFW::DefaultQueue.finish();
         error |= CLFW::DefaultQueue.enqueueWriteBuffer(linesBuffer, CL_TRUE, 0, sizeof(Line) * lines.size(), lines.data());
         stopBenchmark();
         return error;
@@ -80,6 +78,14 @@ namespace Kernels {
 
 /* Downloaders */
 namespace Kernels {
+    cl_int DownloadInts(cl::Buffer &integersBuffer, vector<int> &integers, cl_int size) {
+        startBenchmark("Downloading points");
+        integers.resize(size);
+        cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(integersBuffer, CL_TRUE, 0, sizeof(cl_int) * size, integers.data());
+        stopBenchmark();
+        return error;
+    }
+
     cl_int DownloadLines(cl::Buffer &linesBuffer, vector<Line> &lines, cl_int size) {
         startBenchmark("Downloading lines");
         lines.resize(size);
@@ -688,31 +694,6 @@ namespace Kernels {
 
         error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
         error |= UniqueSorted(sortedZPoints, currentSize);
-        
-        vector<BigUnsigned> before, after;
-        vector<intn> qpoints;
-        vector<floatn> karrasPoints;
-        DownloadFloatnPoints(karrasPoints, CLFW::Buffers["karrasPointsBuffer"], numZPoints);
-        DownloadQPoints(qpoints, CLFW::Buffers["qPoints"], numZPoints);
-        DownloadZPoints(before, zpoints, numZPoints);
-        DownloadZPoints(after, sortedZPoints, currentSize);
-        cout << "karraspoints" << endl;
-        for (int i = 0; i < karrasPoints.size(); ++i) {
-            cout << i << " " << karrasPoints[i] << endl;
-        }
-        cout << "qPoints" << endl;
-        for (int i = 0; i < qpoints.size(); ++i) {
-            cout << i << " " << qpoints[i] << endl;
-        }
-        cout << "before" << endl;
-        for (int i = 0; i < before.size(); ++i) {
-            cout << i << " " << buToString(before[i]) << endl;
-        }
-        cout << "after" << endl;
-        for (int i = 0; i < after.size(); ++i) {
-            cout << i << " " << buToString(after[i]) << endl;
-        }
-
         error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
         error |= BinaryRadixToOctree_p(internalBRTNodes, octree, currentSize);
         assert(error == CL_SUCCESS);
@@ -737,7 +718,6 @@ namespace Kernels {
         error |= kernel->setArg(1, zpoints);
         error |= kernel->setArg(2, mbits);
         error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(size), cl::NullRange);
-        error = CLFW::DefaultQueue.finish();
         return error;
     }
 
@@ -800,8 +780,6 @@ namespace Kernels {
         cl_int error = 0;
         cl::Buffer linesBuffer;
         error |= UploadLines(unorderedLines, linesBuffer);
-        if (error != CL_SUCCESS)
-            UploadLines(unorderedLines, linesBuffer);
         error |= ComputeLineLCPs_p(linesBuffer, zpoints, unorderedLines.size(), resln.mbits);
         error |= RadixSortLines_p(linesBuffer, sortedLinesBuffer, unorderedLines.size(), resln.mbits);
         return error;
@@ -948,7 +926,6 @@ namespace Kernels {
         cl_int error = 0;
 
         error |= CLFW::get(resolutionPoints, "ResPts", nextPow2(totalAdditionalPoints) * sizeof(intn));
-
         error |= kernel.setArg(0, conflicts);
         error |= kernel.setArg(1, orderedLines);
         error |= kernel.setArg(2, qPoints);
@@ -957,10 +934,8 @@ namespace Kernels {
         error |= kernel.setArg(5, scannedCounts);
         error |= kernel.setArg(6, resolutionPoints);
         error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalOctnodes * 4), cl::NullRange);
-
         return error;
     }
-
 }
 
 /* Hybrid Kernels */

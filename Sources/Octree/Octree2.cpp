@@ -92,20 +92,20 @@ inline floatn max_floatn(const floatn a, const floatn b) {
 }
 
 void Octree2::generatePoints(const PolyLines *polyLines) {
-  const vector<vector<floatn>> polygons = polyLines->getPolygons();
-  lines = polyLines->getLines();
+    const vector<vector<floatn>> polygons = polyLines->getPolygons();
+    lines = polyLines->getLines();
 
-  // Get all vertices into a 1D array (karras_points).
-  for (int i = 0; i < polygons.size(); ++i) {
-    const vector<floatn>& polygon = polygons[i];
-    for (int j = 0; j < polygon.size(); ++j) {
-      karras_points.push_back(polygon[j]);
+    // Get all vertices into a 1D array (karras_points).
+    for (int i = 0; i < polygons.size(); ++i) {
+        const vector<floatn>& polygon = polygons[i];
+        for (int j = 0; j < polygon.size(); ++j) {
+            karras_points.push_back(polygon[j]);
+        }
     }
-  }
-  /*cout << "num points = " << karras_points.size() << endl;
-  for (int i = 0; i < karras_points.size(); ++i) {
-    cout << karras_points[i] << endl;
-  }*/
+    /*cout << "num points = " << karras_points.size() << endl;
+    for (int i = 0; i < karras_points.size(); ++i) {
+      cout << karras_points[i] << endl;
+    }*/
 }
 
 void Octree2::computeBoundingBox(const int totalPoints) {
@@ -159,24 +159,67 @@ void Octree2::getResolutionPoints() {
     int gputotalAdditionalPoints = 0;
     //Parallel version
     cl::Buffer conflictInfoBuffer, resolutionCounts, resolutionPredicates, scannedCounts, resolutionPointsBuffer;
-    assert(Kernels::GetResolutionPointsInfo_p(octree.size(), conflictsBuffer, sortedLinesBuffer, 
+    assert(Kernels::GetResolutionPointsInfo_p(octree.size(), conflictsBuffer, sortedLinesBuffer,
         quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
 
     /*vector<int> test(1);
     CLFW::DefaultQueue.enqueueReadBuffer(resolutionCounts, CL_TRUE, 0, sizeof(cl_int), test.data());
     cout << test[0] << " =? " << sizeof(ConflictInfo) << endl;*/
 
-    
 
-    assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int))==CL_SUCCESS);
-    assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()), 
+
+    assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int)) == CL_SUCCESS);
+    assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()),
         "resolutionIntermediate", false) == CL_SUCCESS);
-    assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE, 
-        (octree.size() * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int), 
-        &gputotalAdditionalPoints)==CL_SUCCESS);
+    assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE,
+        (octree.size() * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
+        &gputotalAdditionalPoints) == CL_SUCCESS);
 
     if (gputotalAdditionalPoints < 0) {
+        /*using namespace Kernels;
         cout << "warning: additional total " << gputotalAdditionalPoints << endl;
+
+        vector<BigUnsigned> before, after;
+        vector<intn> qpoints;
+        vector<floatn> karrasPoints;
+        vector<int> counts, scannedCounts_vec;
+        vector<Conflict> conflicts_vec;
+        DownloadFloatnPoints(karrasPoints, CLFW::Buffers["karrasPointsBuffer"], karras_points.size());
+        DownloadQPoints(qpoints, quantizedPointsBuffer, karras_points.size());
+        DownloadZPoints(before, zpoints, karras_points.size());
+        DownloadInts(resolutionCounts, counts, octree.size() * 4);
+        DownloadInts(scannedCounts, scannedCounts_vec, octree.size() * 4);
+        DownloadConflicts(conflicts_vec, conflictsBuffer, octree.size() * 4);
+        cout << "karraspoints" << endl;
+        for (int i = 0; i < karrasPoints.size(); ++i) {
+            cout << i << " " << karrasPoints[i] << endl;
+        }
+        cout << "qPoints" << endl;
+        for (int i = 0; i < qpoints.size(); ++i) {
+            cout << i << " " << qpoints[i] << endl;
+        }
+        cout << "zPoints" << endl;
+        for (int i = 0; i < before.size(); ++i) {
+            cout << i << " " << buToString(before[i]) << endl;
+        }
+        cout << "Conflicts" << endl;
+        for (int i = 0; i < conflicts_vec.size(); ++i) {
+            cout << i << " " << conflicts[i] << endl;
+        }
+        cout << "Counts" << endl;
+        for (int i = 0; i < counts.size(); ++i) {
+            cout << i << " " << counts[i] << endl;
+        }
+        cout << "Scanned Counts" << endl;
+        for (int i = 0; i < scannedCounts_vec.size(); ++i) {
+            cout << i << " " << scannedCounts_vec[i] << endl;
+        }
+        CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octree.size() * 4) * sizeof(cl_int));
+        Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octree.size()),
+            "resolutionIntermediate", false);
+        CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE,
+            (octree.size() * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
+            &gputotalAdditionalPoints);*/
         return;
     }
 
@@ -215,7 +258,7 @@ void Octree2::getResolutionPoints() {
     ////Tests
     //vector<int> testCounts(4 * octree.size());
     //cout << "total additional points " <<" = " << totalAdditionalPoints << endl;
-    
+
     //Total points by both must match
     //if (gputotalAdditionalPoints != totalAdditionalPoints) 
       //  cout<<"Warning, GPU additional points count does not match CPU addition points count"<<endl;  
