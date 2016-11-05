@@ -52,7 +52,7 @@ private:
     cl::Buffer conflictsBuffer;
 
     void generatePoints(const PolyLines *polyLines);
-    void computeBoundingBox();
+    void computeBoundingBox(const int totalPoints);
     void quantizePoints(int numResolutionPoints = 0);
     void makeZOrderPoints();
     void sortLines();

@@ -98,6 +98,14 @@ namespace Kernels {
         return error;
     }
 
+    cl_int DownloadFloatnPoints(vector<floatn> &points, cl::Buffer &pointsBuffer, cl_int size) {
+        startBenchmark("Downloading points");
+        points.resize(size);
+        cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(pointsBuffer, CL_TRUE, 0, sizeof(floatn) * size, points.data());
+        stopBenchmark();
+        return error;
+    }
+
     cl_int DownloadQPoints(vector<intn> &points, cl::Buffer &pointsBuffer, cl_int size) {
         startBenchmark("Downloading points");
         points.resize(size);
@@ -108,6 +116,7 @@ namespace Kernels {
 
     cl_int DownloadZPoints(vector<BigUnsigned> &zpoints, cl::Buffer &zpointsBuffer, cl_int size) {
         startBenchmark("Downloading points");
+        zpoints.resize(size);
         cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(zpointsBuffer, CL_TRUE, 0, sizeof(BigUnsigned) * size, zpoints.data());
         stopBenchmark();
         return error;
@@ -679,9 +688,34 @@ namespace Kernels {
 
         error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
         error |= UniqueSorted(sortedZPoints, currentSize);
+        
+        vector<BigUnsigned> before, after;
+        vector<intn> qpoints;
+        vector<floatn> karrasPoints;
+        DownloadFloatnPoints(karrasPoints, CLFW::Buffers["karrasPointsBuffer"], numZPoints);
+        DownloadQPoints(qpoints, CLFW::Buffers["qPoints"], numZPoints);
+        DownloadZPoints(before, zpoints, numZPoints);
+        DownloadZPoints(after, sortedZPoints, currentSize);
+        cout << "karraspoints" << endl;
+        for (int i = 0; i < karrasPoints.size(); ++i) {
+            cout << i << " " << karrasPoints[i] << endl;
+        }
+        cout << "qPoints" << endl;
+        for (int i = 0; i < qpoints.size(); ++i) {
+            cout << i << " " << qpoints[i] << endl;
+        }
+        cout << "before" << endl;
+        for (int i = 0; i < before.size(); ++i) {
+            cout << i << " " << buToString(before[i]) << endl;
+        }
+        cout << "after" << endl;
+        for (int i = 0; i < after.size(); ++i) {
+            cout << i << " " << buToString(after[i]) << endl;
+        }
+
         error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
         error |= BinaryRadixToOctree_p(internalBRTNodes, octree, currentSize);
-
+        assert(error == CL_SUCCESS);
         return error;
     }
 }

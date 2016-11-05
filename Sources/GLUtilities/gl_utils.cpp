@@ -294,9 +294,13 @@ namespace GLUtilities {
     const char* vert_file_name, const char* frag_file_name
   ) {
     GLuint vert, frag, program;
-    assert(create_shader(vert_file_name, &vert, GL_VERTEX_SHADER));
-    assert(create_shader(frag_file_name, &frag, GL_FRAGMENT_SHADER));
-    assert(create_program(vert, frag, &program));
+    bool fragStatus, vertStatus, programStatus;
+    vertStatus = create_shader(vert_file_name, &vert, GL_VERTEX_SHADER);
+    fragStatus = create_shader(frag_file_name, &frag, GL_FRAGMENT_SHADER);
+    programStatus = create_program(vert, frag, &program);
+    assert(fragStatus);
+    assert(vertStatus);
+    assert(programStatus);
     return program;
   }
 

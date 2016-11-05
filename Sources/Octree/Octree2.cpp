@@ -108,7 +108,7 @@ void Octree2::generatePoints(const PolyLines *polyLines) {
   }*/
 }
 
-void Octree2::computeBoundingBox() {
+void Octree2::computeBoundingBox(const int totalPoints) {
     //Probably should be parallelized...
     floatn minimum = karras_points[0];
     floatn maximum = karras_points[0];
@@ -280,17 +280,11 @@ void Octree2::build(const PolyLines *polyLines) {
     generatePoints(polyLines);
     if (karras_points.size() == 0) return;
     totalPoints = karras_points.size();
+    computeBoundingBox(totalPoints);
     UploadKarrasPoints(karras_points, karrasPointsBuffer);
     quantizePoints();
-    computeBoundingBox();
     makeZOrderPoints();
 
-    vector<intn> qpoints_vec(karras_points.size());
-    CLFW::DefaultQueue.enqueueReadBuffer(CLFW::Buffers["qPoints"], CL_TRUE, 0, sizeof(intn) * karras_points.size(), qpoints_vec.data());
-
-    intn test = QuantizePoint(&karras_points[0], &bb.minimum, resln.width, bb.maxwidth);
-
-    int i = 0;
     do {
         totalIterations++;
         CLFW::DefaultQueue = CLFW::Queues[0];
@@ -321,8 +315,7 @@ void Octree2::build(const PolyLines *polyLines) {
         orderedLines.resize(lines.size());
         Kernels::DownloadLines(sortedLinesBuffer, orderedLines, orderedLines.size());
         getResolutionPoints();
-        i++;
-    } while (previousSize != octree.size() && resolutionPoints.size() != 0 || i < 1);
+    } while (previousSize != octree.size() && resolutionPoints.size() != 0);
 
     /* Add the octnodes so they'll be rendered with OpenGL. */
     addOctreeNodes();
