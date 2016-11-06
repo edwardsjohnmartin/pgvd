@@ -48,14 +48,19 @@ private:
     cl::Buffer karrasPointsBuffer;
     cl::Buffer zpoints;
     cl::Buffer zpointsCopy;
-    cl::Buffer sortedLinesBuffer;
+    cl::Buffer linesBuffer;
+    cl::Buffer BCells;
+    cl::Buffer unorderedLineIndices;
+    cl::Buffer unorderedNodeIndices;
+    cl::Buffer orderedLineIndices;
+    cl::Buffer orderedNodeIndices;
     cl::Buffer conflictsBuffer;
 
     void generatePoints(const PolyLines *polyLines);
     void computeBoundingBox(const int totalPoints);
     void quantizePoints(int numResolutionPoints = 0);
     void makeZOrderPoints();
-    void sortLines();
+    void GetUnorderedBCellFacetPairs();
     void buildVertexOctree();
     void identifyConflictCells();
     void getResolutionPoints();

@@ -70,9 +70,9 @@ void CheckOrder(
 
 __kernel void GetTwoBitMaskKernel(
 __global BigUnsigned *inputBuffer,
-__global int *masks,
+__global unsigned *masks,
 __local BigUnsigned *localBUBuffer,
-__local int *localBoolBuffer,
+__local unsigned *localBoolBuffer,
 unsigned int index,
 unsigned char compared
 )

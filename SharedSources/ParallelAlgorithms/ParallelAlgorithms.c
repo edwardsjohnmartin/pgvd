@@ -9,14 +9,27 @@
 #endif
 
 //If the bit at the provided unsigned int matches compared with, the predicate buffer at n is set to 1. 0 otherwise.
-void BitPredicate( __global BigUnsigned *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, const int gid)
+void BitPredicate(__global int *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, const int gid)
+{
+    int self = inputBuffer[gid];
+    unsigned int x = ((self & (1 << index)) == comparedWith);
+    predicateBuffer[gid] = x;
+}
+
+void BUBitPredicate( __global BigUnsigned *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, const int gid)
 {
    BigUnsigned self = inputBuffer[gid];
    unsigned int x = (getBUBit(&self, index) == comparedWith);
    predicateBuffer[gid] = x;
 }
 
-void GetTwoBitMask( __local BigUnsigned *inputBuffer, __local unsigned int *masks, const unsigned int index, const unsigned char comparedWith, const int lid) {
+void GetTwoBitMask( 
+    __local BigUnsigned *inputBuffer, 
+    __local unsigned int *masks, 
+    const unsigned int index, 
+    const unsigned char comparedWith, 
+    const int lid) 
+{
   BigUnsigned self;
   unsigned char x = 0;
   int offset = lid * 4;
@@ -37,7 +50,10 @@ void GetTwoBitMask( __local BigUnsigned *inputBuffer, __local unsigned int *mask
 
 //Unique Predication
 //Requires input be sorted.
-void UniquePredicate( __global BigUnsigned *inputBuffer, __global unsigned int *predicateBuffer, const int gid)
+void UniquePredicate( 
+    __global BigUnsigned *inputBuffer, 
+    __global unsigned int *predicateBuffer, 
+    const int gid)
 {
   if (gid == 0) {
     predicateBuffer[gid] = 1;
@@ -48,28 +64,34 @@ void UniquePredicate( __global BigUnsigned *inputBuffer, __global unsigned int *
   }
 }
 
-void LinePredicate(__global Line *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, int mbits, const int gid) {
-  Line line = inputBuffer[gid];
-  BigUnsigned lcp = line.lcp;
-  unsigned lcpLength = line.lcpLength;
+void BCellPredicate(
+    __global BCell *inputBuffer, 
+    __global unsigned int *predicateBuffer, 
+    const unsigned int index, 
+    const unsigned char comparedWith, 
+    int mbits, 
+    const int gid) 
+{
+  BCell bCell = inputBuffer[gid];
+  unsigned lcpLength = bCell.lcpLength;
   int actualIndex = index - (mbits - lcpLength);
   int shift = lcpLength % DIM;
-  if (actualIndex - shift >= 0) {
-    unsigned myBit = getBUBit(&lcp, actualIndex);
-    predicateBuffer[gid] = myBit == 0;
-  }
-  else {
-    predicateBuffer[gid] = 1;// !comparedWith;
-  }
-
+  //if (actualIndex - shift >= 0) {
+  //  unsigned myBit = getBUBit(&bCell.lcp, actualIndex);
+  //  predicateBuffer[gid] = myBit == 0;
+  //}
+  //else {
+  //  predicateBuffer[gid] = 1;// !comparedWith;
+  //}
+  predicateBuffer[gid] = getBUBit(&bCell.lcp, actualIndex);
 }
 
-void LevelPredicate(__global Line *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, int mbits, const int gid) {
-  Line line = inputBuffer[gid];
-  unsigned lcpLength = line.lcpLength;
-  unsigned level = lcpLength / DIM;
-  unsigned maxLevel = (mbits/DIM)-1;
-  predicateBuffer[gid] = (maxLevel - index < level) == comparedWith;
+void LevelPredicate(__global BCell *inputBuffer, __global unsigned int *predicateBuffer, const unsigned int index, const unsigned char comparedWith, int mbits, const int gid) {
+    BCell bCell = inputBuffer[gid];
+    unsigned lcpLength = bCell.lcpLength;
+    unsigned level = lcpLength / DIM;
+    unsigned maxLevel = (mbits / DIM) - 1;
+    predicateBuffer[gid] = (maxLevel - index < level) == comparedWith;
 }
 
 void StreamScan_Init(__global unsigned int* buffer, __local unsigned int* localBuffer, __local unsigned int* scratch, const int gid, const int lid)
@@ -112,9 +134,35 @@ void BUCompact( __global BigUnsigned *inputBuffer, __global BigUnsigned *resultB
   resultBuffer[d] = inputBuffer[gid];
 }
 
+void Compact(__global int *inputBuffer, __global int *resultBuffer, __global unsigned int *lPredicateBuffer,
+    __global unsigned int *leftBuffer, unsigned int size, const int gid)
+{
+    int a = leftBuffer[gid];
+    int b = leftBuffer[size - 2];
+    int c = lPredicateBuffer[gid];
+    int e = lPredicateBuffer[size - 1];
+
+    //Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
+    int t = gid - a + (e + b);
+    int d = (!c) ? t : a - 1;
+
+    //This really suffers from poor coalescing
+#ifdef __OPENCL_VERSION__
+    barrier(CLK_GLOBAL_MEM_FENCE);
+#endif
+    resultBuffer[d] = inputBuffer[gid];
+}
+
 //result buffer MUST be initialized as 0!!!
-void LineCompact(__global Line *inputBuffer, __global Line *resultBuffer, __global unsigned int *lPredicateBuffer,
-  __global unsigned int *leftBuffer, unsigned int size, const int gid)
+void BCellFacetCompact(
+    __global BCell *inputBCellBuffer,
+    __global cl_int *inputIndexBuffer, 
+    __global BCell *resultBCellBuffer,
+    __global cl_int *resultIndexBuffer,
+    __global unsigned int *lPredicateBuffer,
+    __global unsigned int *leftBuffer, 
+    unsigned int size, 
+    const int gid)
 {
   int a = leftBuffer[gid];
   int b = leftBuffer[size - 2];
@@ -129,7 +177,8 @@ void LineCompact(__global Line *inputBuffer, __global Line *resultBuffer, __glob
 #ifdef __OPENCL_VERSION__
   barrier(CLK_GLOBAL_MEM_FENCE);
 #endif
-  resultBuffer[d] = inputBuffer[gid];
+  resultBCellBuffer[d] = inputBCellBuffer[gid];
+  resultIndexBuffer[d] = inputIndexBuffer[gid];
 }
 
 

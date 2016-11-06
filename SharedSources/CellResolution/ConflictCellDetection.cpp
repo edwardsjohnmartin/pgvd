@@ -8,6 +8,7 @@
 #define __local
 #define __global
 #else
+#include "./SharedSources/OctreeDefinitions/defs.h"
 #include "./SharedSources/BigUnsigned/BigUnsigned.h"
 #include "./SharedSources/Line/Line.h"
 #include "./SharedSources/Vector/vec.h"
@@ -64,132 +65,94 @@ static intn getNodeOrigin(__global OctNode *octree, unsigned int key, int octree
     return offset;
 }
 
-int compareLevelThenIndex(unsigned int a_indx, unsigned int b_indx, unsigned int a_lvl, unsigned int b_lvl) {
-    if (a_lvl < b_lvl)
-        return -1;
-    if (b_lvl < a_lvl)
-        return 1;
-    if (a_indx < b_indx)
-        return -1;
-    if (b_indx < a_indx)
-        return 1;
-    return 0;
-}
-
-int getIndexUsingBoundingBox(unsigned int key, unsigned int level, __global Line* lines, __global int* boundingBoxes, unsigned int size) {
-    unsigned int start = 0;
-    unsigned int end = size;
-    while (start != end) {
-        unsigned int index = ((end - start) / 2) + start;
-        int x = compareLevelThenIndex(key, boundingBoxes[index], level, (lines[index].lcpLength - lines[index].lcpLength%DIM) / DIM); //lines[index].lcpLength = 3, should be 0....
-        if (0 > x) end = index;
-        else if (x > 0) start = index + 1;
-        else return index;
-    }
-    return -1;
-}
-
 //Colors should be initialized as -1. run for each internal node.
-int FindConflictCells(__global OctNode *octree, OctreeData *od, __global Conflict* conflicts,
-    __global int* BoundingCells, unsigned int numSCCS, __global Line* orderedLines,
-    unsigned int numLines, __global intn* points, unsigned int gid) {
+void FindConflictCells(
+    __global OctNode *octree,
+    __global FacetPair *facetPairs,
+    OctreeData *od,
+    __global Conflict* conflicts,
+    __global int* nodeToFacet,
+    __global Line* lines,
+    unsigned int numLines,
+    __global intn* points,
+    unsigned int gid)
+{
     OctNode start, current;
     start = current = octree[gid];
 
-    //If that node contains leaves... //This is bad... maybe some predication/scan/compaction on leaves...
-    if (start.leaf != 0) {
+    //If the start contains leaves... //This is bad...
+    if (start.leaf != 0) 
+    {
         floatn origin = convert_floatn(getNodeOrigin(octree, gid, od->qwidth));
-
-//#ifndef __OPENCL_VERSION__
-//        intn _o = convert_intn(origin);
-//        floatn o = UnquantizePoint(&_o, &od->fmin, od->qwidth, od->fwidth);
-//        using namespace GLUtilities;
-//        Point p = { { o.x, o.y, 0.0, 1.0 },{ 1.0, 0.0, 0.0, 1.0 } };
-//        //printf("origin for %d is %d, %d\n", gid, _o.x, _o.y);
-//        GLUtilities::Sketcher::instance()->add(p);
-//#endif
-
         const float leafWidth = od->qwidth / (1 << (start.level + 1));
 
-        // For each potential leaf in start... 
-        for (int L = 0; L < 1 << DIM; ++L) {
-            if ((1 << L) & start.leaf) {
+        // For each leaf in start... 
+        for (int L = 0; L < 1 << DIM; ++L) 
+        {
+            if ((1 << L) & start.leaf) 
+            {
+                //calculate that leaf's origin/min/max.
                 current = start;
                 floatn min_ = origin;
                 min_.x += (L & 1) ? leafWidth : 0;
                 min_.y += (L & 2) ? leafWidth : 0;
-                floatn max_ = min_ + (leafWidth - .1F); //TODO: make liang barskey half open.
+                // Note: subtracting .1F forces liang barskey to act half open.
+                floatn max_ = min_ + (leafWidth - .1F); 
 
-                //For each node from the current to the root
+                //Then, for each node from the leaf's parent to the root
                 int N = gid;
-                do {
-                    //Check to see if the current node is a bounding cell.
-                    int firstIndex = getIndexUsingBoundingBox(N, current.level, orderedLines, BoundingCells, numLines);
-                    while (firstIndex > 0 && BoundingCells[firstIndex - 1] == BoundingCells[firstIndex]) firstIndex--;
+                while (N != -1) 
+                {
+                    //If the current node is a bCell...
+                    int firstIndex = facetPairs[N].first;
+                    int lastIndex = facetPairs[N].last;
+                    if (firstIndex != -1) 
+                    {
+                        //Then for each line this node is a bCell to...
+                        for (int currentIndex = firstIndex; currentIndex <= lastIndex; ++currentIndex) 
+                        {
+                            intn Q1 = points[lines[nodeToFacet[currentIndex]].firstIndex];
+                            intn Q2 = points[lines[nodeToFacet[currentIndex]].secondIndex];
 
-                    //If it is...
-                    if (firstIndex != -1) { // && current.level != od->maxDepth - 1
-                        int currentIndex = firstIndex;
-                        //For each line this node is a bounding box to...
-                        do {
-                            intn Q1 = points[orderedLines[currentIndex].firstIndex];
-                            intn Q2 = points[orderedLines[currentIndex].secondIndex];
+                            //If the line isn't degenerate...
+                            if (Q1.x != Q2.x || Q1.y != Q2.y) 
+                            {
+                                //Get the points that define the line.
+                                floatn P1 = convert_floatn(Q1);
+                                floatn P2 = convert_floatn(Q2);
 
-                            //Verify the line isn't degenerate or equal
-                            if (Q1.x != Q2.x || Q1.y != Q2.y) {
-                                //Paint the leaves that intersect the line.
-                                floatn P1 = convert_floatn(Q1); //UnquantizePoint(&Q1, &od->fmin, od->qwidth, od->fwidth); //
-                                floatn P2 = convert_floatn(Q2); // UnquantizePoint(&Q2, &od->fmin, od->qwidth, od->fwidth); //
-
-#ifndef __OPENCL_VERSION__
-                                intn temp = convert_intn(P1);
-                                floatn first = UnquantizePoint(&temp, &od->fmin, od->qwidth, od->fwidth);
-                                temp = convert_intn(P2);
-                                floatn second = UnquantizePoint(&temp, &od->fmin, od->qwidth, od->fwidth);
-
-                                using namespace GLUtilities;
-                                GLUtilities::Line l = {
-                                    { { first.x, first.y, 0.0, 1.0 },{ 0.0, 1.0, 0.0, 1.0 } },
-                                    { { second.x, second.y, 0.0, 1.0 },{ 0.0, 1.0, 0.0, 1.0 } } };
-                                GLUtilities::Sketcher::instance()->add(l);
-
-
-                                //temp = convert_intn(min_);
-                                //first = UnquantizePoint(&temp, &od->fmin, od->qwidth, od->fwidth);
-                                //temp = convert_intn(max_);
-                                //second = UnquantizePoint(&temp, &od->fmin, od->qwidth, od->fwidth);
-                                //l = {
-                                //    { { first.x, first.y, 0.0, 1.0 },{ 0.0, 0.0, 1.0, 1.0 } },
-                                //    { { second.x, second.y, 0.0, 1.0 },{ 0.0, 1.0, 0.0, 1.0 } } };
-                                //GLUtilities::Sketcher::instance()->add(l);
-#endif
-
+                                //If the cell is resolvable...
                                 int width = od->qwidth / (1 << (start.level + 1));
-                                if (width > 1) {
-                                    if (liangBarskey((float2*)(&min_), (float2*)(&max_), &P2, &P1)) {
-                                        if (conflicts[4 * gid + L].color == -1) {
-                                            conflicts[4 * gid + L].color = orderedLines[currentIndex].color;
-                                            conflicts[4 * gid + L].i[0] = currentIndex;
+                                if (width > 1) 
+                                {
+                                    //If the line touches cell
+                                    if (liangBarskey((float2*)(&min_), (float2*)(&max_), &P2, &P1)) 
+                                    {
+                                        //If the cell has no color, then color it.
+                                        if (conflicts[4 * gid + L].color == -1) 
+                                        {
+                                            conflicts[4 * gid + L].color = lines[nodeToFacet[currentIndex]].color;
+                                            conflicts[4 * gid + L].i[0] = nodeToFacet[currentIndex];
                                         }
-                                        else if (conflicts[4 * gid + L].color != orderedLines[currentIndex].color) {
+                                        //Else if the colors don't match, then the cell is a conflict cell.
+                                        else if (conflicts[4 * gid + L].color != lines[nodeToFacet[currentIndex]].color)
+                                        {
                                             conflicts[4 * gid + L].color = -2;
-                                            conflicts[4 * gid + L].i[1] = currentIndex;
+                                            conflicts[4 * gid + L].i[1] = nodeToFacet[currentIndex];
                                             conflicts[4 * gid + L].width = width;
                                             conflicts[4 * gid + L].origin = convert_intn(min_);
                                         }
                                     }
                                 }
                             }
-                            currentIndex++;
-                        } while (currentIndex < numSCCS && BoundingCells[currentIndex] == BoundingCells[firstIndex]);
+                        };
                     }
                     N = current.parent;
                     if (N >= 0) current = octree[N];
-                } while (N >= 0);
+                }
             }
         }
     }
-    return 0;
 }
 #ifndef __OPENCL_VERSION__
 #undef __local

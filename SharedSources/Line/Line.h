@@ -21,17 +21,32 @@ typedef struct Line {
     cl_int secondIndex;
     cl_short color;
     cl_short level;
-    BigUnsigned lcp;
-    cl_int lcpLength;
 } Line;
 
-inline void calculateLineLCP(__global Line* lines, __global BigUnsigned *zpoints, unsigned int mbits, unsigned int gid) {
-    BigUnsigned first = zpoints[lines[gid].firstIndex];
-    BigUnsigned second = zpoints[lines[gid].secondIndex];
-    int lcpLength = compute_lcp_length(&first, &second, mbits);
+//EnqueueFillBuffer requires power of two...
+typedef struct BCell {
     BigUnsigned lcp;
-    compute_lcp(&lines[gid].lcp, &zpoints[lines[gid].firstIndex], lcpLength, mbits);
-    lines[gid].lcpLength = lcpLength;
+    cl_int lcpLength;
+    cl_int padding[3];
+} BCell;
+
+/* See paper figure f */
+inline void GetBCellLCP(
+    __global Line* lines, 
+    __global BigUnsigned *zpoints, 
+    __global BCell *bCells,
+    __global cl_int *facetIndices,
+    cl_uint mbits, 
+    cl_uint gid) 
+{
+    cl_int firstI = lines[gid].firstIndex;
+    cl_int secondI = lines[gid].secondIndex;
+    BigUnsigned p1 = zpoints[firstI];
+    BigUnsigned p2= zpoints[secondI];
+    facetIndices[gid] = gid;
+    int lcpLength = compute_lcp_length(&p1, &p2, mbits);
+    bCells[gid].lcpLength = lcpLength;
+    compute_lcp(&bCells[gid].lcp, &zpoints[firstI], lcpLength, mbits);
 }
 
 #ifndef __OPENCL_VERSION__

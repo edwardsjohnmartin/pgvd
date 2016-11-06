@@ -37,46 +37,55 @@ __kernel void PointsToMortonKernel(
 }
 
 __kernel void BitPredicateKernel( 
-  __global BigUnsigned *inputBuffer, 
-  __global Index *predicateBuffer, 
-  Index index, 
+  __global int *inputBuffer, 
+  __global unsigned *predicateBuffer, 
+  unsigned index, 
   unsigned char comparedWith)
 {
   BitPredicate(inputBuffer, predicateBuffer, index, comparedWith, get_global_id(0));
 }
 
+__kernel void BUBitPredicateKernel( 
+  __global BigUnsigned *inputBuffer, 
+  __global unsigned *predicateBuffer, 
+  unsigned index, 
+  unsigned char comparedWith)
+{
+  BUBitPredicate(inputBuffer, predicateBuffer, index, comparedWith, get_global_id(0));
+}
+
 __kernel void UniquePredicateKernel(
- __global BigUnsigned *inputBuffer,
-  __global Index *predicateBuffer)
+  __global BigUnsigned *inputBuffer,
+  __global unsigned *predicateBuffer)
 {
   UniquePredicate(inputBuffer, predicateBuffer, get_global_id(0));
 }
 
-__kernel void LinePredicateKernel(
- __global Line *inputBuffer,
-  __global Index *predicateBuffer,
+__kernel void BCellPredicateKernel(
+  __global BCell *inputBuffer,
+  __global unsigned *predicateBuffer,
   unsigned index,
   unsigned char comparedWith,
   int mbits)
 {
-  LinePredicate(inputBuffer, predicateBuffer, index, comparedWith, mbits, get_global_id(0));
+  BCellPredicate(inputBuffer, predicateBuffer, index, comparedWith, mbits, get_global_id(0));
 }
+
 __kernel void LevelPredicateKernel(
- __global Line *inputBuffer,
-  __global Index *predicateBuffer,
+  __global BCell *inputBuffer,
+  __global unsigned *predicateBuffer,
   unsigned index,
   unsigned char comparedWith,
   int mbits)
 {
   LevelPredicate(inputBuffer, predicateBuffer, index, comparedWith, mbits, get_global_id(0));
 }
-
 __kernel void StreamScanKernel( 
-  __global Index* buffer, 
-  __global Index* result, 
+  __global unsigned* buffer, 
+  __global unsigned* result, 
   __global volatile int* I, 
-  __local Index* localBuffer, 
-  __local Index* scratch)
+  __local unsigned* localBuffer, 
+  __local unsigned* scratch)
 {
   const size_t gid = get_global_id(0);
   const size_t lid = get_local_id(0);
@@ -103,7 +112,7 @@ __kernel void StreamScanKernel(
   scratch[lid] = localBuffer[lid];
   for (unsigned int i = 1; i < ls; i <<= 1) {
     HillesSteelScan(localBuffer, scratch, lid, i);
-    __local Index *tmp = scratch;
+    __local unsigned *tmp = scratch;
     scratch = localBuffer;
     localBuffer = tmp;
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -118,22 +127,34 @@ __kernel void StreamScanKernel(
 __kernel void BUCompactKernel( 
   __global BigUnsigned *inputBuffer, 
   __global BigUnsigned *resultBuffer, 
-  __global Index *lPredicateBuffer, 
-  __global Index *leftBuffer, 
-  Index size)
+  __global unsigned *lPredicateBuffer, 
+  __global unsigned *leftBuffer, 
+  unsigned size)
 {
   BUCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
 }
 
-//Double Compaction
-__kernel void LineCompactKernel( 
-  __global Line *inputBuffer, 
-  __global Line *resultBuffer, 
-  __global Index *lPredicateBuffer, 
-  __global Index *leftBuffer, 
-  Index size)
+__kernel void CompactKernel( 
+  __global int *inputBuffer, 
+  __global int *resultBuffer, 
+  __global unsigned *lPredicateBuffer, 
+  __global unsigned *leftBuffer, 
+  unsigned size)
 {
-  LineCompact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
+  Compact(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
+}
+
+//Double Compaction
+__kernel void BCellFacetCompactKernel( 
+  __global BCell *inputBCellBuffer, 
+  __global BCell *resultBCellBuffer, 
+  __global int *inputIndexBuffer, 
+  __global int *resultIndexBuffer, 
+  __global unsigned *lPredicateBuffer, 
+  __global unsigned *leftBuffer, 
+  unsigned size)
+{
+  BCellFacetCompact( inputBCellBuffer, inputIndexBuffer, resultBCellBuffer, resultIndexBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
 }
 
 
@@ -141,8 +162,8 @@ __kernel void LineCompactKernel(
 __kernel void BUSingleCompactKernel(
   __global BigUnsigned *inputBuffer,
   __global BigUnsigned *resultBuffer,
-  __global Index *predicateBuffer,
-  __global Index *addressBuffer)
+  __global unsigned *predicateBuffer,
+  __global unsigned *addressBuffer)
 {
   BUSingleCompact(inputBuffer, resultBuffer, predicateBuffer, addressBuffer, get_global_id(0));
 }
@@ -159,7 +180,6 @@ int size
   BuildBinaryRadixTree(I, mpoints, mbits, size, get_global_id(0));
 }
 
-
 __kernel void ComputeLocalSplitsKernel(
   __global unsigned int* local_splits, 
   __global BrtNode* I,
@@ -171,7 +191,7 @@ __kernel void ComputeLocalSplitsKernel(
     local_splits[0] = 1 + I[0].lcp_length / DIM;
   }
   barrier(CLK_GLOBAL_MEM_FENCE);
-  if (gid >= 0 && gid < size - 1) {
+  if (gid < size - 1) {
     ComputeLocalSplits(local_splits, I, gid);
   }
   
@@ -205,48 +225,44 @@ __kernel void BRT2OctreeKernel(
   if (gid > 0 && gid < size - 1)
     brt2octree(gid, I, octree, localSplits, prefixSums, size, octreeSize);
 }
-
-__kernel void ComputeLineLCPKernel(
+__kernel void GetBCellLCPKernel(
   __global Line* lines,
   __global BigUnsigned* zpoints,
+  __global BCell* bCells,
+  __global int* facetIndices,
   const int mbits 
   ) {
   const int gid = get_global_id(0);
-  calculateLineLCP(lines, zpoints, mbits, gid);
+  GetBCellLCP(lines, zpoints, bCells, facetIndices, mbits, gid);
 }
 
-__kernel void ComputeLineBoundingBoxesKernel(
-  __global Line* lines,
+__kernel void LookUpOctnodeFromBCellKernel(
+  __global BCell* bCells,
   __global OctNode* octree,
-  __global int* boundingBoxes
+  __global int* BCellToOctree
   ) {
   const int gid = get_global_id(0);
-  BigUnsigned lcp = lines[gid].lcp;
-  int lcpLength = lines[gid].lcpLength;
+  BigUnsigned lcp = bCells[gid].lcp;
+  int lcpLength = bCells[gid].lcpLength;
   int index = getOctNode(lcp, lcpLength, octree);
   barrier(CLK_LOCAL_MEM_FENCE);
-  boundingBoxes[gid] = index;
-  OctNode node = octree[boundingBoxes[gid]];
-  barrier(CLK_LOCAL_MEM_FENCE);
-  lines[gid].level = (short)node.level;
+  BCellToOctree[gid] = index;
 }
 
 __kernel void FindConflictCellsKernel(
   __global OctNode *octree, 
+  __global FacetPair *facetPairs,
   __global intn* qPoints,
-  __global Line* orderedLines, 
-  __global int* smallestContainingCells, 
+  __global Line* lines,
+  __global int* nodeToFacet,
   __global Conflict* conflicts,
-  unsigned int numSCCS, 
   unsigned int numLines, 
   OctreeData od
 ) {
   const int gid = get_global_id(0);
   FindConflictCells(
-          octree, &od, conflicts,
-          smallestContainingCells, 
-          numSCCS, orderedLines, 
-          numLines, qPoints, gid);
+          octree, facetPairs, &od, 
+          conflicts, nodeToFacet, lines, numLines, qPoints, gid);
 }
 
 __kernel void CountResolutionPointsKernel(
@@ -307,12 +323,33 @@ __kernel void GetResolutionPointsKernel(
     intn r2 = qPoints[secondLine.secondIndex];
 
    //This is really bad in terms of efficient global memory usage... 
-   //800ms * i number of points is a step bottleneck and will slow this kernel down dramatically...
     const int n = info.num_samples;
     for (int i = 0; i < n; ++i) {
       floatn sample;
       sample_conflict_kernel(i, &info, &sample);
       resolutionPoints[offset + i] = convert_intn(sample);
     }
+  }
+}
+
+__kernel void GetFacetPairsKernel(
+  __global int* BCellToOctree, 
+  __global FacetPair *facetPairs, 
+  int numLines
+)
+{
+  const int gid = get_global_id(0);
+  int leftNeighbor = (gid == 0) ? -1 : BCellToOctree[gid - 1];
+  int rightNeighbor = (gid == numLines-1) ? -1 : BCellToOctree[gid + 1];
+  int me = BCellToOctree[gid];
+  //If my left neighbor doesn't go to the same octnode I go to
+  if (leftNeighbor != me) {
+      //Then I am the first BCell/Facet belonging to my octnode
+      facetPairs[me].first = gid;
+  }
+  //If my right neighbor doesn't go the the same octnode I go to
+  if (rightNeighbor != me) {
+      //Then I am the last BCell/Facet belonging to my octnode
+      facetPairs[me].last = gid;
   }
 }

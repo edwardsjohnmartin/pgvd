@@ -4,19 +4,24 @@
 #include "./SharedSources/BigUnsigned/BigUnsigned.h"
 #else
 #include "../BigUnsigned/BigUnsigned.h"
+#ifdef __APPLE__
+#include <OpenCL/cl_platform.h>
+#else
+#include "CL/cl_platform.h"
+#endif
 #endif
 
 typedef struct BrtNode {
   // left child (right child = left+1)
-  int left;
+  cl_int left;
   // Whether the left (resp. right) child is a leaf or not
   bool left_leaf, right_leaf;
   // The longest common prefix
   BigUnsigned lcp;
   // Number of bits in the longest common prefix
-  int lcp_length;
+  cl_int lcp_length;
   // Secondary - computed in a second pass
-  int parent;
+  cl_int parent;
 } BrtNode;
 
 inline bool compareBrtNode(BrtNode* x, BrtNode* y) {
