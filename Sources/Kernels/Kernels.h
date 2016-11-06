@@ -74,10 +74,10 @@ namespace Kernels {
     cl_int ComputeLocalSplits_p(cl::Buffer &internalBRTNodes, cl::Buffer &localSplits, cl_int size);
     cl_int ComputeLocalSplits_s(vector<BrtNode> &I, vector<unsigned int> &local_splits, const cl_int size);
     cl_int InitOctree(cl::Buffer &internalBRTNodes, cl::Buffer &octree, cl::Buffer &localSplits, cl::Buffer &scannedSplits, cl_int size, cl_int octreeSize);
-    cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, vector<OctNode> &octree_vec, cl_int size);
+    cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, int &newSize, cl_int size);
     cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree, cl_int size);
     cl_int BuildOctree_s(const vector<intn>& points, vector<OctNode> &octree, int bits, int mbits);
-    cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, vector<OctNode> &octree, int bits, int mbits);
+    cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, int &newSize, int bits, int mbits);
     cl_int AddAll(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
     cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size);
     cl_int GetBCellLCP_p(cl::Buffer &linesBuffer, cl::Buffer &zpoints, cl::Buffer &bCells, cl::Buffer &facetIndices, cl_int size, int mbits);

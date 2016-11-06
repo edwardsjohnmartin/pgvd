@@ -564,14 +564,15 @@ namespace Kernels {
         cl_int error = 0;
         const size_t globalSize = nextPow2(size);
 
+
         cl::Buffer predicate, address, tempKeys, tempValues, swap;
         error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
         error |= CLFW::get(tempKeys, "tempRadixKeys", sizeof(cl_int)*globalSize);
         error |= CLFW::get(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
         error |= CLFW::get(sortedKeys_o, "sortedRadixKeys", sizeof(cl_int)*globalSize);
         error |= CLFW::get(sortedValues_o, "sortedRadixValues", sizeof(cl_int)*globalSize);
-        error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedKeys_i, sortedKeys_o, 0, 0, sizeof(cl_int) * size);
-        error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedValues_i, sortedValues_o, 0, 0, sizeof(cl_int) * size);
+        //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedKeys_i, sortedKeys_o, 0, 0, sizeof(cl_int) * size);
+        //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedValues_i, sortedValues_o, 0, 0, sizeof(cl_int) * size);
         
         if (error != CL_SUCCESS)
             return error;
@@ -580,24 +581,35 @@ namespace Kernels {
         startBenchmark("RadixSortBigUnsigned");
         for (unsigned int index = 0; index < sizeof(cl_int)*8; index++) {
             //Predicate the 0's and 1's
-            error |= BitPredicate(sortedKeys_o, predicate, index, 0, size);
+            error |= BitPredicate(unsortedKeys_i, predicate, index, 0, size);
 
             //Scan the predication buffers.
             error |= StreamScan_p(predicate, address, globalSize, "RSKBVI");
 
             //Compacting
-            error |= DoubleCompact(sortedKeys_o, tempKeys, predicate, address, size);
-            error |= DoubleCompact(sortedValues_o, tempValues, predicate, address, size);
+            error |= DoubleCompact(unsortedKeys_i, tempKeys, predicate, address, size);
+            error |= DoubleCompact(unsortedValues_i, tempValues, predicate, address, size);
 
             //Swap result with input.
             swap = tempKeys;
-            tempKeys = sortedKeys_o;
-            sortedKeys_o = swap;
+            tempKeys = unsortedKeys_i;
+            unsortedKeys_i = swap;
 
             swap = tempValues;
-            tempValues = sortedValues_o;
-            sortedValues_o = swap;
+            tempValues = unsortedValues_i;
+            unsortedValues_i = swap;
+            cl_uint gpuSum;
+            if (index % 4 == 0) {
+                //Checking order is expensive, but can save lots if we can break early.
+                CheckOrder(unsortedKeys_i, gpuSum, size);
+                if (gpuSum == 0) break;
+            }
         }
+
+
+
+        sortedKeys_o = unsortedKeys_i;
+        sortedValues_o = unsortedValues_i;
         stopBenchmark();
         return error;
     }
@@ -692,7 +704,7 @@ namespace Kernels {
     }
 
     //Approx 7% of build time
-    cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, vector<OctNode> &octree_vec, cl_int size) {
+    cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, int &newSize, cl_int size) {
         if (size <= 1) return CL_INVALID_ARG_VALUE;
         startBenchmark("BinaryRadixToOctree_p");
         int globalSize = nextPow2(size);
@@ -724,9 +736,7 @@ namespace Kernels {
         error |= kernel.setArg(4, size);
 
         error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
-
-        octree_vec.resize(octreeSize);
-        error |= queue.enqueueReadBuffer(octree, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree_vec.data());
+        newSize = octreeSize;
         stopBenchmark();
         return error;
     }
@@ -776,7 +786,7 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, vector<OctNode> &octree, int bits, int mbits) {
+    cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, int &newSize, int bits, int mbits) {
         int currentSize = numZPoints;
         cl_int error = 0;
         cl::Buffer sortedZPoints, internalBRTNodes;
@@ -784,7 +794,7 @@ namespace Kernels {
         error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
         error |= UniqueSorted(sortedZPoints, currentSize);
         error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
-        error |= BinaryRadixToOctree_p(internalBRTNodes, octree, currentSize);
+        error |= BinaryRadixToOctree_p(internalBRTNodes, newSize, currentSize);
         assert(error == CL_SUCCESS);
         return error;
     }
