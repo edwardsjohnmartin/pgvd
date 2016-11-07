@@ -1,5 +1,8 @@
 cmake_minimum_required (VERSION 2.6)
 
+# Must go before the project command
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.10" CACHE STRING "Minimum OS X deployment version")
+
 project (PGVD)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)

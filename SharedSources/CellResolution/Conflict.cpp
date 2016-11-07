@@ -254,16 +254,18 @@ LineSegment clip_segment(
     ray_box_intersection(&r, bb, &num_intersections, &t0, &t1);
 
     *valid = false;
-    if (t0 > 0 - EPSILON && t0 < 1 + EPSILON) {
+    if (fabs(t0-t1) > EPSILON) {
+      if (t0 > 0 - EPSILON && t0 < 1 + EPSILON) {
         s.p0 = get_ray_point(&r, t0);
         *valid = true;
-    }
-    if (t1 > 0 - EPSILON && t1 < 1 + EPSILON) {
+      }
+      if (t1 > 0 - EPSILON && t1 < 1 + EPSILON) {
         s.p1 = get_ray_point(&r, t1);
         *valid = true;
-    }
-    if (!*valid) {
+      }
+      if (!*valid) {
         *valid = (t0 < 0 && t1 > 0);
+      }
     }
     return s;
 }
@@ -717,31 +719,52 @@ void add_sample_debug(
 }
 
 floatn get_sample(const int i, const LinePair* lp) {
-    const int max_i = lp->num_samples;
-    const float alpha = lp->alpha;
-    const float k1_even = lp->k1_even;
-    const float k2_even = lp->k2_even;
-    const float k1_odd = lp->k1_odd;
-    const float k2_odd = lp->k2_odd;
-    const floatn p_origin = lp->p_origin;
-    const floatn u = lp->u;
+  // const int max_i = lp->num_samples;
+  // const float alpha = lp->alpha;
+  // const float k1_even = lp->k1_even;
+  // const float k2_even = lp->k2_even;
+  // const float k1_odd = lp->k1_odd;
+  // const float k2_odd = lp->k2_odd;
+  // const floatn p_origin = lp->p_origin;
+  // const floatn u = lp->u;
 
-    float s;
-    if (i == 0) {
-        s = lp->s0;
+  const bool parallel = (lp->k2_even == 0);
+
+  float s;
+  if (i == 0) {
+    s = lp->s0;
+  } else if (i == 1) {
+    s = lp->s1;
+  } else if (i % 2 == 0) {
+    if (parallel) {
+      s = lp->s0 + (i/2)*lp->a0;
+    } else {
+      const float po = pow(lp->alpha, i/2);
+      s = lp->k1_even + lp->k2_even * po;
     }
-    else if (i == 1) {
-        s = lp->s1;
+  } else {
+    if (parallel) {
+      s = lp->s1 + (i/2)*lp->a0;
+    } else {
+      const float po = pow(lp->alpha, i/2);
+      s = lp->k1_odd + lp->k2_odd * po;
     }
-    else if (i % 2 == 0) {
-        const float po = pow(lp->alpha, i / 2.0F);
-        s = lp->k1_even + lp->k2_even * po;
-    }
-    else {
-        const float po = pow(lp->alpha, i / 2.0F);
-        s = lp->k1_odd + lp->k2_odd * po;
-    }
-    return lp->p_origin + lp->u*s;
+  }
+  // if (i == 0) {
+  //   s = lp->s0;
+  // }
+  // else if (i == 1) {
+  //   s = lp->s1;
+  // }
+  // else if (i % 2 == 0) {
+  //   const float po = pow(lp->alpha, i / 2.0F);
+  //   s = lp->k1_even + lp->k2_even * po;
+  // }
+  // else {
+  //   const float po = pow(lp->alpha, i / 2.0F);
+  //   s = lp->k1_odd + lp->k2_odd * po;
+  // }
+  return lp->p_origin + lp->u*s;
 }
 
 // origin_ is the clipped origin, along with width and height.
@@ -801,18 +824,29 @@ void sample_v_conflict(
     const bool opposite = rtheta > -EPSILON;
 
     const float alpha = alpha_f(opposite, &p_origin, &q0, &r0, &u, &v, &w);
+    // if alpha is 1, then the lines are parallel
+    const bool parallel = (alpha == 1);
     const float beta = beta_f(opposite, &p_origin, &q0, &r0, &u, &v, &w);
-    float a0 = a_f(opposite, s0, &p_origin, &q0, &r0, &u, &v, &w);
+    float a0 = fabs(a_f(opposite, s0, &p_origin, &q0, &r0, &u, &v, &w));
 
-    const float s1 = s0 + a0 / (2 * u.x);
-    const float k1_even = beta / (1 - alpha);
-    const float k1_odd = beta / (1 - alpha);
-    const float k2_even = (alpha*s0 + beta - s0) / (alpha - 1);
-    const float k2_odd = (alpha*s1 + beta - s1) / (alpha - 1);
+    // const float s1 = s0 + a0 / (2 * u.x);
+    // const float k1_even = beta / (1 - alpha);
+    // const float k1_odd = beta / (1 - alpha);
+    // const float k2_even = (alpha*s0 + beta - s0) / (alpha - 1);
+    // const float k2_odd = (alpha*s1 + beta - s1) / (alpha - 1);
+    const float s1 = s0 + a0/(2*u.x);
+    const float k1_even = parallel ? 0 : beta / (1-alpha);
+    const float k1_odd = parallel ? 0 : beta / (1-alpha);
+    const float k2_even = parallel ? 0 : (alpha*s0+beta-s0)/(alpha-1);
+    const float k2_odd = parallel ? 0 : (alpha*s1+beta-s1)/(alpha-1);
 
+    // const float log_alpha = log(alpha);
+    // const int max_even = (int)ceil(log((sn - k1_even) / k2_even) / log_alpha);
+    // const int max_odd = (int)ceil(log((sn - k1_odd) / k2_odd) / log_alpha);
+    // int max_i = max_even + max_odd + 2;
     const float log_alpha = log(alpha);
-    const int max_even = (int)ceil(log((sn - k1_even) / k2_even) / log_alpha);
-    const int max_odd = (int)ceil(log((sn - k1_odd) / k2_odd) / log_alpha);
+    const int max_even = parallel ? (u.x*sn/a0) : (int)ceil(log((sn-k1_even)/k2_even) / log_alpha);
+    const int max_odd = parallel ? (u.x*sn/a0) : (int)ceil(log((sn-k1_odd)/k2_odd) / log_alpha);
     int max_i = max_even + max_odd + 2;
 
     // After getting the s values we transform the bisector back to the original
@@ -832,13 +866,28 @@ void sample_v_conflict(
         const int i = max_i - 1;
         const float po = pow(alpha, i / 2.0F);
         float s;
+        // if (i % 2 == 0) {
+        //     s = k1_even + k2_even * po;
+        // }
+        // else {
+        //     s = k1_odd + k2_odd * po;
+        // }
+        // const floatn p = p_origin + u*s;
         if (i % 2 == 0) {
+          if (parallel) {
+            s = s0 + (i/2)*a0;
+          } else {
             s = k1_even + k2_even * po;
-        }
-        else {
+          }
+        } else {
+          if (parallel) {
+            s = s1 + (i/2)*a0;
+          } else {
             s = k1_odd + k2_odd * po;
+          }
         }
-        const floatn p = p_origin + u*s;
+        const floatn p = convert_floatn(convert_intn(p_origin + u*s));
+
         if (inside_square(&p, &origin0, width0)) {
             max_done = true;
         }
@@ -857,6 +906,7 @@ void sample_v_conflict(
     line_pair->k2_odd = k2_odd;
     line_pair->p_origin = p_origin;
     line_pair->u = u;
+    line_pair->a0 = a0;
 }
 
 // The lines are given in "original" parameter space, where the endpoints

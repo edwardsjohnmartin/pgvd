@@ -279,6 +279,7 @@ __kernel void CountResolutionPointsKernel(
   info_array[gid] = info;
   predicates[gid] = (info.num_samples > 0) ? 1 : 0; 
   resolutionCounts[gid] = info.num_samples;
+  // resolutionCounts[0] = sizeof(LinePair);
 }
 
 __kernel void GetResolutionPointsKernel(

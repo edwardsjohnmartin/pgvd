@@ -78,6 +78,12 @@ int processArgs(int argc, char** argv) {
   return 0;
 }
 
+// Tests
+// ./QUADTREE -d 1 -l 24 data/maze/poly*.dat
+// 
+// These two give different results:
+//     ./QUADTREE -d 0 -l 24 data/test1-*.dat // works correctly
+//     ./QUADTREE -d 1 -l 24 data/test1-*.dat // doesn't resolve conflict cells (although it does find them)
 int main(int argc, char** argv) {
   using namespace std;
 

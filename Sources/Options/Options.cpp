@@ -53,12 +53,13 @@ int device = -1;
   //bool help;
   //std::map<std::string, std::string> key2value;
 
-  // Render settings
-  bool showObjectVertices;
+// Render settings
+bool showObjectVertices;
 bool showObjects = true;
-  bool showOctree = true;
+bool showOctree = true;
+bool showSketcher = true;
 
-  bool zoomMode;
+bool zoomMode;
 
 bool processArg(int& i, char** argv) {
   int orig_i = i;

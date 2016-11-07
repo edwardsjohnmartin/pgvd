@@ -6,6 +6,7 @@
 
 #include "../GLUtilities/gl_utils.h"
 #include "./Octree2.h"
+#include "../Timer/timer.h"
 
 Octree2::Octree2() {
     const int n = 4;
@@ -162,9 +163,10 @@ void Octree2::getResolutionPoints() {
     assert(Kernels::GetResolutionPointsInfo_p(octree.size(), conflictsBuffer, sortedLinesBuffer,
         quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
 
-    /*vector<int> test(1);
+    vector<int> test(1);
     CLFW::DefaultQueue.enqueueReadBuffer(resolutionCounts, CL_TRUE, 0, sizeof(cl_int), test.data());
-    cout << test[0] << " =? " << sizeof(ConflictInfo) << endl;*/
+    // cout << test[0] << " =? " << sizeof(ConflictInfo) << endl;
+    // cout << "Test = " << test[0] << endl;
 
 
 
@@ -322,6 +324,9 @@ void Octree2::build(const PolyLines *polyLines) {
     /* Quantize the polygon points. */
     generatePoints(polyLines);
     if (karras_points.size() == 0) return;
+
+    printf("Starting build\n");
+    Timer t("Build octree");
     totalPoints = karras_points.size();
     computeBoundingBox(totalPoints);
     UploadKarrasPoints(karras_points, karrasPointsBuffer);
@@ -360,12 +365,16 @@ void Octree2::build(const PolyLines *polyLines) {
         getResolutionPoints();
     } while (previousSize != octree.size() && resolutionPoints.size() != 0);
 
+    t.restart("Rendering stuff");
+
     /* Add the octnodes so they'll be rendered with OpenGL. */
     addOctreeNodes();
     /* Add conflict cells so they'll be rendered with OpenGL. */
     addConflictCells();
 
     cout << "Total iterations: " << totalIterations << endl;
+    cout << "Octree size: " << octree.size() << endl;
+    // cout << "sizeof(LinePair): " << sizeof(LinePair) << endl;
 }
 
 /* Drawing Methods */

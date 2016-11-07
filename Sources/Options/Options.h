@@ -56,6 +56,7 @@ extern std::vector<std::string> filenames;
   extern bool showObjectVertices;
   extern bool showObjects;
   extern bool showOctree;
+  extern bool showSketcher;
 
   extern bool zoomMode;
   //bool jitter;

@@ -35,16 +35,18 @@
 //------------------------------------------------------------
 
 typedef struct LinePair {
-    cl_int num_samples;
-    cl_float s0;
-    cl_float s1;
-    cl_float alpha;
-    cl_float k1_even;
-    cl_float k2_even;
-    cl_float k1_odd;
-    cl_float k2_odd;
-    floatn p_origin;
-    floatn u;
+  cl_int num_samples;
+  cl_float s0;
+  cl_float s1;
+  cl_float alpha;
+  cl_float k1_even;
+  cl_float k2_even;
+  cl_float k1_odd;
+  cl_float k2_odd;
+  floatn p_origin;
+  floatn u;
+  cl_float a0;
+  unsigned char padding[4];
 } LinePair;
 
 typedef struct ConflictInfo {

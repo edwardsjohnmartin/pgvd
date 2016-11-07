@@ -76,19 +76,22 @@ void RightMouse(bool down, int mods) {
 }
 
 void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    bool down = action == GLFW_PRESS || action == GLFW_REPEAT;
-    switch (key) {
+  bool down = action == GLFW_PRESS || action == GLFW_REPEAT;
+  switch (key) {
+    case GLFW_KEY_S:
+      if (down) Options::showSketcher = !Options::showSketcher;
+      break;
     case GLFW_KEY_C: C(down);
-        break;
+      break;
     case GLFW_KEY_P: P(down);
-        break;
+      break;
     case GLFW_KEY_O: O(down);
-        break;
+      break;
     case GLFW_KEY_Z: Z(down);
-        break;
+      break;
     case GLFW_KEY_Q: Q(down);
-        break;
-    }
+      break;
+  }
 }
 
 void mouse_cb(GLFWwindow* window, int button, int action, int mods) {
@@ -139,8 +142,10 @@ void refresh() {
     assert(glGetError() == GL_NO_ERROR);
   }
 
+  if (Options::showSketcher) {
     using namespace GLUtilities;
     Sketcher::instance()->draw();
+  }
 
-    glfwSwapBuffers(GLUtilities::window);
+  glfwSwapBuffers(GLUtilities::window);
 }
