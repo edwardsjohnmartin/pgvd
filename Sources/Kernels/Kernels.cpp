@@ -35,12 +35,28 @@ namespace Kernels {
 
         return representation;
     }
+
+    std::string buToString(BigUnsigned bu, int len) {
+        std::string representation = "";
+        if (len == 0)
+        {
+            representation += "NULL";
+        }
+        else {
+            //int shift = len%DIM;
+            // len -= shift;
+            for (int i = len - 1; i >= 0; --i) {
+                representation += std::to_string(getBUBit(&bu, i));
+            }
+        }
+        return representation;
+    }
 }
 
 std::ostream& operator<<(std::ostream& out, const BrtNode& node) {
-  out << node.left << " " << node.left_leaf << " " << node.right_leaf << " " <<
-      Kernels::buToString(node.lcp) << " " << node.lcp_length << " " << node.parent;
-  return out;
+    out << node.left << " " << node.left_leaf << " " << node.right_leaf << " " <<
+        Kernels::buToString(node.lcp) << " " << node.lcp_length << " " << node.parent;
+    return out;
 }
 
 /* Uploaders */
@@ -78,6 +94,7 @@ namespace Kernels {
 
 /* Downloaders */
 namespace Kernels {
+    //TODO: Fix the order of these parameters...
     cl_int DownloadInts(cl::Buffer &integersBuffer, vector<int> &integers, cl_int size) {
         startBenchmark("Downloading points");
         integers.resize(size);
@@ -135,6 +152,24 @@ namespace Kernels {
         stopBenchmark();
         return error;
     }
+    
+    cl_int DownloadFacetPairs(vector<FacetPair> &facetPairsVec, cl::Buffer &facetPairsBuffer, cl_int size) {
+        startBenchmark("Downloading facet pairs");
+        facetPairsVec.resize(size);
+        cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(facetPairsBuffer, CL_TRUE, 0, sizeof(FacetPair) * size, facetPairsVec.data());
+        stopBenchmark();
+        return error;
+    }
+
+    cl_int DownloadBCells(vector<BCell> &BCellsVec, cl::Buffer &BCellsBuffer, cl_int size) {
+        startBenchmark("Downloading bCells");
+        BCellsVec.resize(size);
+        cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(BCellsBuffer, CL_TRUE, 0, sizeof(BCell) * size, BCellsVec.data());
+        stopBenchmark();
+        return error;
+    }
+
+
 }
 
 /* Reduce Kernels */
@@ -195,17 +230,38 @@ namespace Kernels {
         error |= kernel->setArg(3, compared);
         error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
         return error;
-    };
+    }
 
-    cl_int LinePredicate(cl::Buffer &input, cl::Buffer &predicate, unsigned int &index, unsigned char compared, cl_int size, cl_int mbits) {
+    cl_int BUBitPredicate(cl::Buffer &input, cl::Buffer &predicate, unsigned int &index, unsigned char compared, cl_int globalSize) {
         cl::CommandQueue *queue = &CLFW::DefaultQueue;
-        cl::Kernel *kernel = &CLFW::Kernels["LinePredicateKernel"];
-        int roundSize = nextPow2(size);
-        cl_int error = CLFW::get(predicate, "linePredicate", sizeof(cl_int)* (roundSize));
+        cl::Kernel *kernel = &CLFW::Kernels["BUBitPredicateKernel"];
+
+        cl_int error = CLFW::get(predicate, "buBitPredicate", sizeof(cl_int)* (globalSize));
 
         error |= kernel->setArg(0, input);
         error |= kernel->setArg(1, predicate);
         error |= kernel->setArg(2, index);
+        error |= kernel->setArg(3, compared);
+        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+        return error;
+    };
+
+    cl_int BCellPredicate(
+        cl::Buffer &input_i,
+        cl::Buffer &predicate_o,
+        unsigned int &index_i,
+        unsigned char compared,
+        cl_int size,
+        cl_int mbits)
+    {
+        cl::CommandQueue *queue = &CLFW::DefaultQueue;
+        cl::Kernel *kernel = &CLFW::Kernels["BCellPredicateKernel"];
+        int roundSize = nextPow2(size);
+        cl_int error = CLFW::get(predicate_o, "bCellPredicate", sizeof(cl_int)* (roundSize));
+
+        error |= kernel->setArg(0, input_i);
+        error |= kernel->setArg(1, predicate_o);
+        error |= kernel->setArg(2, index_i);
         error |= kernel->setArg(3, compared);
         error |= kernel->setArg(4, mbits);
         error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(size), cl::NullRange);
@@ -266,7 +322,29 @@ namespace Kernels {
 
 /* Compaction Kernels */
 namespace Kernels {
-    cl_int SingleCompact(cl::Buffer &input, cl::Buffer &result, cl::Memory &predicate, cl::Buffer &address, cl_int globalSize) {
+    cl_int DoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize) {
+        cl_int error = 0;
+        bool isOld;
+        cl::CommandQueue *queue = &CLFW::DefaultQueue;
+        cl::Kernel *kernel = &CLFW::Kernels["CompactKernel"];
+        cl::Buffer zeroBUBuffer;
+
+        error |= CLFW::get(zeroBUBuffer, "zeroBuffer", sizeof(cl_int)*globalSize, isOld);
+        if (!isOld) {
+            error |= queue->enqueueFillBuffer<cl_int>(zeroBUBuffer, { 0 }, 0, globalSize * sizeof(cl_int));
+        }
+        error |= queue->enqueueCopyBuffer(zeroBUBuffer, result, 0, 0, sizeof(cl_int) * globalSize);
+
+        error |= kernel->setArg(0, input);
+        error |= kernel->setArg(1, result);
+        error |= kernel->setArg(2, predicate);
+        error |= kernel->setArg(3, address);
+        error |= kernel->setArg(4, globalSize);
+        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+        return error;
+    };
+
+    cl_int BUSingleCompact(cl::Buffer &input, cl::Buffer &result, cl::Memory &predicate, cl::Buffer &address, cl_int globalSize) {
         cl::CommandQueue *queue = &CLFW::DefaultQueue;
         cl::Kernel *kernel = &CLFW::Kernels["BUSingleCompactKernel"];
 
@@ -279,7 +357,7 @@ namespace Kernels {
         return error;
     }
 
-    cl_int DoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize) {
+    cl_int BUDoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize) {
         cl_int error = 0;
         bool isOld;
         cl::CommandQueue *queue = &CLFW::DefaultQueue;
@@ -303,27 +381,45 @@ namespace Kernels {
         return error;
     };
 
-    cl_int LineDoubleCompact(cl::Buffer &input, cl::Buffer &result, cl::Buffer &predicate, cl::Buffer &address, cl_int globalSize) {
+    cl_int BCellFacetDoubleCompact(
+        cl::Buffer &inputBCells_i,
+        cl::Buffer &inputIndices_i,
+        cl::Buffer &resultBCells_i,
+        cl::Buffer &resultIndices_i,
+        cl::Buffer &predicate_i,
+        cl::Buffer &address_i,
+        cl_int globalSize)
+    {
         cl_int error = 0;
         bool isOld;
         cl::CommandQueue *queue = &CLFW::DefaultQueue;
-        cl::Kernel *kernel = &CLFW::Kernels["LineCompactKernel"];
-        cl::Buffer zeroLineBuffer;
+        cl::Kernel *kernel = &CLFW::Kernels["BCellFacetCompactKernel"];
+        cl::Buffer zeroBCellBuffer;
+        cl::Buffer zeroIndexBuffer;
         unsigned int roundSize = nextPow2(globalSize);
-        error |= CLFW::get(zeroLineBuffer, "zeroLineBuffer", sizeof(Line)*roundSize, isOld);
+        error |= CLFW::get(zeroBCellBuffer, "zeroBCellBuffer", sizeof(BCell)*roundSize, isOld);
+        error |= CLFW::get(zeroIndexBuffer, "zeroIndexBuffer", sizeof(cl_int)*roundSize, isOld);
+        
+        
         if (!isOld) {
-            Line zero;
+            BCell zero;
             initBlkBU(&zero.lcp, 0);
             zero.lcpLength = -1;
-            error |= queue->enqueueFillBuffer<Line>(zeroLineBuffer, { zero }, 0, roundSize * sizeof(Line));
+            zero.padding[0] = zero.padding[1] = zero.padding[2] = 0;
+            error |= queue->enqueueFillBuffer<BCell>(zeroBCellBuffer, { zero }, 0, roundSize * sizeof(BCell));
+            error |= queue->enqueueFillBuffer<cl_int>(zeroIndexBuffer, { 0 }, 0, roundSize * sizeof(cl_int));
         }
-        error |= queue->enqueueCopyBuffer(zeroLineBuffer, result, 0, 0, sizeof(Line) * globalSize);
+        error |= queue->enqueueCopyBuffer(zeroBCellBuffer, resultBCells_i, 0, 0, sizeof(BCell) * globalSize);
+        error |= queue->enqueueCopyBuffer(zeroIndexBuffer, resultIndices_i, 0, 0, sizeof(cl_int) * globalSize);
 
-        error |= kernel->setArg(0, input);
-        error |= kernel->setArg(1, result);
-        error |= kernel->setArg(2, predicate);
-        error |= kernel->setArg(3, address);
-        error |= kernel->setArg(4, globalSize);
+
+        error |= kernel->setArg(0, inputBCells_i);
+        error |= kernel->setArg(1, resultBCells_i);
+        error |= kernel->setArg(2, inputIndices_i);
+        error |= kernel->setArg(3, resultIndices_i);
+        error |= kernel->setArg(4, predicate_i);
+        error |= kernel->setArg(5, address_i);
+        error |= kernel->setArg(6, globalSize);
         error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
         return error;
     };
@@ -419,10 +515,10 @@ namespace Kernels {
 
 /* Sorts */
 namespace Kernels {
+    //Approx 16% of total build
     cl_int RadixSortBigUnsigned_p(cl::Buffer &input, cl::Buffer &result, cl_int size, cl_int mbits) {
         cl_int error = 0;
         const size_t globalSize = nextPow2(size);
-
         cl::Buffer predicate, address, bigUnsignedTemp, temp;
         error |= CLFW::get(address, "BUAddress", sizeof(cl_int)*(globalSize));
         error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
@@ -437,7 +533,7 @@ namespace Kernels {
         startBenchmark("RadixSortBigUnsigned");
         for (unsigned int index = 0; index < mbits; index++) {
             //Predicate the 0's and 1's
-            error |= BitPredicate(result, predicate, index, 0, globalSize);
+            error |= BUBitPredicate(result, predicate, index, 0, globalSize);
             if (error != CL_SUCCESS)
                 return error;
             //Scan the predication buffers.
@@ -445,7 +541,7 @@ namespace Kernels {
             if (error != CL_SUCCESS)
                 return error;
             //Compacting
-            error |= DoubleCompact(result, bigUnsignedTemp, predicate, address, globalSize);
+            error |= BUDoubleCompact(result, bigUnsignedTemp, predicate, address, globalSize);
             if (error != CL_SUCCESS)
                 return error;
             //Swap result with input.
@@ -454,62 +550,66 @@ namespace Kernels {
             bigUnsignedTemp = temp;
         }
         stopBenchmark();
+
         return error;
     }
 
-    cl_int RadixSortLines_p(cl::Buffer &input, cl::Buffer &sortedLines, cl_int size, cl_int mbits) {
+    cl_int RadixSortPairsByKey(
+        cl::Buffer &unsortedKeys_i,
+        cl::Buffer &unsortedValues_i,
+        cl::Buffer &sortedKeys_o,
+        cl::Buffer &sortedValues_o,
+        cl_int size)
+    {
         cl_int error = 0;
-
-        vector<Line> lines;
-        lines.resize(size);
-        error |= CLFW::DefaultQueue.enqueueReadBuffer(input, CL_TRUE, 0, size * sizeof(Line), lines.data());
-
         const size_t globalSize = nextPow2(size);
 
-        cl::Buffer predicate, address, tempLinesBuffer, temp;
-        error |= CLFW::get(address, "lineAddress", sizeof(cl_int)*(globalSize));
-        error |= CLFW::get(tempLinesBuffer, "tempLinesBuffer", sizeof(Line)*globalSize);
-        error |= CLFW::get(sortedLines, "sortedLines", sizeof(Line)*globalSize);
-        error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, sortedLines, 0, 0, sizeof(Line) * globalSize);
 
+        cl::Buffer predicate, address, tempKeys, tempValues, swap;
+        error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
+        error |= CLFW::get(tempKeys, "tempRadixKeys", sizeof(cl_int)*globalSize);
+        error |= CLFW::get(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
+        error |= CLFW::get(sortedKeys_o, "sortedRadixKeys", sizeof(cl_int)*globalSize);
+        error |= CLFW::get(sortedValues_o, "sortedRadixValues", sizeof(cl_int)*globalSize);
+        //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedKeys_i, sortedKeys_o, 0, 0, sizeof(cl_int) * size);
+        //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedValues_i, sortedValues_o, 0, 0, sizeof(cl_int) * size);
+        
         if (error != CL_SUCCESS)
             return error;
 
         //For each bit
         startBenchmark("RadixSortBigUnsigned");
-        for (unsigned int index = 0; index < mbits; index++) {
+        for (unsigned int index = 0; index < sizeof(cl_int)*8; index++) {
             //Predicate the 0's and 1's
-            error |= LinePredicate(sortedLines, predicate, index, 0, size, mbits);
+            error |= BitPredicate(unsortedKeys_i, predicate, index, 0, size);
 
             //Scan the predication buffers.
-            error |= StreamScan_p(predicate, address, globalSize, "radixSortLineIntermediate");
+            error |= StreamScan_p(predicate, address, globalSize, "RSKBVI");
 
             //Compacting
-            error |= LineDoubleCompact(sortedLines, tempLinesBuffer, predicate, address, size);
+            error |= DoubleCompact(unsortedKeys_i, tempKeys, predicate, address, size);
+            error |= DoubleCompact(unsortedValues_i, tempValues, predicate, address, size);
 
             //Swap result with input.
-            temp = sortedLines;
-            sortedLines = tempLinesBuffer;
-            tempLinesBuffer = temp;
-            error |= CLFW::DefaultQueue.enqueueReadBuffer(sortedLines, CL_TRUE, 0, size * sizeof(Line), lines.data());
+            swap = tempKeys;
+            tempKeys = unsortedKeys_i;
+            unsortedKeys_i = swap;
+
+            swap = tempValues;
+            tempValues = unsortedValues_i;
+            unsortedValues_i = swap;
+            cl_uint gpuSum;
+            if (index % 4 == 0) {
+                //Checking order is expensive, but can save lots if we can break early.
+                CheckOrder(unsortedKeys_i, gpuSum, size);
+                if (gpuSum == 0) break;
+            }
         }
 
-        for (unsigned int index = 0; index < mbits / DIM; index++) {
-            //Predicate the 0's and 1's
-            error |= LevelPredicate(sortedLines, predicate, index, 0, size, mbits);
 
-            //Scan the predication buffers.
-            error |= StreamScan_p(predicate, address, globalSize, "radixSortLineIntermediate");
 
-            //Compacting
-            error |= LineDoubleCompact(sortedLines, tempLinesBuffer, predicate, address, size);
-
-            //Swap result with input.
-            temp = sortedLines;
-            sortedLines = tempLinesBuffer;
-            tempLinesBuffer = temp;
-        }
-
+        sortedKeys_o = unsortedKeys_i;
+        sortedValues_o = unsortedValues_i;
         stopBenchmark();
         return error;
     }
@@ -557,6 +657,7 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
+    //Approx 9% of build time
     cl_int BuildBinaryRadixTree_p(cl::Buffer &zpoints, cl::Buffer &internalBRTNodes, cl_int size, cl_int mbits) {
         startBenchmark("BuildBinaryRadixTree_p");
         cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
@@ -571,6 +672,7 @@ namespace Kernels {
         error |= kernel.setArg(3, size);
         error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
         stopBenchmark();
+
         return error;
     }
 
@@ -601,7 +703,8 @@ namespace Kernels {
         return error;
     }
 
-    cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, vector<OctNode> &octree_vec, cl_int size) {
+    //Approx 7% of build time
+    cl_int BinaryRadixToOctree_p(cl::Buffer &internalBRTNodes, int &newSize, cl_int size) {
         if (size <= 1) return CL_INVALID_ARG_VALUE;
         startBenchmark("BinaryRadixToOctree_p");
         int globalSize = nextPow2(size);
@@ -617,7 +720,7 @@ namespace Kernels {
         //Read in the required octree size
         cl_int octreeSize;
         error |= CLFW::DefaultQueue.enqueueReadBuffer(scannedSplits, CL_TRUE,
-                                                      sizeof(cl_int)*(size - 2), sizeof(cl_int), &octreeSize);
+            sizeof(cl_int)*(size - 2), sizeof(cl_int), &octreeSize);
         cl_int roundOctreeSize = nextPow2(octreeSize);
 
         //Create an octree buffer.
@@ -633,9 +736,7 @@ namespace Kernels {
         error |= kernel.setArg(4, size);
 
         error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
-
-        octree_vec.resize(octreeSize);
-        error |= queue.enqueueReadBuffer(octree, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree_vec.data());
+        newSize = octreeSize;
         stopBenchmark();
         return error;
     }
@@ -685,9 +786,7 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, vector<OctNode> &octree, int bits, int mbits) {
-        if (benchmarking)
-            system("cls");
+    cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, int &newSize, int bits, int mbits) {
         int currentSize = numZPoints;
         cl_int error = 0;
         cl::Buffer sortedZPoints, internalBRTNodes;
@@ -695,7 +794,7 @@ namespace Kernels {
         error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
         error |= UniqueSorted(sortedZPoints, currentSize);
         error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
-        error |= BinaryRadixToOctree_p(internalBRTNodes, octree, currentSize);
+        error |= BinaryRadixToOctree_p(internalBRTNodes, newSize, currentSize);
         assert(error == CL_SUCCESS);
         return error;
     }
@@ -703,45 +802,96 @@ namespace Kernels {
 
 /* Ambiguous cell resolution kernels */
 namespace Kernels {
-    cl_int ComputeLineLCPs_s(Line* lines, BigUnsigned* zpoints, cl_int size, int mbits) {
+    cl_int GetBCellLCP_s(
+        Line* lines,
+        BigUnsigned* zpoints,
+        BCell* bCells,
+        cl_int* facetIndices,
+        cl_int size,
+        int mbits)
+    {
         for (int i = 0; i < size; ++i) {
-            calculateLineLCP(lines, zpoints, mbits, i);
+            GetBCellLCP(lines, zpoints, bCells, facetIndices, mbits, i);
         }
         return CL_SUCCESS;
     }
 
-    cl_int ComputeLineLCPs_p(cl::Buffer &linesBuffer, cl::Buffer &zpoints, cl_int size, int mbits) {
+    cl_int GetBCellLCP_p(
+        cl::Buffer &linesBuffer_i,
+        cl::Buffer &zpoints_i,
+        cl::Buffer &bCells_o,
+        cl::Buffer &facetIndices_o,
+        cl_int size,
+        int mbits)
+    {
         cl::CommandQueue *queue = &CLFW::DefaultQueue;
-        cl::Kernel *kernel = &CLFW::Kernels["ComputeLineLCPKernel"];
+        cl::Kernel *kernel = &CLFW::Kernels["GetBCellLCPKernel"];
         cl_int error = 0;
-        error |= kernel->setArg(0, linesBuffer);
-        error |= kernel->setArg(1, zpoints);
-        error |= kernel->setArg(2, mbits);
+
+        cl_int roundSize = nextPow2(size);
+        error |= CLFW::get(bCells_o, "BCells", roundSize * sizeof(BCell));
+        error |= CLFW::get(facetIndices_o, "facetIndices", roundSize * sizeof(cl_int));
+        error |= kernel->setArg(0, linesBuffer_i);
+        error |= kernel->setArg(1, zpoints_i);
+        error |= kernel->setArg(2, bCells_o);
+        error |= kernel->setArg(3, facetIndices_o);
+        error |= kernel->setArg(4, mbits);
         error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(size), cl::NullRange);
+
         return error;
     }
 
-    cl_int ComputeLineBoundingBoxes_s(Line* lines, int* boundingBoxes, OctNode *octree, cl_int numLines) {
-        for (int i = 0; i < numLines; ++i) {
-            boundingBoxes[i] = getOctNode(lines[i].lcp, lines[i].lcpLength, octree);
-            OctNode node = octree[boundingBoxes[i]];
-            lines[i].level = (short)node.level;
-
+    cl_int LookUpOctnodeFromBCell_s(BCell* bCells, OctNode *octree, int* BCellToOctree, cl_int numBCells) {
+        for (int i = 0; i < numBCells; ++i) {
+            BCellToOctree[i] = getOctNode(bCells[i].lcp, bCells[i].lcpLength, octree);
         }
         return CL_SUCCESS;
     }
 
-    cl_int ComputeLineBoundingBoxes_p(cl::Buffer &linesBuffer, cl::Buffer &octree, cl::Buffer &boundingBoxes, cl_int numLines) {
+    cl_int LookUpOctnodeFromBCell_p(cl::Buffer &bCells_i, cl::Buffer &octree_i, cl::Buffer &BCellToOctnode, cl_int numBCells) {
         cl::CommandQueue *queue = &CLFW::DefaultQueue;
-        cl::Kernel *kernel = &CLFW::Kernels["ComputeLineBoundingBoxesKernel"];
-        int roundNumber = nextPow2(numLines);
-        cl_int error = CLFW::get(boundingBoxes, "boundingBoxes", sizeof(cl_int)* (roundNumber));
+        cl::Kernel *kernel = &CLFW::Kernels["LookUpOctnodeFromBCellKernel"];
+        int roundNumber = nextPow2(numBCells);
+        cl_int error = CLFW::get(BCellToOctnode, "BCellToOctnode", sizeof(cl_int)* (roundNumber));
 
-        error |= kernel->setArg(0, linesBuffer);
-        error |= kernel->setArg(1, octree);
-        error |= kernel->setArg(2, boundingBoxes);
-        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(numLines), cl::NullRange);
+        error |= kernel->setArg(0, bCells_i);
+        error |= kernel->setArg(1, octree_i);
+        error |= kernel->setArg(2, BCellToOctnode);
+        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(numBCells), cl::NullRange);
         error = CLFW::DefaultQueue.finish();
+        return error;
+    }
+
+    cl_int GetFacetPairs_s(cl_int* BCellToOctree, FacetPair *facetPairs, cl_int numLines) {
+        for (int i = 0; i < numLines; ++i) {
+            int leftNeighbor = (i == 0) ? -1 : BCellToOctree[i - 1];
+            int rightNeighbor = (i == numLines-1) ? -1 : BCellToOctree[i + 1];
+            int me = BCellToOctree[i];
+            //If my left neighbor doesn't go to the same octnode I go to
+            if (leftNeighbor != me) {
+                //Then I am the first BCell/Facet belonging to my octnode
+                facetPairs[me].first = i;
+            }
+            //If my right neighbor doesn't go the the same octnode I go to
+            if (rightNeighbor != me) {
+                //Then I am the last BCell/Facet belonging to my octnode
+                facetPairs[me].last = i;
+            }
+        }
+        return CL_SUCCESS;
+    }
+
+    cl_int GetFacetPairs_p(cl::Buffer &orderedNodeIndices_i, cl::Buffer &facetPairs_o, cl_int numLines, cl_int octreeSize) {
+        cl::CommandQueue *queue = &CLFW::DefaultQueue;
+        cl::Kernel *kernel = &CLFW::Kernels["GetFacetPairsKernel"];
+        int roundNumber = nextPow2(octreeSize);
+        cl_int error = CLFW::get(facetPairs_o, "facetPairs", sizeof(FacetPair)* (roundNumber));
+        FacetPair initialPair = { -1, -1 };
+        error |= queue->enqueueFillBuffer<FacetPair>(facetPairs_o, { initialPair }, 0, sizeof(FacetPair) * roundNumber);
+        error |= kernel->setArg(0, orderedNodeIndices_i);
+        error |= kernel->setArg(1, facetPairs_o);
+        error |= kernel->setArg(2, numLines);
+        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(numLines), cl::NullRange);
         return error;
     }
 
@@ -774,51 +924,27 @@ namespace Kernels {
         return center;
     }
 
-    cl_int SortLinesByLvlThenVal_p(vector<Line> &unorderedLines, cl::Buffer &sortedLinesBuffer, cl::Buffer &zpoints, const Resln &resln) {
-        //Two lines are required for an ambigous cell to appear.
-        if (unorderedLines.size() < 2) return CL_INVALID_ARG_SIZE;
-        cl_int error = 0;
-        cl::Buffer linesBuffer;
-        error |= UploadLines(unorderedLines, linesBuffer);
-        error |= ComputeLineLCPs_p(linesBuffer, zpoints, unorderedLines.size(), resln.mbits);
-        error |= RadixSortLines_p(linesBuffer, sortedLinesBuffer, unorderedLines.size(), resln.mbits);
-        return error;
-    }
-
-    cl_int FindConflictCells_s(cl::Buffer sortedLinesBuffer, cl_int numLines,
-        cl::Buffer octreeBuffer, OctNode* octree, OctreeData *od,
-        vector<Conflict> &conflictPairs, intn* qpoints) {
+    cl_int FindConflictCells_s(OctNode *octree, FacetPair *facetPairs, OctreeData *od, Conflict *conflicts,
+        int* nodeToFacet, Line *lines, cl_int numLines, intn* points) {
         //Two lines are required for an ambigous cell to appear.
         if (numLines < 2) return CL_INVALID_ARG_SIZE;
-        cl_int error = 0;
-        vector<int> boundingBoxes;
-        cl::Buffer boundingBoxesBuffer;
-        error |= ComputeLineBoundingBoxes_p(sortedLinesBuffer, octreeBuffer, boundingBoxesBuffer, numLines);
-        error |= DownloadBoundingBoxes(boundingBoxesBuffer, boundingBoxes, numLines);
 
-        vector<Line> sortedLines(numLines);
-        error |= DownloadLines(sortedLinesBuffer, sortedLines, numLines);
-        Conflict initialPair;
-        initialPair.color = -1;
-        conflictPairs.clear();
-        conflictPairs.resize(4 * od->size, initialPair);
         for (unsigned int i = 0; i < od->size; ++i) {
-            FindConflictCells(octree, od, conflictPairs.data(),
-                boundingBoxes.data(), boundingBoxes.size(), sortedLines.data(), sortedLines.size(), qpoints, i);
+            FindConflictCells(octree, facetPairs, od, conflicts,
+                nodeToFacet, lines, numLines, points, i);
         }
-        return error;
+        return CL_SUCCESS;
     }
 
-    cl_int FindConflictCells_p(cl::Buffer &sortedLinesBuffer, cl_int numLines, cl::Buffer &octreeBuffer,
-        OctreeData od, cl::Buffer &conflicts, cl::Buffer &qPoints) {
+    cl_int FindConflictCells_p(cl::Buffer &octree, cl::Buffer &facetPairs, OctreeData &od, cl::Buffer &conflicts, cl::Buffer &nodeToFacet, cl::Buffer &lines, cl_int numLines, cl::Buffer &points) {
         //Two lines are required for an ambigous cell to appear.
         if (numLines < 2) return CL_INVALID_ARG_SIZE;
         cl::CommandQueue &queue = CLFW::DefaultQueue;
         cl::Kernel &kernel = CLFW::Kernels["FindConflictCellsKernel"];
 
-        cl::Buffer boundingBoxesBuffer, initialConflictsBuffer;
-        cl_int error = ComputeLineBoundingBoxes_p(sortedLinesBuffer, octreeBuffer, boundingBoxesBuffer, numLines); //needs a better name
+        cl::Buffer bCellToOctnodeBuffer, initialConflictsBuffer;
 
+        cl_int error = 0;
         bool isOld;
         Conflict initialPair;
         initialPair.color = -1;
@@ -834,13 +960,13 @@ namespace Kernels {
         }
         error |= queue.enqueueCopyBuffer(initialConflictsBuffer, conflicts, 0, 0, 4 * nextPow2(od.size) * sizeof(Conflict));
 
-        error |= kernel.setArg(0, octreeBuffer);
-        error |= kernel.setArg(1, qPoints);
-        error |= kernel.setArg(2, sortedLinesBuffer);
-        error |= kernel.setArg(3, boundingBoxesBuffer); //rename to SCC
-        error |= kernel.setArg(4, conflicts);
-        error |= kernel.setArg(5, numLines); //Pretty sure numSCCS = numLines
-        error |= kernel.setArg(6, numLines); //Pretty sure numSCCS = numLines
+        error |= kernel.setArg(0, octree);
+        error |= kernel.setArg(1, facetPairs);
+        error |= kernel.setArg(2, points);
+        error |= kernel.setArg(3, lines); 
+        error |= kernel.setArg(4, nodeToFacet);
+        error |= kernel.setArg(5, conflicts); 
+        error |= kernel.setArg(6, numLines); 
         error |= kernel.setArg(7, od);
         error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(od.size), cl::NullRange);
 
@@ -895,7 +1021,7 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int GetResolutionPointsInfo_p(unsigned int totalOctnodes, cl::Buffer &conflicts, cl::Buffer &orderedLines, 
+    cl_int GetResolutionPointsInfo_p(unsigned int totalOctnodes, cl::Buffer &conflicts, cl::Buffer &orderedLines,
         cl::Buffer &qPoints, cl::Buffer &conflictInfoBuffer, cl::Buffer &resolutionCounts, cl::Buffer &predicates) {
         cl::CommandQueue &queue = CLFW::DefaultQueue;
         cl::Kernel &kernel = CLFW::Kernels["CountResolutionPointsKernel"];
@@ -940,6 +1066,7 @@ namespace Kernels {
 
 /* Hybrid Kernels */
 namespace Kernels {
+    //Approx 4% of build time
     cl_int UniqueSorted(cl::Buffer &input, cl_int &size) {
         startBenchmark("UniqueSorted");
         int globalSize = nextPow2(size);
@@ -952,7 +1079,7 @@ namespace Kernels {
 
         error |= UniquePredicate(input, predicate, globalSize);
         error |= StreamScan_p(predicate, address, globalSize, "UniqueIntermediate");
-        error |= SingleCompact(input, result, predicate, address, globalSize);
+        error |= BUSingleCompact(input, result, predicate, address, globalSize);
 
         input = result;
 

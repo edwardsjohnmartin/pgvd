@@ -28,9 +28,11 @@ private:
     std::vector<Line> lines;
     std::vector<Line> orderedLines;
     std::vector<Conflict> conflicts;
+    int octreeSize;
     BoundingBox bb;
     Resln resln;
     int totalPoints;
+    int resolutionPointsSize;
 
     std::vector<glm::vec3> offsets;
     std::vector<glm::vec3> colors;
@@ -48,14 +50,20 @@ private:
     cl::Buffer karrasPointsBuffer;
     cl::Buffer zpoints;
     cl::Buffer zpointsCopy;
-    cl::Buffer sortedLinesBuffer;
+    cl::Buffer linesBuffer;
+    cl::Buffer BCells;
+    cl::Buffer unorderedLineIndices;
+    cl::Buffer unorderedNodeIndices;
+    cl::Buffer orderedLineIndices;
+    cl::Buffer orderedNodeIndices;
     cl::Buffer conflictsBuffer;
+    cl::Buffer resolutionPointsBuffer;
 
     void generatePoints(const PolyLines *polyLines);
     void computeBoundingBox(const int totalPoints);
     void quantizePoints(int numResolutionPoints = 0);
     void makeZOrderPoints();
-    void sortLines();
+    void GetUnorderedBCellFacetPairs();
     void buildVertexOctree();
     void identifyConflictCells();
     void getResolutionPoints();

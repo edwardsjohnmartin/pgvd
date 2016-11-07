@@ -12,12 +12,12 @@
 // Stores resolution and octree height values
 struct Resln {
   // width is the quantized width in one dimension.
-  int width;
-  int volume;
+  cl_int width;
+  cl_int volume;
   // Number of bits per dimension is bits = log(width).
-  int bits;
+  cl_int bits;
   // Total number of bits for morton code is mbits = bits * DIM.
-  int mbits;
+  cl_int mbits;
 };
 
 inline Resln make_resln(const int width_) {

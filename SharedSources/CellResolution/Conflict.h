@@ -19,9 +19,9 @@
 // ConflictInfo info;
 // sample_conflict_count(
 //     &info, q0, q1, r0, r1, origin, width, NULL, NULL);
-// const int n = info.num_samples;
+// const cl_int n = info.num_samples;
 // floatn* samples = new floatn[n];
-// for (int i = 0; i < info.num_samples; ++i) {
+// for (cl_int i = 0; i < info.num_samples; ++i) {
 //   sample_conflict_kernel(i, &info, samples);
 // }
 //
@@ -60,13 +60,13 @@ typedef struct ConflictInfo {
 
 // Returns the number of samples needed to resolve a conflict in cell
 // located at origin with the given width.
-// int sample_conflict_count(
+// cl_int sample_conflict_count(
 void sample_conflict_count(
     ConflictInfo* info,
     const intn q0, const intn q1, const intn r0, const intn r1,
     const intn origin, const int width);
 
-void sample_conflict_kernel(const int i, ConflictInfo* info, floatn* samples);
+void sample_conflict_kernel(const cl_int i, ConflictInfo* info, floatn* samples);
 
 #endif
 #ifndef __OPENCL_VERSION__

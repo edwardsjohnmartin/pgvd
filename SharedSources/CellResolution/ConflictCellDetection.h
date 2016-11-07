@@ -33,10 +33,15 @@ inline std::ostream& operator<<(std::ostream& os, const Conflict& c) {
 bool liangBarskey(floatn *min, floatn *max, floatn *p1, floatn *p2);
 
 /* Run for each octnode in parallel */
-int FindConflictCells(__global OctNode *octree, OctreeData *od,
-    __global Conflict* conflicts, __global int* smallestContainingCells,
-    unsigned int numSCCS, __global Line* orderedLines,
-    unsigned int numLines, __global intn* points, unsigned int gid);
+void FindConflictCells(__global OctNode *octree,
+    __global FacetPair *facetPairs,
+    OctreeData *od,
+    __global Conflict* conflicts,
+    __global int* nodeToFacet,
+    __global Line* lines,
+    unsigned int numLines,
+    __global intn* points,
+    unsigned int gid);
 
 #ifndef __OPENCL_VERSION__
 #undef __local

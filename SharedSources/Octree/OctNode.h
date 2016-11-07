@@ -21,18 +21,22 @@
 
 // You must call init_OctNode()!
 typedef struct OctNode {
-
 #ifdef __cplusplus
   const int& operator[](const int i) const {
     return children[i];
   }
 #endif // __cplusplus
 
-  int children[1<<DIM];
-  int leaf;
-  int level;
-  int parent;
+  cl_int children[1<<DIM];
+  cl_int leaf;
+  cl_int level;
+  cl_int parent;
 } OctNode;
+
+typedef struct FacetPair {
+    cl_int first;
+    cl_int last;
+} FacetPair;
 
 typedef struct OctreeData {
   floatn fmin;

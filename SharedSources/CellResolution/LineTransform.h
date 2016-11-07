@@ -17,13 +17,13 @@ inline void floatn_swap(floatn* a, floatn* b) {
 //    6 7 8
 
 // Identity matrix
-inline float* I(float* m) {
+inline cl_float* I(cl_float* m) {
   m[0] = m[4] = m[8] = 1;
   m[1] = m[2] = m[3] = m[5] = m[6] = m[7] = 0;
   return m;
 }
 
-inline float* rotation(float theta, float* m) {
+inline cl_float* rotation(cl_float theta, cl_float* m) {
   I(m);
   m[0] = cos(theta);
   m[1] = -sin(theta);
@@ -32,20 +32,20 @@ inline float* rotation(float theta, float* m) {
   return m;
 }
 
-inline float* translation(float x, float y, float* m) {
+inline cl_float* translation(cl_float x, cl_float y, cl_float* m) {
   I(m);
   m[2] = x;
   m[5] = y;
   return m;
 }
 
-inline float* reflect0(float* m) {
+inline cl_float* reflect0(cl_float* m) {
   I(m);
   m[4] = -1;
   return m;
 }
 
-inline float* reflect45(float* m) {
+inline cl_float* reflect45(cl_float* m) {
   I(m);
   m[0] = 0;
   m[1] = 1;
@@ -54,28 +54,28 @@ inline float* reflect45(float* m) {
   return m;
 }
 
-inline float* mult(float* m, float* n, const int store) {
-  float result[9];
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
+inline cl_float* mult(cl_float* m, cl_float* n, const cl_int store) {
+  cl_float result[9];
+  for (cl_int i = 0; i < 3; ++i) {
+    for (cl_int j = 0; j < 3; ++j) {
       result[i*3+j] = m[i*3]*n[j] + m[i*3+1]*n[3+j] + m[i*3+2]*n[6+j];
     }
   }
 
   if (store == 0) {
-    for (int i = 0; i < 9; ++i) {
+    for (cl_int i = 0; i < 9; ++i) {
       m[i] = result[i];
     }
     return m;
   } else {
-    for (int i = 0; i < 9; ++i) {
+    for (cl_int i = 0; i < 9; ++i) {
       n[i] = result[i];
     }
     return n;
   }
 }
 
-inline floatn apply_point(floatn* p, const float* m) {
+inline floatn apply_point(floatn* p, const cl_float* m) {
   floatn q;
   q.x = p->x * m[0] + p->y * m[1] + m[2];
   q.y = p->x * m[3] + p->y * m[4] + m[5];
@@ -83,7 +83,7 @@ inline floatn apply_point(floatn* p, const float* m) {
   return *p;
 }
 
-inline floatn apply_vector(floatn* p, const float* m) {
+inline floatn apply_vector(floatn* p, const cl_float* m) {
   floatn q;
   q.x = p->x * m[0] + p->y * m[1];
   q.y = p->x * m[3] + p->y * m[4];
@@ -94,8 +94,8 @@ inline floatn apply_vector(floatn* p, const float* m) {
 typedef struct LineTransform {
 //
 //  void reflect(const floatn u) {
-//    float temp[9];
-//    const float gamma = atan2(u.y, u.x);
+//    cl_float temp[9];
+//    const cl_float gamma = atan2(u.y, u.x);
 //    if (gamma > M_PI/4) {
 //      mult(rotation(-M_PI/2, temp), _m, 1);
 //      mult(_m_inv, rotation(M_PI/2, temp), 0);
@@ -134,7 +134,7 @@ typedef struct LineTransform {
 //  }
 //
 //  // void print() const {
-//  //   for (int i = 0; i < 9; ++i) {
+//  //   for (cl_int i = 0; i < 9; ++i) {
 //  //     std::cout << _m[i] << " ";
 //  //     if (i%3 == 2) {
 //  //       std::cout << std::endl;
@@ -149,21 +149,21 @@ typedef struct LineTransform {
 } LineTransform;
 
 inline void InitLineTransform(LineTransform *LT, const floatn* u, const floatn* origin) {
-  float ptheta = atan2(u->y, u->x);
+  cl_float ptheta = atan2(u->y, u->x);
   while (ptheta < 0) ptheta += 2 * M_PI;
 
-  float temp[9];
+  cl_float temp[9];
 
   translation(-origin->x, -origin->y, LT->_m);
   translation(origin->x, origin->y, LT->_m_inv);
 
-  const float rotate = floor(ptheta / (M_PI/2)) * (M_PI/2);
+  const cl_float rotate = floor(ptheta / (M_PI/2)) * (M_PI/2);
   if (rotate > 0) {
     mult(rotation(-rotate, temp), LT->_m, 1);
     mult(LT->_m_inv, rotation(rotate, temp), 0);
   }
 
-	LT->_swap = (((int)floor(ptheta / (M_PI/4))) % 2) == 1;
+	LT->_swap = (((cl_int)floor(ptheta / (M_PI/4))) % 2) == 1;
   if (LT->_swap) {
     mult(reflect45(temp), LT->_m, 1);
     mult(LT->_m_inv, reflect45(temp), 0);

@@ -31,7 +31,7 @@ void reduce(__global unsigned int* buffer,
 
 __kernel
 void CheckOrder(
-            __global BigUnsigned *zpoints,
+            __global int *numbers,
             __local unsigned int* scratch,
             __const int numZPoints,
             __const int nextPowerOfTwo,
@@ -46,9 +46,9 @@ void CheckOrder(
     while(global_index < nextPowerOfTwo) {
         if(global_index < numZPoints-1)
         {
-            BigUnsigned mine = zpoints[global_index];
-            BigUnsigned other = zpoints[global_index + 1];
-            accumulator += max(compareBU(&mine, &other), 0);
+            int mine = numbers[global_index];
+            int other = numbers[global_index + 1];
+            accumulator += max(mine > other, 0);
         }
         global_index += get_global_size(0);
         //Enforce coherency
@@ -70,9 +70,9 @@ void CheckOrder(
 
 __kernel void GetTwoBitMaskKernel(
 __global BigUnsigned *inputBuffer,
-__global int *masks,
+__global unsigned *masks,
 __local BigUnsigned *localBUBuffer,
-__local int *localBoolBuffer,
+__local unsigned *localBoolBuffer,
 unsigned int index,
 unsigned char compared
 )

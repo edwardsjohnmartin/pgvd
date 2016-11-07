@@ -17,7 +17,7 @@
 //------------------------------------------------------------
 
 // The norm (length) of the cross product
-inline float ncross(const floatn* u, const floatn* v) {
+inline cl_float ncross(const floatn* u, const floatn* v) {
     return u->x * v->y - u->y * v->x;
 }
 
@@ -72,7 +72,7 @@ inline BB make_bb() {
     BB bb = { make_floatn(0,0), 0, 0, true };
     return bb;
 }
-inline BB make_bb_from_data(const floatn* origin, const float w) {
+inline BB make_bb_from_data(const floatn* origin, const cl_float w) {
     BB bb = { *origin, w, w, false };
     return bb;
 }
@@ -105,17 +105,17 @@ inline void add_to_bb(const floatn* p, BB* bb) {
 // Auxiliary function declarations
 //------------------------------------------------------------
 
-int get_line_segment_pairs(
+cl_int get_line_segment_pairs(
     const LineSegment* s0_, const LineSegment* s1_,
     LineSegmentPair pairs[],
-    const floatn* origin, const float width);
+    const floatn* origin, const cl_float width);
 
 void line_box_intersection(
     const floatn* p0, const floatn* v,
-    const floatn* o, const float w, const float h,
-    int* num_intersections, float* t0, float* t1);
+    const floatn* o, const cl_float w, const cl_float h,
+    cl_int* num_intersections, cl_float* t0, cl_float* t1);
 
-bool inside_square(const floatn* p, const floatn* o, const float w);
+bool inside_square(const floatn* p, const floatn* o, const cl_float w);
 
 LineSegment clip_segment(
     const LineSegment* s_, const BB* bb, bool* valid);
@@ -132,15 +132,15 @@ void orientLines(floatn* q0, floatn* v,
 // Functions from the paper
 //------------------------------------------------------------
 
-float a_f(const bool opposite, const float s,
+cl_float a_f(const bool opposite, const cl_float s,
     const floatn* p0, const floatn* q0, const floatn* r0,
     const floatn* u, const floatn* v, const floatn* w);
 
-float alpha_f(const bool opposite,
+cl_float alpha_f(const bool opposite,
     const floatn* p0, const floatn* q0, const floatn* r0,
     const floatn* u, const floatn* v, const floatn* w);
 
-float beta_f(const bool opposite,
+cl_float beta_f(const bool opposite,
     const floatn* p0, const floatn* q0, const floatn* r0,
     const floatn* u, const floatn* v, const floatn* w);
 
@@ -170,7 +170,7 @@ inline LineSegment make_segment(const Ray* r) {
     LineSegment s = { r->p0, r->p0 + r->v };
     return s;
 }
-inline floatn get_ray_point(const Ray* r, const float t) {
+inline floatn get_ray_point(const Ray* r, const cl_float t) {
     return r->p0 + r->v * t;
 }
 inline void reverse_ray(Ray* r) {
@@ -198,17 +198,17 @@ void clip_v_half(LineSegment* a, LineSegment* b,
     const bool a_half, const bool b_half);
 inline bool inside_box(const floatn* p, const BB* bb);
 inline bool inside_rect(
-    const floatn* p, const floatn* o, const float w, const float h);
+    const floatn* p, const floatn* o, const cl_float w, const cl_float h);
 inline bool line_line_intersection(const floatn* q0, const floatn* v,
     const floatn* r0, const floatn* w,
-    floatn* p, float* t, float* f);
-inline float line_point_intersection(const floatn* q0, const floatn* v,
+    floatn* p, cl_float* t, cl_float* f);
+inline cl_float line_point_intersection(const floatn* q0, const floatn* v,
     const floatn* p);
-inline float ray_point_intersection(const Ray* r, const floatn* p);
-inline float ray_axis_intersection(const Ray* r, const float f, const int axis);
+inline cl_float ray_point_intersection(const Ray* r, const floatn* p);
+inline cl_float ray_axis_intersection(const Ray* r, const cl_float f, const cl_int axis);
 inline void ray_box_intersection(
     const Ray* r, const BB* bb,
-    int* num_intersections, float* t0, float* t1);
+    cl_int* num_intersections, cl_float* t0, cl_float* t1);
 
 
 //------------------------------------------------------------
@@ -222,11 +222,11 @@ inline void ray_box_intersection(
 inline bool clip_ray(
     const Ray* r, const LineSegment* s,
     LineSegment* result) {
-    float t0 = ray_point_intersection(r, &s->p0);
-    float t1 = ray_point_intersection(r, &s->p1);
+    cl_float t0 = ray_point_intersection(r, &s->p0);
+    cl_float t1 = ray_point_intersection(r, &s->p1);
     // Order the two points
     if (t1 < t0) {
-        float temp = t0;
+        cl_float temp = t0;
         t0 = t1;
         t1 = temp;
     }
@@ -249,8 +249,8 @@ LineSegment clip_segment(
     LineSegment s = *s_;
 
     Ray r = make_ray(&s);
-    int num_intersections;
-    float t0, t1;
+    cl_int num_intersections;
+    cl_float t0, t1;
     ray_box_intersection(&r, bb, &num_intersections, &t0, &t1);
 
     *valid = false;
@@ -284,7 +284,7 @@ inline bool inside_box(const floatn* p, const BB* bb) {
 // returns true if point p is inside the box.
 // The box is considered closed, so points on the boundary are inside.
 inline bool inside_rect(
-    const floatn* p, const floatn* o, const float w, const float h) {
+    const floatn* p, const floatn* o, const cl_float w, const cl_float h) {
     return
         p->x >= o->x - EPSILON && // left
         p->x <= o->x + w + EPSILON && // right
@@ -294,7 +294,7 @@ inline bool inside_rect(
 
 // Given a box origin and width, returns true if point p is inside the box.
 // The box is considered closed, to points on the boundary are inside.
-bool inside_square(const floatn* p, const floatn* o, const float w) {
+bool inside_square(const floatn* p, const floatn* o, const cl_float w) {
     return inside_rect(p, o, w, w);
 }
 
@@ -304,9 +304,9 @@ bool inside_square(const floatn* p, const floatn* o, const float w) {
 // Returns false if the lines are parallel.
 inline bool line_line_intersection(const floatn* q0, const floatn* v,
     const floatn* r0, const floatn* w,
-    floatn* p, float* t, float* f) {
+    floatn* p, cl_float* t, cl_float* f) {
     // Find where q and r intersect
-    const float den = v->x * w->y - v->y * w->x;
+    const cl_float den = v->x * w->y - v->y * w->x;
     if (fabs(den) < EPSILON) return false;
 
     // Not parallel
@@ -320,7 +320,7 @@ inline bool line_line_intersection(const floatn* q0, const floatn* v,
 // Given a line in parametric form, find the intersection point with a point.
 // Intersection test is NOT made, but it is assumed that the line and point
 // do indeed intersect.
-inline float line_point_intersection(const floatn* q0, const floatn* v,
+inline cl_float line_point_intersection(const floatn* q0, const floatn* v,
     const floatn* p) {
     if (fabs(v->x) > fabs(v->y)) {
         return (p->x - q0->x) / v->x;
@@ -331,7 +331,7 @@ inline float line_point_intersection(const floatn* q0, const floatn* v,
 // Given a line in parametric form, find the intersection point with a point.
 // Intersection test is NOT made, but it is assumed that the line and point
 // do indeed intersect.
-inline float ray_point_intersection(const Ray* r, const floatn* p) {
+inline cl_float ray_point_intersection(const Ray* r, const floatn* p) {
     if (fabs(r->v.x) > fabs(r->v.y)) {
         return (p->x - r->p0.x) / r->v.x;
     }
@@ -343,8 +343,8 @@ inline float ray_point_intersection(const Ray* r, const floatn* p) {
 // axis = 0: aligned with x axis
 // axis = 1: aligned with y axis
 // axis = 2: aligned with z axis
-inline float ray_axis_intersection(
-    const Ray* r, const float f, const int axis) {
+inline cl_float ray_axis_intersection(
+    const Ray* r, const cl_float f, const cl_int axis) {
     if (axis == 1) {
         return (f - r->p0.x) / r->v.x;
     }
@@ -357,8 +357,8 @@ inline float ray_axis_intersection(
 // sorted in ascending order.
 void line_box_intersection(
     const floatn* p0, const floatn* v,
-    const floatn* o, const float w, const float h,
-    int* num_intersections, float* t0, float* t1) {
+    const floatn* o, const cl_float w, const cl_float h,
+    cl_int* num_intersections, cl_float* t0, cl_float* t1) {
     if (fabs(v->x) < EPSILON) {
         // vertical line
         *t0 = (o->y - p0->y) / v->y;
@@ -384,10 +384,10 @@ void line_box_intersection(
         }
     }
     else {
-        const float tleft = (o->x - p0->x) / v->x;
-        const float tright = ((o->x + w) - p0->x) / v->x;
-        const float tbottom = (o->y - p0->y) / v->y;
-        const float ttop = ((o->y + h) - p0->y) / v->y;
+        const cl_float tleft = (o->x - p0->x) / v->x;
+        const cl_float tright = ((o->x + w) - p0->x) / v->x;
+        const cl_float tbottom = (o->y - p0->y) / v->y;
+        const cl_float ttop = ((o->y + h) - p0->y) / v->y;
         if (v->x > 0) {
             // Vector traveling left to right
             *t0 = fmax(tleft, fmin(ttop, tbottom));
@@ -407,7 +407,7 @@ void line_box_intersection(
         }
     }
     if (*num_intersections == 2 && *t0 > *t1) {
-        float temp = *t0;
+        cl_float temp = *t0;
         *t0 = *t1;
         *t1 = temp;
     }
@@ -415,7 +415,7 @@ void line_box_intersection(
 
 inline void ray_box_intersection(
     const Ray* r, const BB* bb,
-    int* num_intersections, float* t0, float* t1) {
+    cl_int* num_intersections, cl_float* t0, cl_float* t1) {
     line_box_intersection(&r->p0, &r->v, &bb->o, bb->w, bb->h,
         num_intersections, t0, t1);
 }
@@ -449,12 +449,12 @@ void flipRay(floatn* q0, floatn* v) {
 void orientLines(floatn* q0, floatn* v,
     floatn* r0, floatn* w) {
     // Find where q and r intersect
-    const float den = v->x * w->y - v->y * w->x;
+    const cl_float den = v->x * w->y - v->y * w->x;
     if (fabs(den) > EPSILON) {
         // Not parallel
-        const float t_origin =
+        const cl_float t_origin =
             (w->y * (r0->x - q0->x) + w->x * (q0->y - r0->y)) / den;
-        const float f_origin =
+        const cl_float f_origin =
             (v->y * (q0->x - r0->x) + v->x * (r0->y - q0->y)) / (-den);
 
         // Want angle of w less than angle of v.
@@ -493,10 +493,10 @@ void orientLines(floatn* q0, floatn* v,
 //      intersection. The second pair is the red segment with the part of the
 //      blue segment on the negative side of intersection.
 // Return value is the number of pairs.
-int get_line_segment_pairs(
+cl_int get_line_segment_pairs(
     const LineSegment* s0_, const LineSegment* s1_,
     LineSegmentPair pairs[],
-    const floatn* origin, const float width) {
+    const floatn* origin, const cl_float width) {
 
     Ray r0 = make_ray(s0_);
     Ray r1 = make_ray(s1_);
@@ -515,7 +515,7 @@ int get_line_segment_pairs(
 
     // p is the point at which the two lines intersect.
     floatn p;
-    float t0, t1;
+    cl_float t0, t1;
     const bool parallel =
         !line_line_intersection(&r0.p0, &r0.v, &r1.p0, &r1.v, &p, &t0, &t1);
     // half_intersection means that if one of the segments was
@@ -532,8 +532,8 @@ int get_line_segment_pairs(
     // In the negative directions
     Ray an = make_ray_from_point(&p, &v0n);
     Ray bn = make_ray_from_point(&p, &v1n);
-    int n;
-    int i = 0;
+    cl_int n;
+    cl_int i = 0;
     if (parallel) {
         // Lines are parallel
         pairs[i++] = make_line_segment_pair(&s0, &s1);
@@ -546,8 +546,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
-                float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
-                float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
                     bc.p1 = get_ray_point(&bc_ray, t0);
                 }
@@ -557,8 +557,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&bc.p1, &bb)) {
                 Ray ac_ray = make_ray(&ac);
-                float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
-                float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
                     ac.p1 = get_ray_point(&ac_ray, t0);
                 }
@@ -574,8 +574,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
-                float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
-                float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
                     bc.p1 = get_ray_point(&bc_ray, t0);
                 }
@@ -585,8 +585,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&bc.p1, &bb)) {
                 Ray ac_ray = make_ray(&ac);
-                float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
-                float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
                     ac.p1 = get_ray_point(&ac_ray, t0);
                 }
@@ -602,8 +602,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
-                float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
-                float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
                     bc.p1 = get_ray_point(&bc_ray, t0);
                 }
@@ -613,8 +613,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&bc.p1, &bb)) {
                 Ray ac_ray = make_ray(&ac);
-                float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
-                float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
                     ac.p1 = get_ray_point(&ac_ray, t0);
                 }
@@ -630,8 +630,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
-                float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
-                float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&bc_ray, ac.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&bc_ray, ac.p1.y, 0);
                 if (t0 > 0) {
                     bc.p1 = get_ray_point(&bc_ray, t0);
                 }
@@ -641,8 +641,8 @@ int get_line_segment_pairs(
             }
             else if (inside_box(&bc.p1, &bb)) {
                 Ray ac_ray = make_ray(&ac);
-                float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
-                float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
+                cl_float t0 = ray_axis_intersection(&ac_ray, bc.p1.x, 1);
+                cl_float t1 = ray_axis_intersection(&ac_ray, bc.p1.y, 0);
                 if (t0 > 0) {
                     ac.p1 = get_ray_point(&ac_ray, t0);
                 }
@@ -661,13 +661,13 @@ int get_line_segment_pairs(
 // Functions from the paper
 //------------------------------------------------------------
 
-float a_f(const bool opposite, const float s,
+cl_float a_f(const bool opposite, const cl_float s,
     const floatn* p0, const floatn* q0, const floatn* r0,
     const floatn* u, const floatn* v, const floatn* w) {
     if (opposite) {
-        const float num = (p0->x + s*u->x - q0->x)*ncross(w, v) +
+        const cl_float num = (p0->x + s*u->x - q0->x)*ncross(w, v) +
             v->x*(ncross(r0, w) + ncross(w, q0));
-        const float den = v->x*(w->x + w->y);
+        const cl_float den = v->x*(w->x + w->y);
         return num / den;
     }
     else {
@@ -676,7 +676,7 @@ float a_f(const bool opposite, const float s,
     }
 }
 
-float alpha_f(const bool opposite,
+cl_float alpha_f(const bool opposite,
     const floatn* p0, const floatn* q0, const floatn* r0,
     const floatn* u, const floatn* v, const floatn* w) {
     if (opposite) {
@@ -687,13 +687,13 @@ float alpha_f(const bool opposite,
     }
 }
 
-float beta_f(const bool opposite,
+cl_float beta_f(const bool opposite,
     const floatn* p0, const floatn* q0, const floatn* r0,
     const floatn* u, const floatn* v, const floatn* w) {
     if (opposite) {
-        const float num = (p0->x - q0->x)*ncross(w, v) +
+        const cl_float num = (p0->x - q0->x)*ncross(w, v) +
             v->x*(ncross(r0, w) + ncross(w, q0));
-        const float den = u->x*v->x*(w->x + w->y);
+        const cl_float den = u->x*v->x*(w->x + w->y);
         return num / den;
     }
     else {
@@ -702,13 +702,13 @@ float beta_f(const bool opposite,
 }
 
 void add_sample_debug(
-    const float s,
+    const cl_float s,
     const floatn p_origin, const floatn u,
     const floatn p_origin_t, const floatn u_t,
     const floatn q0_t, const floatn v_t,
     const floatn r0_t, const floatn w_t,
     const bool opposite,
-    const floatn origin0, const int width0,
+    const floatn origin0, const cl_int width0,
     const LineTransform T) {
 
     const floatn p = p_origin + u*s;
@@ -773,8 +773,8 @@ void sample_v_conflict(
     LinePair* line_pair,
     floatn q0, floatn v,
     floatn r0, floatn w,
-    floatn origin_, int width, int height,
-    floatn origin0, int width0) {
+    floatn origin_, cl_int width, cl_int height,
+    floatn origin0, cl_int width0) {
     // p = p0 + su
     // q = q0 + tv
     // r = r0 + fw
@@ -793,15 +793,15 @@ void sample_v_conflict(
 
     floatn p_origin = (q0 + r0) / 2;
 
-    float qtheta = atan2(v.y, v.x);
-    float rtheta = atan2(w.y, w.x);
+    cl_float qtheta = atan2(v.y, v.x);
+    cl_float rtheta = atan2(w.y, w.x);
     if (qtheta < rtheta) qtheta += 2 * M_PI;
-    float ptheta = (qtheta + rtheta) / 2;
+    cl_float ptheta = (qtheta + rtheta) / 2;
     floatn u = make_floatn(cos(ptheta), sin(ptheta));
 
     // Find the s values where u enters and exits the bounding box
-    float s0, sn;
-    int num_intersections;
+    cl_float s0, sn;
+    cl_int num_intersections;
     line_box_intersection(&p_origin, &u, &origin_, width, height,
         &num_intersections, &s0, &sn);
     if (s0 < 0) {
@@ -914,7 +914,7 @@ void sample_v_conflict(
 void sample_conflict_impl(ConflictInfo* info,
     const intn q0_int, const intn q1_int,
     const intn r0_int, const intn r1_int,
-    intn origin__, int width) {
+    intn origin__, cl_int width) {
 
     const floatn q0_ = convert_floatn(q0_int);
     const floatn q1_ = convert_floatn(q1_int);
@@ -923,23 +923,23 @@ void sample_conflict_impl(ConflictInfo* info,
 
     floatn origin_ = convert_floatn(origin__);
     floatn origin0 = origin_;
-    int width0 = width;
-    int height = width;
+    cl_int width0 = width;
+    cl_int height = width;
 
     LineSegment s0 = make_segment_from_point(&q0_, &q1_);
     LineSegment s1 = make_segment_from_point(&r0_, &r1_);
 
     LineSegmentPair pairs[4];
     // Get "v" or "pair" lines
-    const int num_pairs = get_line_segment_pairs(
+    const cl_int num_pairs = get_line_segment_pairs(
         &s0, &s1, pairs, &origin_, width);
     info->num_samples = 0;
 
     const BB bb_ = make_bb_from_data(&origin_, width);
 
     info->offsets[0] = 0;
-    int idx = 0;
-    for (int i = 0; i < num_pairs; ++i) {
+    cl_int idx = 0;
+    for (cl_int i = 0; i < num_pairs; ++i) {
         LineSegment* a = &pairs[i].s0;
         LineSegment* b = &pairs[i].s1;
 
@@ -971,7 +971,7 @@ void sample_conflict_impl(ConflictInfo* info,
 void sample_conflict_count(
     ConflictInfo* info,
     const intn q0, const intn q1, const intn r0, const intn r1,
-    const intn origin, const int width) {
+    const intn origin, const cl_int width) {
 
     sample_conflict_impl(info, q0, q1, r0, r1, origin, width);
     //sample_conflict_impl(info, make_intn(0, 3), make_intn(3, 0),
@@ -979,11 +979,11 @@ void sample_conflict_count(
     //    make_intn(1, 1), 1);
 }
 
-void sample_conflict_kernel(const int i, ConflictInfo* info, floatn* samples) {
+void sample_conflict_kernel(const cl_int i, ConflictInfo* info, floatn* samples) {
     // k will be the local sample index
-    int k = i;
+    cl_int k = i;
     // j is the line pair index
-    int j = 0;
+    cl_int j = 0;
     // This for loop will iterate no more than 3 times
     while (k >= info->line_pairs[j].num_samples) {
         k -= info->line_pairs[j].num_samples;
