@@ -1,0 +1,18 @@
+#log4cplus.logger.processArgs=DEBUG
+#log4cplus.logger.Octree2=TRACE
+#log4cplus.logger.Octree2.makeZOrderPoints=TRACE
+
+#log4cplus.rootLogger=TRACE, A1
+#log4cplus.rootLogger=DEBUG, A1
+log4cplus.rootLogger=INFO, A1
+log4cplus.appender.A1=log4cplus::ConsoleAppender
+log4cplus.appender.A1.layout=log4cplus::PatternLayout
+
+# For pattern characters see
+#    https://logging.apache.org/log4j/2.x/manual/layouts.html
+# and look under the PatternLayout heading
+
+#log4cplus.appender.A1.layout.ConversionPattern=%d [%t] %-5p %c - %m%n
+#log4cplus.appender.A1.layout.ConversionPattern=%d{%H:%M:%S:%q} %-5p %c - %m%n
+log4cplus.appender.A1.layout.ConversionPattern=%d{%M:%S:%q} %-5p %c - %m%n
+#log4cplus.appender.A1.layout.ConversionPattern=l4c %-5p %c - %m%n

@@ -281,6 +281,8 @@ __kernel void CountResolutionPointsKernel(
   ConflictInfo info;
   info.num_samples = 0;
   info.currentNode = gid;
+  info.num_line_pairs = 0;
+  info.offsets[0] = info.offsets[1] = info.offsets[2] = info.offsets[3] = 0;
   if (c.color == -2)
   {
     Line firstLine = orderedLines[c.i[0]];

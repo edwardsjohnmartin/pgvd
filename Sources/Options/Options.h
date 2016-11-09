@@ -61,6 +61,9 @@ extern std::vector<std::string> filenames;
   extern bool zoomMode;
   //bool jitter;
 
+extern bool debug;
+extern std::string cl_options;
+
 bool processArg(int& i, char** argv);
 
 // public:

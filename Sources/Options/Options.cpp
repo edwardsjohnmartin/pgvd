@@ -15,7 +15,7 @@
 #include <cstdlib>
 //#include <algorithm>
 //#include <cstring>
-//#include <fstream>
+#include <fstream>
 //#include <sstream>
 //#if defined (WIN32)
 //	#include <functional>
@@ -61,6 +61,9 @@ bool showSketcher = true;
 
 bool zoomMode;
 
+bool debug = false;
+std::string cl_options = "";
+
 bool processArg(int& i, char** argv) {
   int orig_i = i;
   if (strcmp(argv[i], "-l") == 0) {
@@ -72,16 +75,24 @@ bool processArg(int& i, char** argv) {
     ++i;
     device = atoi(argv[i]);
     ++i;
-  // } else if (strcmp(argv[i], "-f") == 0) {
-  //   ++i;
-  //   ifstream in(argv[i]);
-  //   string f;
-  //   getline(in, f);
-  //   while (in && !f.empty()) {
-  //     filenames.push_back(f);
-  //     getline(in, f);
-  //   }
-  //   ++i;
+  } else if (strcmp(argv[i], "-v") == 0) {
+    ++i;
+    debug = true;
+  } else if (strcmp(argv[i], "-o") == 0) {
+    ++i;
+    cl_options += "-cl-opt-disable ";
+  } else if (strcmp(argv[i], "-f") == 0) {
+    ++i;
+    std::ifstream in(argv[i]);
+    std::string f;
+    std::getline(in, f);
+    while (in && !f.empty()) {
+      if (f[0] != '#') {
+        filenames.push_back(f);
+      }
+      std::getline(in, f);
+    }
+    ++i;
   // } else if (strcmp(argv[i], "-a") == 0) {
   //   ++i;
   //   o.ambiguous_max_level = atoi(argv[i]);

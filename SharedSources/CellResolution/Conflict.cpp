@@ -6,6 +6,10 @@
 #include "./LineTransform.h"
 #endif
 
+#ifndef CONFLICT_M_PI
+#define CONFLICT_M_PI 3.14159265359F
+#endif
+
 //------------------------------------------------------------
 //------------------------------------------------------------
 // Contents of the H file
@@ -452,10 +456,10 @@ void orientLines(floatn* q0, floatn* v,
     const cl_float den = v->x * w->y - v->y * w->x;
     if (fabs(den) > EPSILON) {
         // Not parallel
-        const cl_float t_origin =
-            (w->y * (r0->x - q0->x) + w->x * (q0->y - r0->y)) / den;
-        const cl_float f_origin =
-            (v->y * (q0->x - r0->x) + v->x * (r0->y - q0->y)) / (-den);
+        // const cl_float t_origin =
+        //     (w->y * (r0->x - q0->x) + w->x * (q0->y - r0->y)) / den;
+        // const cl_float f_origin =
+        //     (v->y * (q0->x - r0->x) + v->x * (r0->y - q0->y)) / (-den);
 
         // Want angle of w less than angle of v.
         const float3 c =
@@ -525,14 +529,14 @@ cl_int get_line_segment_pairs(
     const bool a_half = (t0 < 0 || t0 > 1);
     const bool b_half = (t1 < 0 || t1 > 1);
     const bool half_intersection = (a_half != b_half);
-    const bool full_intersection = (!a_half && !b_half);
+    // const bool full_intersection = (!a_half && !b_half);
 
     Ray a = make_ray_from_point(&p, &v0);
     Ray b = make_ray_from_point(&p, &v1);
     // In the negative directions
     Ray an = make_ray_from_point(&p, &v0n);
     Ray bn = make_ray_from_point(&p, &v1n);
-    cl_int n;
+    // cl_int n;
     cl_int i = 0;
     if (parallel) {
         // Lines are parallel
@@ -774,7 +778,9 @@ void sample_v_conflict(
     floatn q0, floatn v,
     floatn r0, floatn w,
     floatn origin_, cl_int width, cl_int height,
-    floatn origin0, cl_int width0) {
+    floatn origin0, cl_int width0,
+    // TODO: remove ConflictInfo
+    ConflictInfo* info) {
     // p = p0 + su
     // q = q0 + tv
     // r = r0 + fw
@@ -795,7 +801,7 @@ void sample_v_conflict(
 
     cl_float qtheta = atan2(v.y, v.x);
     cl_float rtheta = atan2(w.y, w.x);
-    if (qtheta < rtheta) qtheta += 2 * M_PI;
+    if (qtheta < rtheta) qtheta += 2 * CONFLICT_M_PI;
     cl_float ptheta = (qtheta + rtheta) / 2;
     floatn u = make_floatn(cos(ptheta), sin(ptheta));
 
@@ -809,7 +815,34 @@ void sample_v_conflict(
     }
 
     LineTransform T;
+    // if (info->currentNode == 9) {
+    //   // translation(5, 6, T._m);
+    //   info->num_samples = -3;
+    //   info->offsets[0] = p_origin.x;
+    //   info->offsets[1] = p_origin.y;
+    //   info->offsets[2] = u.x;
+    //   info->offsets[3] = u.y;
+    //   // info->offsets[0] = T._m[0];
+    //   // info->offsets[1] = T._m[1];
+    //   // info->offsets[2] = T._m[2];
+    //   // info->offsets[3] = T._m[3];
+    //   return;
+    // }
     InitLineTransform(&T, &u, &p_origin);
+    // if (info->currentNode == 9) {
+    //   info->num_samples = -3;
+    //   // info->offsets[0] = p_origin.x;
+    //   // info->offsets[1] = p_origin.y;
+    //   // info->offsets[2] = u.x;
+    //   // info->offsets[3] = u.y;
+    //   info->offsets[0] = T._m[0]*100;
+    //   info->offsets[1] = T._m[1]*100;
+    //   info->offsets[2] = T._m[2]*100;
+    //   info->offsets[3] = T._m[3]*100;
+    //   // info->offsets[3] = T._swap;
+    //   return;
+    // }
+
     applyToLineTransform(&T, &q0, &r0, &p_origin, &v, &w, &u);
 
     ptheta = atan2(u.y, u.x);
@@ -851,12 +884,12 @@ void sample_v_conflict(
 
     // After getting the s values we transform the bisector back to the original
     // frame. Get a copy of the transformed values first.
-    const floatn q0_t = q0;
-    const floatn r0_t = r0;
-    const floatn p_origin_t = p_origin;
-    const floatn v_t = v;
-    const floatn w_t = w;
-    const floatn u_t = u;
+    // const floatn q0_t = q0;
+    // const floatn r0_t = r0;
+    // const floatn p_origin_t = p_origin;
+    // const floatn v_t = v;
+    // const floatn w_t = w;
+    // const floatn u_t = u;
     revertLineTransform(&T, &q0, &r0, &p_origin, &v, &w, &u);
 
     // Sometimes we end up with max_i which puts a point outside the box.
@@ -912,60 +945,90 @@ void sample_v_conflict(
 // The lines are given in "original" parameter space, where the endpoints
 // are q0_, q1_, r0_, and r1_.
 void sample_conflict_impl(ConflictInfo* info,
-    const intn q0_int, const intn q1_int,
-    const intn r0_int, const intn r1_int,
-    intn origin__, cl_int width) {
+                          const intn q0_int, const intn q1_int,
+                          const intn r0_int, const intn r1_int,
+                          intn origin__, cl_int width) {
 
-    const floatn q0_ = convert_floatn(q0_int);
-    const floatn q1_ = convert_floatn(q1_int);
-    const floatn r0_ = convert_floatn(r0_int);
-    const floatn r1_ = convert_floatn(r1_int);
+  const floatn q0_ = convert_floatn(q0_int);
+  const floatn q1_ = convert_floatn(q1_int);
+  const floatn r0_ = convert_floatn(r0_int);
+  const floatn r1_ = convert_floatn(r1_int);
 
-    floatn origin_ = convert_floatn(origin__);
-    floatn origin0 = origin_;
-    cl_int width0 = width;
-    cl_int height = width;
+  floatn origin_ = convert_floatn(origin__);
+  floatn origin0 = origin_;
+  cl_int width0 = width;
+  // cl_int height = width;
 
-    LineSegment s0 = make_segment_from_point(&q0_, &q1_);
-    LineSegment s1 = make_segment_from_point(&r0_, &r1_);
+  LineSegment s0 = make_segment_from_point(&q0_, &q1_);
+  LineSegment s1 = make_segment_from_point(&r0_, &r1_);
 
-    LineSegmentPair pairs[4];
-    // Get "v" or "pair" lines
-    const cl_int num_pairs = get_line_segment_pairs(
-        &s0, &s1, pairs, &origin_, width);
-    info->num_samples = 0;
+  LineSegmentPair pairs[4];
+  // Get "v" or "pair" lines
+  const cl_int num_pairs = get_line_segment_pairs(
+      &s0, &s1, pairs, &origin_, width);
 
-    const BB bb_ = make_bb_from_data(&origin_, width);
+  // if (info->currentNode == 9) {
+  //   info->num_samples = -3;
+  //   info->num_line_pairs = num_pairs;
+  //   info->offsets[0] = origin__.x;
+  //   info->offsets[1] = origin__.y;
+  //   info->offsets[2] = origin__.x;
+  //   info->offsets[3] = origin__.y;
+  //   return;
+  // }
 
-    info->offsets[0] = 0;
-    cl_int idx = 0;
-    for (cl_int i = 0; i < num_pairs; ++i) {
-        LineSegment* a = &pairs[i].s0;
-        LineSegment* b = &pairs[i].s1;
+  info->num_samples = 0;
+  info->offsets[0] = info->offsets[1] = info->offsets[2] = info->offsets[3] = 0;
 
-        bool a_valid, b_valid;
-        *a = clip_segment(a, &bb_, &a_valid);
-        *b = clip_segment(b, &bb_, &b_valid);
+  const BB bb_ = make_bb_from_data(&origin_, width);
 
-        BB small_bb = make_bb();
-        add_to_bb(&a->p0, &small_bb);
-        add_to_bb(&a->p1, &small_bb);
-        add_to_bb(&b->p0, &small_bb);
-        add_to_bb(&b->p1, &small_bb);
+  cl_int idx = 0;
+  for (cl_int i = 0; i < num_pairs; ++i) {
+    LineSegment* a = &pairs[i].s0;
+    LineSegment* b = &pairs[i].s1;
 
-        if (a_valid && b_valid && small_bb.w >= 1 && small_bb.h >= 1) {
-            sample_v_conflict(&(info->line_pairs[idx]), a->p0, a->p1 - a->p0,
-                b->p0, b->p1 - b->p0,
-                small_bb.o, small_bb.w, small_bb.h, origin0, width0);
-            info->num_samples += info->line_pairs[idx].num_samples;
-            if (idx < 3) {
-                info->offsets[idx + 1] =
-                    info->offsets[idx] + info->line_pairs[idx].num_samples;
-            }
-            ++idx;
-        }
-        info->num_line_pairs = idx;
+    bool a_valid, b_valid;
+    *a = clip_segment(a, &bb_, &a_valid);
+    *b = clip_segment(b, &bb_, &b_valid);
+
+    BB small_bb = make_bb();
+    add_to_bb(&a->p0, &small_bb);
+    add_to_bb(&a->p1, &small_bb);
+    add_to_bb(&b->p0, &small_bb);
+    add_to_bb(&b->p1, &small_bb);
+
+    // if (info->currentNode == 9) {
+    //   info->num_samples = -3;
+    //   info->num_line_pairs = num_pairs;
+    //   info->offsets[0] = a_valid;
+    //   info->offsets[1] = b_valid;
+    //   info->offsets[2] = small_bb.w;
+    //   info->offsets[3] = small_bb.h;
+    //   return;
+    // }
+
+    if (a_valid && b_valid && small_bb.w >= 1 && small_bb.h >= 1) {
+      sample_v_conflict(&(info->line_pairs[idx]), a->p0, a->p1 - a->p0,
+                        b->p0, b->p1 - b->p0,
+                        small_bb.o, small_bb.w, small_bb.h, origin0, width0, info);
+      info->num_samples += info->line_pairs[idx].num_samples;
+      // if (info->currentNode == 9) {
+      // //   info->num_samples = -3;
+      // //   info->num_line_pairs = num_pairs;
+      // //   info->offsets[0] = a->p1.x;
+      // //   info->offsets[1] = a->p1.y;
+      // //   info->offsets[2] = b->p1.x;
+      // //   info->offsets[3] = b->p1.y;
+      //   return;
+      // }
+      if (idx < 3) {
+        info->offsets[idx + 1] =
+            info->offsets[idx] + info->line_pairs[idx].num_samples;
+      }
+      ++idx;
     }
+  }
+  info->num_line_pairs = idx;
 }
 
 void sample_conflict_count(
@@ -974,9 +1037,6 @@ void sample_conflict_count(
     const intn origin, const cl_int width) {
 
     sample_conflict_impl(info, q0, q1, r0, r1, origin, width);
-    //sample_conflict_impl(info, make_intn(0, 3), make_intn(3, 0),
-    //    make_intn(3, 3), make_intn(0, 0),
-    //    make_intn(1, 1), 1);
 }
 
 void sample_conflict_kernel(const cl_int i, ConflictInfo* info, floatn* samples) {

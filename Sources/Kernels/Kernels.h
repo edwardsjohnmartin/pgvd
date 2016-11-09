@@ -51,6 +51,7 @@ namespace Kernels {
     cl_int DownloadQPoints(vector<intn> &points, cl::Buffer &pointsBuffer, cl_int size);
     cl_int DownloadFloatnPoints(vector<floatn> &points, cl::Buffer &pointsBuffer, cl_int size);
     cl_int DownloadZPoints(vector<BigUnsigned> &zpoints, cl::Buffer &zpointsBuffer, cl_int size);
+cl_int DownloadConflictInfo(vector<ConflictInfo> &out, cl::Buffer &in, cl_int size);
 
     cl_int QuantizePoints_p(cl_uint numPoints, cl::Buffer &unquantizedPoints, cl::Buffer &quantizedPoints, const floatn minimum, const int reslnWidth, const float bbWidth);
     cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits);

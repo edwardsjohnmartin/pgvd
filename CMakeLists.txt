@@ -47,6 +47,10 @@ include_directories(SYSTEM ${OPENCL_INCLUDE_DIR})
 add_subdirectory(Dependencies/CLFW)
 include_directories(${CLFW_INCLUDE_DIR})
 
+include_directories(
+  Sources/log4cplus/include
+)
+
 #------------------------------------------------------------
 # Include directories
 #------------------------------------------------------------
@@ -55,6 +59,7 @@ add_subdirectory(Sources)
 
 if(APPLE)
   add_definitions(-D__MAC__ -DAPPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 endif(APPLE)
 
 option(BUILD_2D_PGVD "Build 2D PGVD" ON)
@@ -62,7 +67,7 @@ if(BUILD_2D_PGVD)
 	#2D GVDS require quadtrees.
 	add_executable (QUADTREE ${OCTREE_SHARED_SRC} ${OCTREE_SRC})
 	set_target_properties (QUADTREE PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
-	target_link_libraries (QUADTREE ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW )
+	target_link_libraries (QUADTREE ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW log4cplusS)
 
   	add_custom_target(
   		COPY_SHARED_SRC

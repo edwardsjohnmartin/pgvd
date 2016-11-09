@@ -315,7 +315,8 @@ cl_int CLFW::Build(cl::Program &program, cl::Program::Sources &sources, cl::Cont
 	  return error;
   }
 
-  error = program.build({ device });
+  std::cout << "Building cl program with options \"" << Options::cl_options << "\"" << std::endl;
+  error = program.build({ device }, Options::cl_options.data());
   if (error != CL_SUCCESS) {
     Print("Error building program:", errorFG, errorBG);
     Print(program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device), errorFG, errorBG);

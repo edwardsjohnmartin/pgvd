@@ -1,8 +1,9 @@
 #ifndef __LINE_TRANSFORM_H__
 #define __LINE_TRANSFORM_H__
 
-#ifndef M_PI
-#define M_PI 3.14159
+#ifndef LT_M_PI
+// #define LT_M_PI 3.14159F
+#define LT_M_PI 3.14159265359F
 #endif
 
 inline void floatn_swap(floatn* a, floatn* b) {
@@ -55,7 +56,7 @@ inline cl_float* reflect45(cl_float* m) {
 }
 
 inline cl_float* mult(cl_float* m, cl_float* n, const cl_int store) {
-  cl_float result[9];
+  cl_float result[10];
   for (cl_int i = 0; i < 3; ++i) {
     for (cl_int j = 0; j < 3; ++j) {
       result[i*3+j] = m[i*3]*n[j] + m[i*3+1]*n[3+j] + m[i*3+2]*n[6+j];
@@ -75,6 +76,21 @@ inline cl_float* mult(cl_float* m, cl_float* n, const cl_int store) {
   }
 }
 
+// inline cl_float* mult0(const cl_float* m, const cl_float* n, cl_float* result) {
+//   // cl_float result[9];
+//   for (cl_int i = 0; i < 3; ++i) {
+//     for (cl_int j = 0; j < 3; ++j) {
+//       result[i*3+j] = m[i*3]*n[j] + m[i*3+1]*n[3+j] + m[i*3+2]*n[6+j];
+//     }
+//   }
+
+//   // for (cl_int i = 0; i < 9; ++i) {
+//   //   // m[i] = result[i];
+//   // }
+//   // return m;
+//   return result;
+// }
+
 inline floatn apply_point(floatn* p, const cl_float* m) {
   floatn q;
   q.x = p->x * m[0] + p->y * m[1] + m[2];
@@ -92,79 +108,56 @@ inline floatn apply_vector(floatn* p, const cl_float* m) {
 }
 
 typedef struct LineTransform {
-//
-//  void reflect(const floatn u) {
-//    cl_float temp[9];
-//    const cl_float gamma = atan2(u.y, u.x);
-//    if (gamma > M_PI/4) {
-//      mult(rotation(-M_PI/2, temp), _m, 1);
-//      mult(_m_inv, rotation(M_PI/2, temp), 0);
-//      _swap = true;
-//    } else if (gamma < -M_PI/4) {
-//      mult(reflect45(temp), mult(rotation(M_PI/2, temp), _m, 1), 1);
-//      mult(_m_inv, mult(rotation(-M_PI/2, temp), reflect45(temp), 0), 0);
-//      _swap = true;
-//    } else if (gamma < 0) {
-//      mult(reflect0(temp), _m, 1);
-//      mult(_m_inv, reflect0(temp), 0);
-//      _swap = true;
-//    }
-//  }
-//
-//  void apply(floatn* q0, floatn* r0, floatn* p0,
-//             floatn* v, floatn* w, floatn* u) const {
-//    apply(q0, r0, p0, v, w, u, _m);
-//  }
-//
-//  void applyPoint(floatn* p) const {
-//    apply_point(p, _m);
-//  }
-//
-//  void revert(floatn* q0, floatn* r0, floatn* p0,
-//            floatn* v, floatn* w, floatn* u) const {
-//    apply(q0, r0, p0, v, w, u, _m_inv);
-//  }
-//
-//  void revertPoint(floatn* p) const {
-//    apply_point(p, _m_inv);
-//  }
-//
-//  void revertVector(floatn* v) const {
-//    *v = apply_vector(v, _m_inv);
-//  }
-//
-//  // void print() const {
-//  //   for (cl_int i = 0; i < 9; ++i) {
-//  //     std::cout << _m[i] << " ";
-//  //     if (i%3 == 2) {
-//  //       std::cout << std::endl;
-//  //     }
-//  //   }
-//  // }
-//
-//
-  cl_float _m[9];
-  cl_float _m_inv[9];
-  bool _swap;
+  cl_float _m[10];
+  cl_float _m_inv[10];
+  unsigned char _swap;
 } LineTransform;
+
+inline void MemCpy(float* dest, const float* src, int n, int offset) {
+  for (int i = 0; i < n; ++i) {
+    dest[i] = src[i+offset];
+  }
+}
+
+inline void MatrixCopy(float* dest, const float* src) {
+  for (int i = 0; i < 9; ++i) {
+    dest[i] = src[i];
+  }
+}
 
 inline void InitLineTransform(LineTransform *LT, const floatn* u, const floatn* origin) {
   cl_float ptheta = atan2(u->y, u->x);
-  while (ptheta < 0) ptheta += 2 * M_PI;
-
-  cl_float temp[9];
+  while (ptheta < 0) ptheta += 2 * LT_M_PI;
 
   translation(-origin->x, -origin->y, LT->_m);
   translation(origin->x, origin->y, LT->_m_inv);
 
-  const cl_float rotate = floor(ptheta / (M_PI/2)) * (M_PI/2);
+  // MemCpy(LT->_m, LT->_m, 4, 5);
+  // return;
+
+  const cl_float rotate = floor(ptheta / (LT_M_PI/2)) * (LT_M_PI/2);
   if (rotate > 0) {
+    cl_float temp[10];
     mult(rotation(-rotate, temp), LT->_m, 1);
+    // This line corrupts temp[8]. Sets it to zero.
     mult(LT->_m_inv, rotation(rotate, temp), 0);
+    // rotation(rotate, temp);
+    // cl_float result[10];
+    // mult0(LT->_m_inv, temp, result);
+    // // MatrixCopy(LT->_m_inv, result);
+
+    // // MemCpy(LT->_m, LT->_m, 4, 5);
+    // MemCpy(LT->_m, temp, 4, 5);
+    // return;
   }
 
-	LT->_swap = (((cl_int)floor(ptheta / (M_PI/4))) % 2) == 1;
+  // // MemCpy(LT->_m, LT->_m, 4, 5);
+  // MemCpy(LT->_m, LT->_m, 4, 5);
+  // return;
+
+  LT->_swap = (((cl_int)floor(ptheta / (LT_M_PI/4))) % 2) == 1;
   if (LT->_swap) {
+    cl_float temp[10];
     mult(reflect45(temp), LT->_m, 1);
     mult(LT->_m_inv, reflect45(temp), 0);
   }

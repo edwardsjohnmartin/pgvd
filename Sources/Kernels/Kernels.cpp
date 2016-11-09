@@ -1,6 +1,10 @@
 ﻿#pragma once
 #include "../GLUtilities/gl_utils.h"
 #include  "../Kernels/Kernels.h"
+#include  "../Options/options.h"
+
+#include "log4cplus/logger.h"
+#include "log4cplus/loggingmacros.h"
 
 /* Testing methods */
 namespace Kernels {
@@ -165,6 +169,14 @@ namespace Kernels {
         startBenchmark("Downloading bCells");
         BCellsVec.resize(size);
         cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(BCellsBuffer, CL_TRUE, 0, sizeof(BCell) * size, BCellsVec.data());
+        stopBenchmark();
+        return error;
+    }
+
+    cl_int DownloadConflictInfo(vector<ConflictInfo> &out, cl::Buffer &in, cl_int size) {
+        startBenchmark("Downloading conflict info");
+        out.resize(size);
+        cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(in, CL_TRUE, 0, sizeof(ConflictInfo) * size, out.data());
         stopBenchmark();
         return error;
     }
@@ -515,104 +527,134 @@ namespace Kernels {
 
 /* Sorts */
 namespace Kernels {
-    //Approx 16% of total build
-    cl_int RadixSortBigUnsigned_p(cl::Buffer &input, cl::Buffer &result, cl_int size, cl_int mbits) {
-        cl_int error = 0;
-        const size_t globalSize = nextPow2(size);
-        cl::Buffer predicate, address, bigUnsignedTemp, temp;
-        error |= CLFW::get(address, "BUAddress", sizeof(cl_int)*(globalSize));
-        error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
-        error |= CLFW::get(result, "sortedZPoints", sizeof(BigUnsigned)*globalSize);
-        error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, result, 0, 0, sizeof(BigUnsigned) * globalSize);
+//Approx 16% of total build
+cl_int RadixSortBigUnsigned_p(
+    cl::Buffer &input, cl::Buffer &result, cl_int size, cl_int mbits) {
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Kernels.RadixSortBigUnsigned_p");
 
-        if (error != CL_SUCCESS)
-            return error;
-        cl_uint test;
-        cl_uint sum;
-        //For each bit
-        startBenchmark("RadixSortBigUnsigned");
-        for (unsigned int index = 0; index < mbits; index++) {
-            //Predicate the 0's and 1's
-            error |= BUBitPredicate(result, predicate, index, 0, globalSize);
-            if (error != CL_SUCCESS)
-                return error;
-            //Scan the predication buffers.
-            error |= StreamScan_p(predicate, address, globalSize, "radixSortBUIntermediate");
-            if (error != CL_SUCCESS)
-                return error;
-            //Compacting
-            error |= BUDoubleCompact(result, bigUnsignedTemp, predicate, address, globalSize);
-            if (error != CL_SUCCESS)
-                return error;
-            //Swap result with input.
-            temp = result;
-            result = bigUnsignedTemp;
-            bigUnsignedTemp = temp;
-        }
-        stopBenchmark();
+  cl_int error = 0;
+  const size_t globalSize = nextPow2(size);
+  cl::Buffer predicate, address, bigUnsignedTemp, temp;
+  error |= CLFW::get(address, "BUAddress", sizeof(cl_int)*(globalSize));
+  error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
+  error |= CLFW::get(result, "sortedZPoints", sizeof(BigUnsigned)*globalSize);
+  error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, result, 0, 0, sizeof(BigUnsigned) * globalSize);
 
-        return error;
+  if (error != CL_SUCCESS)
+    return error;
+  cl_uint test;
+  cl_uint sum;
+  cl_int testSize = size;
+  //For each bit
+  startBenchmark("RadixSortBigUnsigned");
+  for (unsigned int index = 0; index < mbits; index++) {
+    //Predicate the 0's and 1's
+    error |= BUBitPredicate(result, predicate, index, 0, testSize);
+    if (error != CL_SUCCESS)
+      return error;
+    //Scan the predication buffers.
+    error |= StreamScan_p(predicate, address, testSize, "radixSortBUIntermediate");
+    if (error != CL_SUCCESS)
+      return error;
+    //Compacting
+    error |= BUDoubleCompact(result, bigUnsignedTemp, predicate, address, testSize);
+    if (error != CL_SUCCESS)
+      return error;
+    //Swap result with input.
+    temp = result;
+    result = bigUnsignedTemp;
+    bigUnsignedTemp = temp;
+  }
+  stopBenchmark();
+
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    vector<BigUnsigned> buf;
+    Kernels::DownloadZPoints(buf, result, testSize);
+    LOG4CPLUS_TRACE(logger, "OrderedZPoints (" << testSize << ")");
+    for (int i = 0; i < testSize; i++) {
+      LOG4CPLUS_TRACE(logger, "  " << Kernels::buToString(buf[i]));
     }
+  }
 
-    cl_int RadixSortPairsByKey(
-        cl::Buffer &unsortedKeys_i,
-        cl::Buffer &unsortedValues_i,
-        cl::Buffer &sortedKeys_o,
-        cl::Buffer &sortedValues_o,
-        cl_int size)
-    {
-        cl_int error = 0;
-        const size_t globalSize = nextPow2(size);
+  return error;
+}
+
+cl_int RadixSortPairsByKey(
+    cl::Buffer &unsortedKeys_i,
+    cl::Buffer &unsortedValues_i,
+    cl::Buffer &sortedKeys_o,
+    cl::Buffer &sortedValues_o,
+    cl_int size)
+{
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Kernels.RadixSortPairsByKey");
+
+  cl_int error = 0;
+  const size_t globalSize = nextPow2(size);
 
 
-        cl::Buffer predicate, address, tempKeys, tempValues, swap;
-        error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
-        error |= CLFW::get(tempKeys, "tempRadixKeys", sizeof(cl_int)*globalSize);
-        error |= CLFW::get(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
-        error |= CLFW::get(sortedKeys_o, "sortedRadixKeys", sizeof(cl_int)*globalSize);
-        error |= CLFW::get(sortedValues_o, "sortedRadixValues", sizeof(cl_int)*globalSize);
-        //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedKeys_i, sortedKeys_o, 0, 0, sizeof(cl_int) * size);
-        //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedValues_i, sortedValues_o, 0, 0, sizeof(cl_int) * size);
+  cl::Buffer predicate, address, tempKeys, tempValues, swap;
+  error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
+  error |= CLFW::get(tempKeys, "tempRadixKeys", sizeof(cl_int)*globalSize);
+  error |= CLFW::get(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
+  error |= CLFW::get(sortedKeys_o, "sortedRadixKeys", sizeof(cl_int)*globalSize);
+  error |= CLFW::get(sortedValues_o, "sortedRadixValues", sizeof(cl_int)*globalSize);
+  //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedKeys_i, sortedKeys_o, 0, 0, sizeof(cl_int) * size);
+  //error |= CLFW::DefaultQueue.enqueueCopyBuffer(unsortedValues_i, sortedValues_o, 0, 0, sizeof(cl_int) * size);
         
-        if (error != CL_SUCCESS)
-            return error;
+  if (error != CL_SUCCESS)
+    return error;
 
-        //For each bit
-        startBenchmark("RadixSortBigUnsigned");
-        for (unsigned int index = 0; index < sizeof(cl_int)*8; index++) {
-            //Predicate the 0's and 1's
-            error |= BitPredicate(unsortedKeys_i, predicate, index, 0, size);
+  //For each bit
+  startBenchmark("RadixSortBigUnsigned");
+  for (unsigned int index = 0; index < sizeof(cl_int)*8; index++) {
+    //Predicate the 0's and 1's
+    error |= BitPredicate(unsortedKeys_i, predicate, index, 0, size);
 
-            //Scan the predication buffers.
-            error |= StreamScan_p(predicate, address, globalSize, "RSKBVI");
+    //Scan the predication buffers.
+    error |= StreamScan_p(predicate, address, globalSize, "RSKBVI");
 
-            //Compacting
-            error |= DoubleCompact(unsortedKeys_i, tempKeys, predicate, address, size);
-            error |= DoubleCompact(unsortedValues_i, tempValues, predicate, address, size);
+    //Compacting
+    error |= DoubleCompact(unsortedKeys_i, tempKeys, predicate, address, size);
+    error |= DoubleCompact(unsortedValues_i, tempValues, predicate, address, size);
 
-            //Swap result with input.
-            swap = tempKeys;
-            tempKeys = unsortedKeys_i;
-            unsortedKeys_i = swap;
+    //Swap result with input.
+    swap = tempKeys;
+    tempKeys = unsortedKeys_i;
+    unsortedKeys_i = swap;
 
-            swap = tempValues;
-            tempValues = unsortedValues_i;
-            unsortedValues_i = swap;
-            cl_uint gpuSum;
-            if (index % 4 == 0) {
-                //Checking order is expensive, but can save lots if we can break early.
-                CheckOrder(unsortedKeys_i, gpuSum, size);
-                if (gpuSum == 0) break;
-            }
-        }
+    swap = tempValues;
+    tempValues = unsortedValues_i;
+    unsortedValues_i = swap;
+    cl_uint gpuSum;
+    // TODO: replace break out code. This was causing differences in running
+    // on John's mac between CPU and GPU.
+    // if (index % 4 == 0) {
+    //     //Checking order is expensive, but can save lots if we can break early.
+    //     CheckOrder(unsortedKeys_i, gpuSum, size);
+    //     if (gpuSum == 0) break;
+    // }
+  }
 
 
 
-        sortedKeys_o = unsortedKeys_i;
-        sortedValues_o = unsortedValues_i;
-        stopBenchmark();
-        return error;
+  sortedKeys_o = unsortedKeys_i;
+  sortedValues_o = unsortedValues_i;
+  stopBenchmark();
+
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    vector<cl_int> keys, values;
+    DownloadInts(sortedKeys_o, keys, size);
+    DownloadInts(sortedValues_o, values, size);
+    LOG4CPLUS_TRACE(logger, " Octnode2Facet (" << size << ")");
+    for (int i = 0; i < size; i++) {
+      LOG4CPLUS_TRACE(logger, keys[i] << " / " << values[i]);
     }
+  }
+
+  return error;
+}
 }
 
 /* Tree Building Kernels */
@@ -786,18 +828,21 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, int &newSize, int bits, int mbits) {
-        int currentSize = numZPoints;
-        cl_int error = 0;
-        cl::Buffer sortedZPoints, internalBRTNodes;
+cl_int BuildOctree_p(cl::Buffer zpoints, cl_int numZPoints, int &newSize, int bits, int mbits) {
+  int currentSize = numZPoints;
+  cl_int error = 0;
+  cl::Buffer sortedZPoints, internalBRTNodes;
 
-        error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
-        error |= UniqueSorted(sortedZPoints, currentSize);
-        error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
-        error |= BinaryRadixToOctree_p(internalBRTNodes, newSize, currentSize);
-        assert(error == CL_SUCCESS);
-        return error;
-    }
+  error |= RadixSortBigUnsigned_p(zpoints, sortedZPoints, currentSize, mbits);
+  assert(error == CL_SUCCESS);
+  error |= UniqueSorted(sortedZPoints, currentSize);
+  assert(error == CL_SUCCESS);
+  error |= BuildBinaryRadixTree_p(sortedZPoints, internalBRTNodes, currentSize, mbits);
+  assert(error == CL_SUCCESS);
+  error |= BinaryRadixToOctree_p(internalBRTNodes, newSize, currentSize);
+  assert(error == CL_SUCCESS);
+  return error;
+}
 }
 
 /* Ambiguous cell resolution kernels */
@@ -848,19 +893,37 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int LookUpOctnodeFromBCell_p(cl::Buffer &bCells_i, cl::Buffer &octree_i, cl::Buffer &BCellToOctnode, cl_int numBCells) {
-        cl::CommandQueue *queue = &CLFW::DefaultQueue;
-        cl::Kernel *kernel = &CLFW::Kernels["LookUpOctnodeFromBCellKernel"];
-        int roundNumber = nextPow2(numBCells);
-        cl_int error = CLFW::get(BCellToOctnode, "BCellToOctnode", sizeof(cl_int)* (roundNumber));
+cl_int LookUpOctnodeFromBCell_p(
+    cl::Buffer &bCells_i, cl::Buffer &octree_i, cl::Buffer &BCellToOctnode,
+    cl_int numBCells) {
 
-        error |= kernel->setArg(0, bCells_i);
-        error |= kernel->setArg(1, octree_i);
-        error |= kernel->setArg(2, BCellToOctnode);
-        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(numBCells), cl::NullRange);
-        error = CLFW::DefaultQueue.finish();
-        return error;
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Kernels.LookUpOctnodeFromBCell_p");
+
+  cl::CommandQueue *queue = &CLFW::DefaultQueue;
+  cl::Kernel *kernel = &CLFW::Kernels["LookUpOctnodeFromBCellKernel"];
+  int roundNumber = nextPow2(numBCells);
+  cl_int error = CLFW::get(
+      BCellToOctnode, "BCellToOctnode", sizeof(cl_int)* (roundNumber));
+
+  error |= kernel->setArg(0, bCells_i);
+  error |= kernel->setArg(1, octree_i);
+  error |= kernel->setArg(2, BCellToOctnode);
+  error |= queue->enqueueNDRangeKernel(
+      *kernel, cl::NullRange, cl::NDRange(numBCells), cl::NullRange);
+  error = CLFW::DefaultQueue.finish();
+
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    vector<cl_int> octNodeIndices;
+    DownloadInts(BCellToOctnode, octNodeIndices, numBCells);
+    LOG4CPLUS_TRACE(logger, "BCellToOctnode (" << numBCells << ")");
+    for (int i = 0; i < numBCells; i++) {
+      LOG4CPLUS_TRACE(logger, octNodeIndices[i]);
     }
+  }
+
+  return error;
+}
 
     cl_int GetFacetPairs_s(cl_int* BCellToOctree, FacetPair *facetPairs, cl_int numLines) {
         for (int i = 0; i < numLines; ++i) {
@@ -881,19 +944,34 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int GetFacetPairs_p(cl::Buffer &orderedNodeIndices_i, cl::Buffer &facetPairs_o, cl_int numLines, cl_int octreeSize) {
-        cl::CommandQueue *queue = &CLFW::DefaultQueue;
-        cl::Kernel *kernel = &CLFW::Kernels["GetFacetPairsKernel"];
-        int roundNumber = nextPow2(octreeSize);
-        cl_int error = CLFW::get(facetPairs_o, "facetPairs", sizeof(FacetPair)* (roundNumber));
-        FacetPair initialPair = { -1, -1 };
-        error |= queue->enqueueFillBuffer<FacetPair>(facetPairs_o, { initialPair }, 0, sizeof(FacetPair) * roundNumber);
-        error |= kernel->setArg(0, orderedNodeIndices_i);
-        error |= kernel->setArg(1, facetPairs_o);
-        error |= kernel->setArg(2, numLines);
-        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(numLines), cl::NullRange);
-        return error;
+cl_int GetFacetPairs_p(cl::Buffer &orderedNodeIndices_i,
+                       cl::Buffer &facetPairs_o, cl_int numLines,
+                       cl_int octreeSize) {
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Kernels.GetFacetPairs_p");
+
+  cl::CommandQueue *queue = &CLFW::DefaultQueue;
+  cl::Kernel *kernel = &CLFW::Kernels["GetFacetPairsKernel"];
+  int roundNumber = nextPow2(octreeSize);
+  cl_int error = CLFW::get(facetPairs_o, "facetPairs", sizeof(FacetPair)* (roundNumber));
+  FacetPair initialPair = { -1, -1 };
+  error |= queue->enqueueFillBuffer<FacetPair>(facetPairs_o, { initialPair }, 0, sizeof(FacetPair) * roundNumber);
+  error |= kernel->setArg(0, orderedNodeIndices_i);
+  error |= kernel->setArg(1, facetPairs_o);
+  error |= kernel->setArg(2, numLines);
+  error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(numLines), cl::NullRange);
+
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    vector<FacetPair> buf;
+    DownloadFacetPairs(buf, facetPairs_o, octreeSize);
+    LOG4CPLUS_TRACE(logger, "FacetPairs (" << octreeSize << ")");
+    for (int i = 0; i < octreeSize; i++) {
+      LOG4CPLUS_TRACE(logger, buf[i].first << " " << buf[i].last);
     }
+  }
+
+  return error;
+}
 
     unsigned char getQuadrant(BigUnsigned *lcp, unsigned char lcpShift, unsigned char i) {
         BigUnsigned buMask, result;
@@ -1043,144 +1121,162 @@ namespace Kernels {
         return error;
     }
 
-    cl_int GetResolutionPoints_p(unsigned int totalOctnodes, unsigned int totalAdditionalPoints, cl::Buffer &conflicts,
-        cl::Buffer &orderedLines, cl::Buffer &qPoints, cl::Buffer &conflictInfoBuffer,
-        cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints) {
+cl_int GetResolutionPoints_p(
+    unsigned int totalOctnodes, unsigned int totalAdditionalPoints,
+    cl::Buffer &conflicts, cl::Buffer &orderedLines, cl::Buffer &qPoints,
+    cl::Buffer &conflictInfoBuffer, cl::Buffer &scannedCounts,
+    cl::Buffer &predicates, cl::Buffer &resolutionPoints) {
 
-        cl::CommandQueue &queue = CLFW::DefaultQueue;
-        cl::Kernel &kernel = CLFW::Kernels["GetResolutionPointsKernel"];
-        cl_int error = 0;
+  cl::CommandQueue &queue = CLFW::DefaultQueue;
+  cl::Kernel &kernel = CLFW::Kernels["GetResolutionPointsKernel"];
+  cl_int error = 0;
 
-        error |= CLFW::get(resolutionPoints, "ResPts", nextPow2(totalAdditionalPoints) * sizeof(intn));
-        error |= kernel.setArg(0, conflicts);
-        error |= kernel.setArg(1, orderedLines);
-        error |= kernel.setArg(2, qPoints);
-        error |= kernel.setArg(3, predicates);
-        error |= kernel.setArg(4, conflictInfoBuffer);
-        error |= kernel.setArg(5, scannedCounts);
-        error |= kernel.setArg(6, resolutionPoints);
-        error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalOctnodes * 4), cl::NullRange);
-        return error;
-    }
+  error |= CLFW::get(resolutionPoints, "ResPts", nextPow2(totalAdditionalPoints) * sizeof(intn));
+  error |= kernel.setArg(0, conflicts);
+  error |= kernel.setArg(1, orderedLines);
+  error |= kernel.setArg(2, qPoints);
+  error |= kernel.setArg(3, predicates);
+  error |= kernel.setArg(4, conflictInfoBuffer);
+  error |= kernel.setArg(5, scannedCounts);
+  error |= kernel.setArg(6, resolutionPoints);
+  error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalOctnodes * 4), cl::NullRange);
+  return error;
+}
 }
 
 /* Hybrid Kernels */
 namespace Kernels {
-    //Approx 4% of build time
-    cl_int UniqueSorted(cl::Buffer &input, cl_int &size) {
-        startBenchmark("UniqueSorted");
-        int globalSize = nextPow2(size);
-        cl_int error = 0;
+//Approx 4% of build time
+cl_int UniqueSorted(cl::Buffer &input, cl_int &size) {
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Kernels.UniqueSorted");
 
-        cl::Buffer predicate, address, intermediate, result;
-        error = CLFW::get(predicate, "predicate", sizeof(cl_int)*(globalSize));
-        error |= CLFW::get(address, "address", sizeof(cl_int)*(globalSize));
-        error |= CLFW::get(result, "result", sizeof(BigUnsigned) * globalSize);
+  startBenchmark("UniqueSorted");
+  int globalSize = nextPow2(size);
+  cl_int error = 0;
 
-        error |= UniquePredicate(input, predicate, globalSize);
-        error |= StreamScan_p(predicate, address, globalSize, "UniqueIntermediate");
-        error |= BUSingleCompact(input, result, predicate, address, globalSize);
+  cl::Buffer predicate, address, intermediate, result;
+  error = CLFW::get(predicate, "predicate", sizeof(cl_int)*(globalSize));
+  error |= CLFW::get(address, "address", sizeof(cl_int)*(globalSize));
+  error |= CLFW::get(result, "result", sizeof(BigUnsigned) * globalSize);
 
-        input = result;
+  error |= UniquePredicate(input, predicate, globalSize);
+  error |= StreamScan_p(predicate, address, globalSize, "UniqueIntermediate");
+  error |= BUSingleCompact(input, result, predicate, address, globalSize);
 
-        error |= CLFW::DefaultQueue.enqueueReadBuffer(address, CL_TRUE, (sizeof(cl_int)*globalSize - (sizeof(cl_int))), sizeof(cl_int), &size);
-        stopBenchmark();
-        return error;
+  input = result;
+
+  error |= CLFW::DefaultQueue.enqueueReadBuffer(address, CL_TRUE, (sizeof(cl_int)*globalSize - (sizeof(cl_int))), sizeof(cl_int), &size);
+  // off by one error
+  size--;
+  stopBenchmark();
+
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    vector<BigUnsigned> buf;
+    DownloadZPoints(buf, input, size);
+    LOG4CPLUS_TRACE(logger, "UniqueZPoints (" << size << ")");
+    for (int i = 0; i < size; i++) {
+      LOG4CPLUS_TRACE(logger, "  " << buToString(buf[i]));
     }
-    cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size) {
-        if (size < 0) return CL_INVALID_ARG_SIZE;
-        else if (size < 2) {
-            gpuSum = 0;
-            return CL_SUCCESS;
-        }
-        //startBenchmark("CheckOrder kernel");
-        cl_int nextPowerOfTwo = pow(2, ceil(log(size) / log(2)));
-        cl::Kernel &kernel = CLFW::Kernels["CheckOrder"];
-        cl::CommandQueue &queue = CLFW::DefaultQueue;
+  }
+        
 
-        //Each thread processes 2 items in the reduce.
-        int globalSize = nextPowerOfTwo / 2;
+  return error;
+}
+cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size) {
+  if (size < 0) return CL_INVALID_ARG_SIZE;
+  else if (size < 2) {
+    gpuSum = 0;
+    return CL_SUCCESS;
+  }
+  //startBenchmark("CheckOrder kernel");
+  cl_int nextPowerOfTwo = pow(2, ceil(log(size) / log(2)));
+  cl::Kernel &kernel = CLFW::Kernels["CheckOrder"];
+  cl::CommandQueue &queue = CLFW::DefaultQueue;
 
-        //Brent's theorem
-        /* int itemsPerThread = pow(2, ceil(log(log(globalSize)) / log(2)));
-        if ((itemsPerThread < globalSize) && itemsPerThread != 0) {
-        globalSize /= itemsPerThread;
-        }*/
+  //Each thread processes 2 items in the reduce.
+  int globalSize = nextPowerOfTwo / 2;
 
-        int suggestedLocal = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice);
-        int localSize = std::min(globalSize, suggestedLocal);
+  //Brent's theorem
+  /* int itemsPerThread = pow(2, ceil(log(log(globalSize)) / log(2)));
+     if ((itemsPerThread < globalSize) && itemsPerThread != 0) {
+     globalSize /= itemsPerThread;
+     }*/
 
-        cl::Buffer reduceResult;
-        cl_int resultSize = nextPow2(nextPowerOfTwo / localSize);
-        cl_int error = CLFW::get(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
+  int suggestedLocal = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice);
+  int localSize = std::min(globalSize, suggestedLocal);
 
-        error |= kernel.setArg(0, numbers);
-        error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
-        error |= kernel.setArg(2, size);
-        error |= kernel.setArg(3, nextPowerOfTwo);
-        error |= kernel.setArg(4, reduceResult);
-        error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
+  cl::Buffer reduceResult;
+  cl_int resultSize = nextPow2(nextPowerOfTwo / localSize);
+  cl_int error = CLFW::get(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
 
-        //If multiple workgroups ran, we need to do a second level reduction.
-        if (suggestedLocal <= globalSize) {
-            cl::Kernel &kernel = CLFW::Kernels["reduce"];
-            error |= kernel.setArg(0, reduceResult);
-            error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
-            error |= kernel.setArg(2, resultSize);
-            error |= kernel.setArg(3, reduceResult);
-            error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(localSize / 2), cl::NDRange(localSize / 2));
-        }
-        error |= queue.enqueueReadBuffer(reduceResult, CL_TRUE, 0, sizeof(cl_uint), &gpuSum);
-        // stopBenchmark();
-        return error;
-    }
+  error |= kernel.setArg(0, numbers);
+  error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+  error |= kernel.setArg(2, size);
+  error |= kernel.setArg(3, nextPowerOfTwo);
+  error |= kernel.setArg(4, reduceResult);
+  error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
+
+  //If multiple workgroups ran, we need to do a second level reduction.
+  if (suggestedLocal <= globalSize) {
+    cl::Kernel &kernel = CLFW::Kernels["reduce"];
+    error |= kernel.setArg(0, reduceResult);
+    error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+    error |= kernel.setArg(2, resultSize);
+    error |= kernel.setArg(3, reduceResult);
+    error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(localSize / 2), cl::NDRange(localSize / 2));
+  }
+  error |= queue.enqueueReadBuffer(reduceResult, CL_TRUE, 0, sizeof(cl_uint), &gpuSum);
+  // stopBenchmark();
+  return error;
+}
 }
 
 /* Morton Kernels */
 namespace Kernels {
-    cl_int QuantizePoints_p(cl_uint numPoints, cl::Buffer &unqPoints, cl::Buffer &qPoints, const floatn minimum, const int reslnWidth, const float bbWidth) {
-        cl_int error = 0;
-        cl_int roundSize = nextPow2(numPoints);
-        error |= CLFW::get(qPoints, "qPoints", sizeof(intn)*roundSize);
-        cl::Kernel kernel = CLFW::Kernels["QuantizePointsKernel"];
-        error |= kernel.setArg(0, qPoints);
-        error |= kernel.setArg(1, unqPoints);
-        error |= kernel.setArg(2, minimum);
-        error |= kernel.setArg(3, reslnWidth);
-        error |= kernel.setArg(4, bbWidth);
-        startBenchmark("QuantizePoints_p");
-        error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numPoints), cl::NullRange);
-        stopBenchmark();
-        return error;
-    }
+cl_int QuantizePoints_p(cl_uint numPoints, cl::Buffer &unqPoints, cl::Buffer &qPoints, const floatn minimum, const int reslnWidth, const float bbWidth) {
+  cl_int error = 0;
+  cl_int roundSize = nextPow2(numPoints);
+  error |= CLFW::get(qPoints, "qPoints", sizeof(intn)*roundSize);
+  cl::Kernel kernel = CLFW::Kernels["QuantizePointsKernel"];
+  error |= kernel.setArg(0, qPoints);
+  error |= kernel.setArg(1, unqPoints);
+  error |= kernel.setArg(2, minimum);
+  error |= kernel.setArg(3, reslnWidth);
+  error |= kernel.setArg(4, bbWidth);
+  startBenchmark("QuantizePoints_p");
+  error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numPoints), cl::NullRange);
+  stopBenchmark();
+  return error;
+}
 
-    cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits) {
-        cl_int error = 0;
-        size_t globalSize = nextPow2(size);
-        bool old;
-        error |= CLFW::get(zpoints, "zpoints", globalSize * sizeof(BigUnsigned), old, CLFW::DefaultContext, CL_MEM_READ_ONLY);
-        cl::Kernel kernel = CLFW::Kernels["PointsToMortonKernel"];
-        error |= kernel.setArg(0, zpoints);
-        error |= kernel.setArg(1, points);
-        error |= kernel.setArg(2, size);
-        error |= kernel.setArg(3, bits);
-        startBenchmark("PointsToMorton_p");
-        error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
-        stopBenchmark();
-        return error;
-    };
+cl_int PointsToMorton_p(cl::Buffer &points, cl::Buffer &zpoints, cl_int size, cl_int bits) {
+  cl_int error = 0;
+  size_t globalSize = nextPow2(size);
+  bool old;
+  error |= CLFW::get(zpoints, "zpoints", globalSize * sizeof(BigUnsigned), old, CLFW::DefaultContext, CL_MEM_READ_ONLY);
+  cl::Kernel kernel = CLFW::Kernels["PointsToMortonKernel"];
+  error |= kernel.setArg(0, zpoints);
+  error |= kernel.setArg(1, points);
+  error |= kernel.setArg(2, size);
+  error |= kernel.setArg(3, bits);
+  startBenchmark("PointsToMorton_p");
+  error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+  stopBenchmark();
+  return error;
+};
 
-    cl_int PointsToMorton_s(cl_int size, cl_int bits, intn* points, BigUnsigned* result) {
-        startBenchmark("PointsToMorton_s");
-        for (int gid = 0; gid < size; ++gid) {
-            if (gid < size) {
-                xyz2z(&result[gid], points[gid], bits);
-            }
-            else {
-                initBlkBU(&result[gid], 0);
-            }
-        }
-        stopBenchmark();
-        return 0;
+cl_int PointsToMorton_s(cl_int size, cl_int bits, intn* points, BigUnsigned* result) {
+  startBenchmark("PointsToMorton_s");
+  for (int gid = 0; gid < size; ++gid) {
+    if (gid < size) {
+      xyz2z(&result[gid], points[gid], bits);
     }
+    else {
+      initBlkBU(&result[gid], 0);
+    }
+  }
+  stopBenchmark();
+  return 0;
+}
 }

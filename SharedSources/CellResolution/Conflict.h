@@ -58,6 +58,29 @@ typedef struct ConflictInfo {
     unsigned char padding[4];
 } ConflictInfo;
 
+#ifdef __cplusplus
+#include <iostream>
+inline std::ostream& operator<<(std::ostream& out, const LinePair& pair) {
+  out << "" <<  pair.num_samples << " " << pair.s0
+      << " " << pair.s1 << " "
+      << pair.alpha << " " <<  pair.k1_even << " "
+      << pair.k2_even << " " <<  pair.a0 << " "
+      << "";
+  return out;
+}
+inline std::ostream& operator<<(std::ostream& out, const ConflictInfo& info) {
+  out << "" <<  info.num_samples << " " << info.num_line_pairs
+      << " " << info.currentNode << " offsets = "
+      << info.offsets[0] << " " <<  info.offsets[1] << " "
+      << info.offsets[2] << " " <<  info.offsets[3] << " "
+      << " line_pairs[0] " << info.line_pairs[0] << "";
+  if (info.num_line_pairs > 4) {
+    out << " ****************";
+  }
+  return out;
+}
+#endif
+
 // Returns the number of samples needed to resolve a conflict in cell
 // located at origin with the given width.
 // cl_int sample_conflict_count(

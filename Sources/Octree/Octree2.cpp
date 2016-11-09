@@ -7,6 +7,8 @@
 #include "../GLUtilities/gl_utils.h"
 #include "./Octree2.h"
 #include "../Timer/timer.h"
+#include "log4cplus/logger.h"
+#include "log4cplus/loggingmacros.h"
 
 Octree2::Octree2() {
     const int n = 4;
@@ -126,22 +128,58 @@ void Octree2::quantizePoints(int numResolutionPoints) {
 }
 
 void Octree2::makeZOrderPoints() {
-    //Timer t("Making Z Order points.");
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Octree2.makeZOrderPoints");
+  //Timer t("Making Z Order points.");
 
-    Kernels::PointsToMorton_p(quantizedPointsBuffer, zpoints, totalPoints, resln.bits);
+  Kernels::PointsToMorton_p(
+      quantizedPointsBuffer, zpoints, totalPoints, resln.bits);
 
-    //CLFW::DefaultQueue.finish();
+  //CLFW::DefaultQueue.finish();
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    vector<BigUnsigned> buf;
+    Kernels::DownloadZPoints(buf, zpoints, totalPoints);
+    LOG4CPLUS_TRACE(logger, "ZPoints (" << totalPoints << ")");
+    for (int i = 0; i < totalPoints; i++) {
+      LOG4CPLUS_TRACE(logger, "  " << Kernels::buToString(buf[i]));
+    }
+  }
 }
 
 void Octree2::GetUnorderedBCellFacetPairs() {
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Octree2.getUnorderedBCellFacetPairs");
 
-    Kernels::GetBCellLCP_p(linesBuffer, zpoints, BCells,
-        unorderedLineIndices, lines.size(), resln.mbits);
+  Kernels::GetBCellLCP_p(linesBuffer, zpoints, BCells,
+                         unorderedLineIndices, lines.size(), resln.mbits);
     
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+
+    vector<cl_int> buf;
+    int debugSize = lines.size();
+    Kernels::DownloadInts(unorderedLineIndices, buf, debugSize);
+    LOG4CPLUS_TRACE(logger, "UnorderedBCellFacetIds (" << debugSize << ")");
+    for (int i = 0; i < debugSize; i++) {
+      LOG4CPLUS_TRACE(logger, "  " << buf[i]);
+    }
+    vector<BCell> buf2;
+    Kernels::DownloadBCells(buf2, BCells, debugSize);
+    LOG4CPLUS_TRACE(logger, "UnorderedBCellFacets (" << debugSize << ")");
+    for (int i = 0; i < debugSize; i++) {
+      LOG4CPLUS_TRACE(logger, "  " << Kernels::buToString(buf2[i].lcp)
+                      << " (" << buf2[i].lcpLength << ")");
+    }
+  }
 }
 
 void Octree2::buildVertexOctree() {
-    Kernels::BuildOctree_p(zpoints, totalPoints, octreeSize, resln.bits, resln.mbits);
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Octree2.buildVertexOctree");
+
+    Kernels::BuildOctree_p(
+        zpoints, totalPoints, octreeSize, resln.bits, resln.mbits);
+
+    LOG4CPLUS_DEBUG(logger, "octreeSize = " << octreeSize);
 }
 
 void Octree2::identifyConflictCells() {
@@ -166,235 +204,212 @@ void Octree2::identifyConflictCells() {
 }
 
 void Octree2::getResolutionPoints() {
-    //Timer t("Getting resolution points");
-    if (lines.size() < 2) return;
-    resolutionPoints.resize(0);
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Octree2.getResolutionPoints");
 
-    resolutionPointsSize = 0;
-    //Parallel version
-    cl::Buffer conflictInfoBuffer, resolutionCounts, resolutionPredicates, scannedCounts;
-    assert(Kernels::GetResolutionPointsInfo_p(octreeSize, conflictsBuffer, linesBuffer,
-        quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts, resolutionPredicates) == CL_SUCCESS);
+  LOG4CPLUS_TRACE(logger, "Calling");
 
-    vector<int> test(1);
-    CLFW::DefaultQueue.enqueueReadBuffer(resolutionCounts, CL_TRUE, 0, sizeof(cl_int), test.data());
-    // cout << test[0] << " =? " << sizeof(ConflictInfo) << endl;
-    // cout << "Test = " << test[0] << endl;
+  //Timer t("Getting resolution points");
+  if (lines.size() < 2) return;
+  resolutionPoints.resize(0);
 
+  resolutionPointsSize = 0;
+  //Parallel version
+  cl::Buffer conflictInfoBuffer, resolutionCounts,
+      resolutionPredicates, scannedCounts;
+  bool success;
+  success = Kernels::GetResolutionPointsInfo_p(
+      octreeSize, conflictsBuffer, linesBuffer,
+      quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts,
+      resolutionPredicates);
+  assert(success == CL_SUCCESS);
 
-
-    assert(CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octreeSize * 4) * sizeof(cl_int)) == CL_SUCCESS);
-    assert(Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octreeSize),
-        "resolutionIntermediate", false) == CL_SUCCESS);
-    assert(CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE,
-        (octreeSize * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
-        &resolutionPointsSize) == CL_SUCCESS);
-
-    if (resolutionPointsSize < 0) {
-        /*using namespace Kernels;
-        cout << "warning: additional total " << resolutionPointsSize << endl;
-
-        vector<BigUnsigned> before, after;
-        vector<intn> qpoints;
-        vector<floatn> karrasPoints;
-        vector<int> counts, scannedCounts_vec;
-        vector<Conflict> conflicts_vec;
-        DownloadFloatnPoints(karrasPoints, CLFW::Buffers["karrasPointsBuffer"], karras_points.size());
-        DownloadQPoints(qpoints, quantizedPointsBuffer, karras_points.size());
-        DownloadZPoints(before, zpoints, karras_points.size());
-        DownloadInts(resolutionCounts, counts, octreeSize * 4);
-        DownloadInts(scannedCounts, scannedCounts_vec, octreeSize * 4);
-        DownloadConflicts(conflicts_vec, conflictsBuffer, octreeSize * 4);
-        cout << "karraspoints" << endl;
-        for (int i = 0; i < karrasPoints.size(); ++i) {
-            cout << i << " " << karrasPoints[i] << endl;
-        }
-        cout << "qPoints" << endl;
-        for (int i = 0; i < qpoints.size(); ++i) {
-            cout << i << " " << qpoints[i] << endl;
-        }
-        cout << "zPoints" << endl;
-        for (int i = 0; i < before.size(); ++i) {
-            cout << i << " " << buToString(before[i]) << endl;
-        }
-        cout << "Conflicts" << endl;
-        for (int i = 0; i < conflicts_vec.size(); ++i) {
-            cout << i << " " << conflicts[i] << endl;
-        }
-        cout << "Counts" << endl;
-        for (int i = 0; i < counts.size(); ++i) {
-            cout << i << " " << counts[i] << endl;
-        }
-        cout << "Scanned Counts" << endl;
-        for (int i = 0; i < scannedCounts_vec.size(); ++i) {
-            cout << i << " " << scannedCounts_vec[i] << endl;
-        }
-        CLFW::get(scannedCounts, "sResCnts", Kernels::nextPow2(octreeSize * 4) * sizeof(cl_int));
-        Kernels::StreamScan_p(resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octreeSize),
-            "resolutionIntermediate", false);
-        CLFW::DefaultQueue.enqueueReadBuffer(scannedCounts, CL_TRUE,
-            (octreeSize * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
-            &resolutionPointsSize);*/
-        return;
+  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    vector<ConflictInfo> buf;
+    int bsize = octreeSize * 4;
+    Kernels::DownloadConflictInfo(buf, conflictInfoBuffer, bsize);
+    LOG4CPLUS_TRACE(logger, "ConflictInfo (" << bsize << ")");
+    for (int i = 0; i < bsize; ++i) {
+      LOG4CPLUS_TRACE(logger, "  " << buf[i]);
     }
+  }
 
-    assert(Kernels::GetResolutionPoints_p(octreeSize, resolutionPointsSize, conflictsBuffer, linesBuffer,
-        quantizedPointsBuffer, conflictInfoBuffer, scannedCounts, resolutionPredicates,
-        resolutionPointsBuffer) == CL_SUCCESS);
+  LOG4CPLUS_TRACE(logger, "Retrieved ConflictInfo objects");
 
-    //if (resolutionPointsSize < 0) {
-    //    cout << "parallel" << endl;
-    //    vector<int> testVec(4 * octreeSize);
-    //    CLFW::DefaultQueue.enqueueReadBuffer(resolutionCounts, CL_TRUE, 0, sizeof(cl_int) * 4 * octreeSize, testVec.data());
-    //    for (int i = 0; i < testVec.size(); ++i) {
-    //        cout << i << " " << testVec[i] << endl;
-    //    }
+  vector<int> test(1);
+  CLFW::DefaultQueue.enqueueReadBuffer(
+      resolutionCounts, CL_TRUE, 0, sizeof(cl_int), test.data());
+  // cout << test[0] << " =? " << sizeof(ConflictInfo) << endl;
+  // cout << "Test = " << test[0] << endl;
 
-    //    cout << "serial" << endl;
-    //    int totalAdditionalPoints = 0;
-    //    //unsigned int resolutionPointsSize = 0;
-    //    Kernels::DownloadQPoints(quantized_points, CLFW::Buffers["qPoints"], totalPoints);
-    //    Kernels::DownloadConflicts(conflicts, conflictsBuffer, 4 * octreeSize);
-    //    vector<int> testcounts(octreeSize * 4);
-    //    Kernels::SampleConflictCounts_s(octreeSize, conflicts.data(), &totalAdditionalPoints, testcounts, orderedLines.data(),
-    //        quantized_points.data(), resolutionPoints);
-    //    for (int i = 0; i < testcounts.size(); ++i) {
-    //        //karras_points.push_back(UnquantizePoint(&resolutionPoints[i], &bb.minimum, resln.width, bb.maxwidth));
-    //        cout <<i<<" "<< testcounts[i] << endl;
-    //    }
-    //}
+  success = CLFW::get(
+      scannedCounts, "sResCnts",
+      Kernels::nextPow2(octreeSize * 4) * sizeof(cl_int));
+  assert(success == CL_SUCCESS);
+  LOG4CPLUS_TRACE(logger, "1");
+  success = Kernels::StreamScan_p(
+      resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octreeSize),
+      "resolutionIntermediate", false);
+  assert(success == CL_SUCCESS);
+  LOG4CPLUS_TRACE(logger, "Reading resolutionPointsSize "
+                  << octreeSize);
+  success = CLFW::DefaultQueue.enqueueReadBuffer(
+      scannedCounts, CL_TRUE,
+      (octreeSize * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
+      &resolutionPointsSize);
+  assert(success == CL_SUCCESS);
+  LOG4CPLUS_TRACE(logger, "Read scannedCounts");
 
-    //vector<intn> gpuResolutionPoints(resolutionPointsSize);
-    //CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, sizeof(intn)*resolutionPointsSize, gpuResolutionPoints.data());
-    //assert(CLFW::DefaultQueue.enqueueReadBuffer(resolutionPointsBuffer, CL_TRUE, 0, 
-    //resolutionPointsSize * sizeof(intn), gpuResolutionPoints.data())==CL_SUCCESS);
+  if (resolutionPointsSize < 0) {
+    return;
+  }
 
-    ////Tests
-    //vector<int> testCounts(4 * octreeSize);
-    //cout << "total additional points " <<" = " << totalAdditionalPoints << endl;
+  LOG4CPLUS_TRACE(logger, "Performed scan");
 
-    //Total points by both must match
-    //if (resolutionPointsSize != totalAdditionalPoints) 
-      //  cout<<"Warning, GPU additional points count does not match CPU addition points count"<<endl;  
+  success = Kernels::GetResolutionPoints_p(
+      octreeSize, resolutionPointsSize, conflictsBuffer, linesBuffer,
+      quantizedPointsBuffer, conflictInfoBuffer, scannedCounts,
+      resolutionPredicates, resolutionPointsBuffer);
+  assert(success == CL_SUCCESS);
 
-    ////Each resolution point must match.
-    //for (int i = 0; i < resolutionPoints.size(); i++) {
-    //    cout << "res point " << i <<": " << resolutionPoints[i] <<  " vs " << gpuResolutionPoints[i] << endl;
-    //    assert(gpuResolutionPoints[i] == resolutionPoints[i]);
-    //}
+  vector<intn> gpuResolutionPoints(resolutionPointsSize);
+  CLFW::DefaultQueue.enqueueReadBuffer(
+      resolutionPointsBuffer, CL_TRUE, 0,
+      sizeof(intn)*resolutionPointsSize, gpuResolutionPoints.data());
 
-    //using namespace GLUtilities;
-    //for (int i = 0; i < gpuResolutionPoints.size(); ++i) {
-    //    intn q = gpuResolutionPoints[i];
-    //    floatn newp = UnquantizePoint(&q, &bb.minimum, resln.width, bb.maxwidth);
+  LOG4CPLUS_TRACE(logger, "2");
 
-    //    resolutionPoints.push_back(q);
+  using namespace GLUtilities;
+  for (int i = 0; i < gpuResolutionPoints.size(); ++i) {
+    intn q = gpuResolutionPoints[i];
+    floatn newp = UnquantizePoint(&q, &bb.minimum, resln.width, bb.maxwidth);
 
-    //    GLUtilities::Point p = { { newp.x, newp.y , 0.0, 1.0 },{ 1.0,0.0,0.0,1.0 } };
-    //    Sketcher::instance()->add(p);
-    //}
-    //CLFW::DefaultQueue.finish();
+    resolutionPoints.push_back(q);
+
+    GLUtilities::Point p =
+        { { newp.x, newp.y , 0.0, 1.0 },{ 1.0,0.0,0.0,1.0 } };
+    Sketcher::instance()->add(p);
+  }
+  LOG4CPLUS_TRACE(logger, "3");
+  CLFW::DefaultQueue.finish();
 }
 
 void Octree2::insertResolutionPoints() {
-    //Timer t("Inserting resolution points.");
-    if (resolutionPointsSize < 0) {
-        cout << "Error computing resolution points." << endl;
-        return;
-    }
-    using namespace Kernels;
-    if (resolutionPointsSize != 0) {
-        int original = totalPoints;
-        int additional = resolutionPointsSize;
-        totalPoints += additional;
-        cl_int error = 0;
+  //Timer t("Inserting resolution points.");
+  if (resolutionPointsSize < 0) {
+    cout << "Error computing resolution points." << endl;
+    return;
+  }
+  using namespace Kernels;
+  if (resolutionPointsSize != 0) {
+    int original = totalPoints;
+    int additional = resolutionPointsSize;
+    totalPoints += additional;
+    cl_int error = 0;
 
-        //If the new resolution points wont fit inside the existing buffer.
-        if (original + additional > nextPow2(original)) {
-            cl::Buffer oldQPointsBuffer = quantizedPointsBuffer;
-            CLFW::Buffers["qPoints"] = cl::Buffer(CLFW::Contexts[0], CL_MEM_READ_WRITE, nextPow2(original + additional) * sizeof(intn));
-            quantizedPointsBuffer = CLFW::Buffers["qPoints"];
-            error |= CLFW::DefaultQueue.enqueueCopyBuffer(oldQPointsBuffer, quantizedPointsBuffer, 0, 0, original * sizeof(intn));
-        }
-        error |= CLFW::DefaultQueue.enqueueCopyBuffer(resolutionPointsBuffer, quantizedPointsBuffer, 0, original * sizeof(intn), additional * sizeof(intn));
-        assert(error == CL_SUCCESS);
+    //If the new resolution points wont fit inside the existing buffer.
+    if (original + additional > nextPow2(original)) {
+      cl::Buffer oldQPointsBuffer = quantizedPointsBuffer;
+      CLFW::Buffers["qPoints"] = cl::Buffer(CLFW::Contexts[0], CL_MEM_READ_WRITE, nextPow2(original + additional) * sizeof(intn));
+      quantizedPointsBuffer = CLFW::Buffers["qPoints"];
+      error |= CLFW::DefaultQueue.enqueueCopyBuffer(oldQPointsBuffer, quantizedPointsBuffer, 0, 0, original * sizeof(intn));
     }
+    error |= CLFW::DefaultQueue.enqueueCopyBuffer(resolutionPointsBuffer, quantizedPointsBuffer, 0, original * sizeof(intn), additional * sizeof(intn));
+    assert(error == CL_SUCCESS);
+  }
 
-    //CLFW::DefaultQueue.finish();
+  //CLFW::DefaultQueue.finish();
 }
 
 void Octree2::build(const PolyLines *polyLines) {
-    Timer t("overall");
-    using namespace std;
-    using namespace GLUtilities;
-    using namespace Kernels;
-    Sketcher::instance()->clear();
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Octree2.build");
 
-    int totalIterations = 0;
-    int previousSize;
-    octreeSize = 0;
-    resolutionPointsSize = 0;
+  Timer t("overall");
+  using namespace std;
+  using namespace GLUtilities;
+  using namespace Kernels;
+  Sketcher::instance()->clear();
 
-    karras_points.clear();
-    gl_instances.clear();
-    octree.clear();
-    resolutionPoints.clear();
+  int totalIterations = 0;
+  int previousSize;
+  octreeSize = 0;
+  resolutionPointsSize = 0;
 
-    /* Quantize the polygon points. */
-    generatePoints(polyLines);
-    if (karras_points.size() == 0) return;
+  karras_points.clear();
+  gl_instances.clear();
+  octree.clear();
+  resolutionPoints.clear();
 
-    printf("Starting build\n");
-    Timer t("Build octree");
-    totalPoints = karras_points.size();
-    computeBoundingBox(totalPoints);
-    UploadKarrasPoints(karras_points, karrasPointsBuffer);
-    UploadLines(lines, linesBuffer);
-    quantizePoints();
-    makeZOrderPoints();
-    do {
-        totalIterations++;
-        CLFW::DefaultQueue = CLFW::Queues[0];
-        previousSize = octreeSize;
+  /* Quantize the polygon points. */
+  generatePoints(polyLines);
+  if (karras_points.size() == 0) return;
 
-        insertResolutionPoints();
-        makeZOrderPoints(); //TODO: only z-order the additional points here...
-        CLFW::DefaultQueue.finish();
+  LOG4CPLUS_INFO(logger, "Starting build");
+  totalPoints = karras_points.size();
+  computeBoundingBox(totalPoints);
+  UploadKarrasPoints(karras_points, karrasPointsBuffer);
+  UploadLines(lines, linesBuffer);
+  quantizePoints();
 
-        /*
-          On one queue, sort the lines for the ambiguous cell detection.
-          On the other, start building the karras octree.
-        */
-        CLFW::DefaultQueue = CLFW::Queues[1];
-        GetUnorderedBCellFacetPairs(); //13% (concurrent)
-        CLFW::DefaultQueue = CLFW::Queues[0];
-        buildVertexOctree(); //40% (concurrent)
-        CLFW::Queues[0].finish();
-        CLFW::Queues[1].finish();
+  LOG4CPLUS_TRACE(logger, "1");
 
+  makeZOrderPoints();
+  do {
+    totalIterations++;
+    CLFW::DefaultQueue = CLFW::Queues[0];
+    previousSize = octreeSize;
 
-        /* Identify the cells that contain more than one object. */
-        if (lines.size() == 0 || lines.size() == 1) break;
-        identifyConflictCells(); //43%
+    LOG4CPLUS_TRACE(logger, "2");
+    insertResolutionPoints();
+    makeZOrderPoints(); //TODO: only z-order the additional points here...
+    CLFW::DefaultQueue.finish();
+    /*
+      On one queue, sort the lines for the ambiguous cell detection.
+      On the other, start building the karras octree.
+    */
+    LOG4CPLUS_TRACE(logger, "3");
+    CLFW::DefaultQueue = CLFW::Queues[1];
+    GetUnorderedBCellFacetPairs(); //13% (concurrent)
+    CLFW::DefaultQueue = CLFW::Queues[0];
+    buildVertexOctree(); //40% (concurrent)
+    CLFW::Queues[0].finish();
+    CLFW::Queues[1].finish();
 
-        /* Resolve one iteration of conflicts. */
-        getResolutionPoints();//12%
-    } while (previousSize != octreeSize && resolutionPointsSize != 0);
+    LOG4CPLUS_TRACE(logger, "4");
+    /* Identify the cells that contain more than one object. */
+    if (lines.size() == 0 || lines.size() == 1) break;
+    identifyConflictCells(); //43%
 
-    cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
-    octree.resize(octreeSize);
-    cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree.data());
-    assert(error == CL_SUCCESS);
+    LOG4CPLUS_TRACE(logger, "5");
+    /* Resolve one iteration of conflicts. */
+    getResolutionPoints();//12%
 
-    t.restart("Rendering stuff");
+    LOG4CPLUS_TRACE(logger, "6");
 
-    /* Add the octnodes so they'll be rendered with OpenGL. */
-    addOctreeNodes();
-    /* Add conflict cells so they'll be rendered with OpenGL. */
-    addConflictCells();
+    // LOG4CPLUS_WARN(logger, "*** Warning: breaking out of conflict "
+    //                 << "detection loop early for debugging purposes.");
+    // // exit(0);
+    // break;
 
-    // cout << "Total iterations: " << totalIterations << endl;
-    cout << "Octree size: " << octree.size() << endl;
+    LOG4CPLUS_DEBUG(logger, "Iteration " << totalIterations);
+  } while (previousSize != octreeSize && resolutionPointsSize != 0);
+
+  cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
+  octree.resize(octreeSize);
+  cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(
+      octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree.data());
+  assert(error == CL_SUCCESS);
+
+  /* Add the octnodes so they'll be rendered with OpenGL. */
+  addOctreeNodes();
+  /* Add conflict cells so they'll be rendered with OpenGL. */
+  addConflictCells();
+
+  // cout << "Total iterations: " << totalIterations << endl;
+  // cout << "Octree size: " << octree.size() << endl;
+  LOG4CPLUS_DEBUG(logger, "Total iterations: " << totalIterations);
+  LOG4CPLUS_INFO(logger, "Octree size: " << octree.size());
 }
 
 /* Drawing Methods */
@@ -457,14 +472,21 @@ void Octree2::addLeaf(int internalIndex, int childIndex, float3 color) {
 }
 
 void Octree2::addConflictCells() {
-    if (conflicts.size() == 0) return;
-    for (int i = 0; i < octreeSize; ++i) {
-        for (int j = 0; j < 4; j++) {
-            if (conflicts[4 * i + j].color == -2) {
-                addLeaf(i, j, { 1.0, 0.0, 0.0 });
-            }
-        }
+  if (Options::debug) {
+    Kernels::DownloadConflicts(conflicts, conflictsBuffer, octree.size() * 4);
+    // cout << "Conflicts" << endl;
+    // for (int i = 0; i < conflicts.size(); i++) {
+    //   cout << "  " << conflicts[i] << endl;
+    // }
+  }
+  if (conflicts.size() == 0) return;
+  for (int i = 0; i < octreeSize; ++i) {
+    for (int j = 0; j < 4; j++) {
+      if (conflicts[4 * i + j].color == -2) {
+        addLeaf(i, j, { 1.0, 0.0, 0.0 });
+      }
     }
+  }
 }
 
 void Octree2::draw() {

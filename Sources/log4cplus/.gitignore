@@ -1,0 +1,16 @@
+Makefile
+config.log
+config.status
+include/Makefile
+include/log4cplus/config.h
+include/log4cplus/config/defines.hxx
+include/log4cplus/config/stamp-h2
+include/log4cplus/stamp-h1
+libtool
+log4cplus.pc
+loggingserver/.deps/
+loggingserver/Makefile
+qt4debugappender/.deps/
+qt4debugappender/Makefile
+src/.deps/
+src/Makefile

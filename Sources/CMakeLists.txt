@@ -9,6 +9,7 @@ add_subdirectory(GlobalData)
 add_subdirectory(Polylines)
 add_subdirectory(Shaders)
 add_subdirectory(Timer)
+add_subdirectory(log4cplus)
 
 set(OCTREE_SRC
 	${COLOR_SRC}

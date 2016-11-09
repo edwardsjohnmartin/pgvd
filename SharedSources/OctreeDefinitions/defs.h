@@ -70,7 +70,7 @@ static __CONST__ int kSubAdded = 19;
 
 #ifdef __cplusplus
 
-#define M_PI 3.14159265359
+#define M_PI 3.14159265359F
 
 //template <typename T, typename P>
 //void CompareAndExit(const T& a, const T& b, const P p,
@@ -97,7 +97,7 @@ static __CONST__ int kSubAdded = 19;
 typedef short cl_short;
 typedef int cl_int;
 typedef float cl_float;
-//typedef double cl_double;
+// typedef double cl_double;
 typedef unsigned cl_uint;
 #endif
 
@@ -107,7 +107,7 @@ typedef unsigned cl_uint;
 //------------------------------------------------------------
 //------------------------------------------------------------
 
-#define EPSILON 1e-6
+#define EPSILON 1e-6F
 
 #ifndef nullptr
 #define nullptr 0
