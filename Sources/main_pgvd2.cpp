@@ -19,13 +19,28 @@ void InitializeGLFWEventCallbacks() {
   glfwSetWindowSizeCallback(window, resize_cb);
   glfwSetWindowFocusCallback(window, focus_cb);
 }
-// void InitializeGLFW(int width = 1024, int height = 1024) {
-void InitializeGLFW(int width = 800, int height = 600) {
+
+void fixResolution(int& width, int& height) {
+    const GLFWvidmode * mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    width = min(width, mode->width);
+    height = min(height, mode->height);
+    if (width < height) {
+      height = width;
+    } else {
+      width = height;
+    }
+}
+
+void InitializeGLFW(int width = 1024, int height = 1024) {
   using namespace GLUtilities;
   GLUtilities::window_height = height;
   GLUtilities::window_width = width;
   restart_gl_log();
   start_gl();
+  fixResolution(width, height);
+  GLUtilities::window_height = height;
+  GLUtilities::window_width = width;
+
   print_gl_error();
   glfwSetWindowTitle(window, "Parallel GVD");
   InitializeGLFWEventCallbacks();
