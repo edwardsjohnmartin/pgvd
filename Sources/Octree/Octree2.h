@@ -80,7 +80,7 @@ public:
     std::vector<Instance> gl_instances;
 
     /* Drawing Methods */
-    void draw();
+    void draw(const glm::mat4& mvMatrix);
 
 private:
 

@@ -15,6 +15,8 @@ using namespace GLUtilities;
 #define DOWN true
 #define UP false
 
+glm::mat4 mvMatrix(1.0);
+
 static MouseData md;
 static GLFWcursor* crossHairCursor;
 static floatn point1 = make_floatn(-1.0, -1.0);
@@ -38,17 +40,21 @@ static void O(bool down) {
 }
 
 static void Z(bool down) {
-    cout << "Toggling Zoom Mode!" << endl;
-    Options::zoomMode = down;
-    if (Options::zoomMode) {
-        if (!crossHairCursor)
-            crossHairCursor = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-        md.cursor = crossHairCursor;
-        glfwSetCursor(window, md.cursor);
-    }
-    else {
-        glfwSetCursor(window, NULL);
-    }
+  if (down) {
+    mvMatrix = glm::mat4(1.0);
+  }
+    // mvMatrix = glm::scale(mvMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
+    // cout << "Toggling Zoom Mode!" << endl;
+    // Options::zoomMode = down;
+    // if (Options::zoomMode) {
+    //     if (!crossHairCursor)
+    //         crossHairCursor = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+    //     md.cursor = crossHairCursor;
+    //     glfwSetCursor(window, md.cursor);
+    // }
+    // else {
+    //     glfwSetCursor(window, NULL);
+    // }
 }
 
 static void Q(bool down) {
@@ -58,15 +64,17 @@ static void Q(bool down) {
 
 void LeftMouse(bool down, int mods) {
   // md.leftDown = down;
-  if ((mods & GLFW_MOD_SHIFT) == 0) {
-    Data::lines->newLine({ md.x, -md.y });
-  }
-  else {
+  if ((mods & GLFW_MOD_SHIFT) != 0) {
     Data::lines->addPoint({ md.x, -md.y });
     Data::octree->build(Data::lines);
     refresh();
+  } else if ((mods & GLFW_MOD_CONTROL) != 0) {
+    glm::mat4 T = glm::translate(glm::mat4(1.0f), glm::vec3(-md.x, md.y, 0.0f));
+    glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 1.0f));
+    mvMatrix = S * T * mvMatrix;
+  } else {
+    Data::lines->newLine({ md.x, -md.y });
   }
-
 }
 
 void RightMouse(bool down, int mods) {
@@ -134,17 +142,17 @@ void refresh() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   assert(glGetError() == GL_NO_ERROR);
   if (Options::showOctree) {
-    Data::octree->draw();
+    Data::octree->draw(mvMatrix);
     assert(glGetError() == GL_NO_ERROR);
   }
   if (Options::showObjects) {
-    Data::lines->render();
+    Data::lines->render(mvMatrix);
     assert(glGetError() == GL_NO_ERROR);
   }
 
   if (Options::showSketcher) {
     using namespace GLUtilities;
-    Sketcher::instance()->draw();
+    Sketcher::instance()->draw(mvMatrix);
   }
 
   glfwSwapBuffers(GLUtilities::window);

@@ -121,7 +121,7 @@ class PolyLines {
     return lines;
   }
 
-  void render() {
+  void render(const glm::mat4& mvMatrix) {
     using namespace std;
     using namespace GLUtilities;
     Shaders::lineProgram->use();
@@ -136,6 +136,9 @@ class PolyLines {
     print_gl_error();
     glEnableVertexAttribArray(Shaders::lineProgram->position_id);
     print_gl_error();
+
+    glUniformMatrix4fv(
+        Shaders::lineProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
 
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
     glEnable(GL_LINE_SMOOTH);

@@ -19,7 +19,8 @@ void InitializeGLFWEventCallbacks() {
   glfwSetWindowSizeCallback(window, resize_cb);
   glfwSetWindowFocusCallback(window, focus_cb);
 }
-void InitializeGLFW(int width = 1024, int height = 1024) {
+// void InitializeGLFW(int width = 1024, int height = 1024) {
+void InitializeGLFW(int width = 800, int height = 600) {
   using namespace GLUtilities;
   GLUtilities::window_height = height;
   GLUtilities::window_width = width;

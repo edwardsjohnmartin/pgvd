@@ -100,7 +100,7 @@ namespace GLUtilities {
             //glBindBuffer(GL_ARRAY_BUFFER, boxesVBO);
         }
     public:
-      void drawPoints() {
+      void drawPoints(const glm::mat4& mvMatrix) {
         print_gl_error();
         glEnable(GL_POINT_SMOOTH);
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
@@ -119,7 +119,10 @@ namespace GLUtilities {
         print_gl_error();
         glm::mat4 identity(1.0F);
         print_gl_error();
-        glUniformMatrix4fv(Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
+        // glUniformMatrix4fv(
+        //     Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
+        glUniformMatrix4fv(
+            Shaders::sketchProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
         print_gl_error();
         glUniform1f(Shaders::sketchProgram->pointSize_id, 10.0);
         print_gl_error();
@@ -127,7 +130,7 @@ namespace GLUtilities {
         print_gl_error();
         glBindVertexArray(0);
       }
-      void drawLines() {
+      void drawLines(const glm::mat4& mvMatrix) {
         glEnable(GL_LINE_SMOOTH);
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
@@ -136,19 +139,22 @@ namespace GLUtilities {
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(Line) * lines.size(), lines.data(), GL_STREAM_DRAW);
         glm::mat4 identity(1.0F);
-        glUniformMatrix4fv(Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
+        // glUniformMatrix4fv(
+        //     Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
+        glUniformMatrix4fv(
+            Shaders::sketchProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
         glUniform1f(Shaders::sketchProgram->pointSize_id, 10.0);
         glDrawArrays(GL_LINES, 0, 2 * lines.size());
         print_gl_error();
         glBindVertexArray(0);
       }
-        void drawBoxes() {
+        void drawBoxes(const glm::mat4& mvMatrix) {
             //cout << "drawing boxes!" << endl;
         }
-        void draw() {
-            drawPoints();
-            drawLines();
-            drawBoxes();
+        void draw(const glm::mat4& mvMatrix) {
+            drawPoints(mvMatrix);
+            drawLines(mvMatrix);
+            drawBoxes(mvMatrix);
         }
         void add(Point p) {
             points.push_back(p);

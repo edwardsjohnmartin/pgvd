@@ -11,10 +11,12 @@
 #endif
 
 #ifdef __cplusplus
-#define half_log log
-#define half_powr pow
-#define pown pow
-#define native_powr pow
+#define mylog log
+#define mypow pow
+#else
+// #define mylog half_log
+#define mylog native_log
+#define mypow native_powr
 #endif
 
 //------------------------------------------------------------
@@ -755,16 +757,16 @@ floatn get_sample(const cl_int i, const LinePair* lp) {
     if (parallel) {
       s = lp->s0 + (i/2)*lp->a0;
     } else {
-      // const cl_float po = pow(lp->alpha, i/2);
-      const cl_float po = sqrt(native_powr(lp->alpha, i));
+      // const cl_float po = mypow(lp->alpha, i/2);
+      const cl_float po = sqrt(mypow(lp->alpha, i));
       s = lp->k1_even + lp->k2_even * po;
     }
   } else {
     if (parallel) {
       s = lp->s1 + (i/2)*lp->a0;
     } else {
-      // const cl_float po = pow(lp->alpha, i/2);
-      const cl_float po = sqrt(native_powr(lp->alpha, i));
+      // const cl_float po = mypow(lp->alpha, i/2);
+      const cl_float po = sqrt(mypow(lp->alpha, i));
       s = lp->k1_odd + lp->k2_odd * po;
     }
   }
@@ -775,11 +777,11 @@ floatn get_sample(const cl_int i, const LinePair* lp) {
   //   s = lp->s1;
   // }
   // else if (i % 2 == 0) {
-  //   const cl_float po = pow(lp->alpha, i / 2.0F);
+  //   const cl_float po = mypow(lp->alpha, i / 2.0F);
   //   s = lp->k1_even + lp->k2_even * po;
   // }
   // else {
-  //   const cl_float po = pow(lp->alpha, i / 2.0F);
+  //   const cl_float po = mypow(lp->alpha, i / 2.0F);
   //   s = lp->k1_odd + lp->k2_odd * po;
   // }
   return lp->p_origin + lp->u*s;
@@ -837,7 +839,7 @@ void sample_v_conflict(
   qtheta = atan2(v.y, v.x);
   rtheta = atan2(w.y, w.x);
 
-  const cl_float ERROR = 0.00001;
+  const cl_float ERROR = 0.01;
   // There are two types of sample lines.
   // The first is "diagonal" or "opposite"
   // if the transformed w vector has w.y >= 0. The other is "adjacent" if
@@ -850,7 +852,7 @@ void sample_v_conflict(
   bool antiparallel = (nc < ERROR);
   const cl_float alpha = alpha_f(opposite, &p_origin, &q0, &r0, &u, &v, &w);
   // If alpha is less than one then the lines are directed toward each other
-  if (alpha < 1-ERROR) {
+  if (alpha < 1-EPSILON) {
     antiparallel = true;
   }
   if (antiparallel) {
@@ -886,24 +888,19 @@ void sample_v_conflict(
   const cl_float k2_even = parallel ? 0 : (alpha*s0+beta-s0)/(alpha-1);
   const cl_float k2_odd = parallel ? 0 : (alpha*s1+beta-s1)/(alpha-1);
 
-  const cl_float log_alpha = half_log(alpha);
+  const cl_float log_alpha = mylog(alpha);
   const cl_int max_even = parallel ? (u.x*sn/a0) :
-      (cl_int)ceil(half_log((sn-k1_even)/k2_even) / log_alpha);
+      (cl_int)ceil(mylog((sn-k1_even)/k2_even) / log_alpha);
   const cl_int max_odd = parallel ? (u.x*sn/a0) :
-      (cl_int)ceil(half_log((sn-k1_odd)/k2_odd) / log_alpha);
+      (cl_int)ceil(mylog((sn-k1_odd)/k2_odd) / log_alpha);
   cl_int max_i = max_even + max_odd + 2;
 
-  // // info->offsets[0] = (cl_int)(log(alpha)*100);
+  // // info->offsets[0] = (cl_int)(mylog(alpha)*100);
   // // cl_int temp = (cl_int) log_alpha;
   // info->offsets[0] = max_i;//log_alpha*1000;
   // // info->offsets[0] = temp;
-  // info->offsets[1] = max_even*100;
-  // info->offsets[2] = max_odd*100;
-  // info->offsets[3] = sn*100;
-  // info->offsets[0] = parallel;
-  // info->offsets[1] = width;
-  // info->offsets[2] = height;
-  // info->offsets[3] = width0;
+  info->padding = log_alpha;
+  // info->padding = sn;
 
   // After getting the s values we transform the bisector back to the original
   // frame. Get a copy of the transformed values first.
@@ -920,8 +917,8 @@ void sample_v_conflict(
   bool max_done = false;
   while (max_i > 0 && !max_done) {
     const cl_int i = max_i - 1;
-    // const cl_float po = half_powr(alpha, i / 2.0F);
-    const cl_float po = sqrt(native_powr(alpha, i));
+    // const cl_float po = mypow(alpha, i / 2.0F);
+    const cl_float po = sqrt(mypow(alpha, i));
     cl_float s;
     if (i % 2 == 0) {
       if (parallel) {
@@ -963,7 +960,7 @@ void sample_v_conflict(
   // line_pair->s0 = sqrt(pown(alpha, 1));
   // line_pair->s1 = sqrt(pown(alpha, 2));
   // line_pair->k1_even = sqrt(pown(alpha, 3));
-  // line_pair->s0 = native_powr(alpha, 1);
+  // line_pair->s0 = pow(alpha, 1);
   // line_pair->s1 = pown(alpha, 2);
   // line_pair->k1_even = pown(alpha, 3);
   // line_pair->k2_even = 3;

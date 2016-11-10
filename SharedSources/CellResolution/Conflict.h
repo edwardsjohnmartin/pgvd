@@ -46,7 +46,8 @@ typedef struct LinePair {
   floatn p_origin;
   floatn u;
   cl_float a0;
-  unsigned char padding[4];
+  // unsigned char padding[4];
+  cl_float padding;
 } LinePair;
 
 typedef struct ConflictInfo {
@@ -55,18 +56,19 @@ typedef struct ConflictInfo {
     LinePair line_pairs[4];
     cl_int offsets[4];
     cl_int currentNode;
-    unsigned char padding[4];
+    // unsigned char padding[4];
+    cl_float padding;
 } ConflictInfo;
 
 #ifdef __cplusplus
 #include <iostream>
 inline std::ostream& operator<<(std::ostream& out, const LinePair& pair) {
-  out << "" <<  pair.num_samples << " " << pair.s0
-      << " " << pair.s1 << " "
-      << pair.alpha << " "
-      << pair.k1_even << " " << pair.k2_even << " "
-      << pair.k1_odd << " " << pair.k2_odd << " "
-      <<  pair.a0 << " "
+  out << "n=" <<  pair.num_samples << "; s0=" << pair.s0
+      << "; s1=" << pair.s1 << "; alpha="
+      << pair.alpha << "; k1_even="
+      << pair.k1_even << "; k2_even=" << pair.k2_even << "; k1_odd="
+      << pair.k1_odd << "; k2_odd=" << pair.k2_odd << "; a0="
+      <<  pair.a0 << "; "
       << "";
   return out;
 }
@@ -75,6 +77,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConflictInfo& info) {
       << " " << info.currentNode << " offsets = "
       << info.offsets[0] << " " <<  info.offsets[1] << " "
       << info.offsets[2] << " " <<  info.offsets[3] << " "
+      << " padding " << info.padding
       << " line_pairs[0] " << info.line_pairs[0] << "";
   if (info.num_line_pairs > 4) {
     out << " ****************";

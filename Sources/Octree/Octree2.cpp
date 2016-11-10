@@ -243,27 +243,36 @@ void Octree2::getResolutionPoints() {
         totalOctnodes_s, conflicts_s.data(), orderedLines_s.data(),
         qPoints_s.data(), conflictInfoBuffer_s.data(),
         resolutionCounts_s.data(), predicates_s.data());
+
+    for (int i = 0; i < octreeSize*4; ++i) {
+      if (conflictInfoBuffer_s[i].num_samples < 0) {
+        LOG4CPLUS_WARN(logger, "conflictInfo_s " << conflictInfoBuffer_s[i]);
+        exit(0);
+      }
+    }
   }
 
 
-  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
-    // This will fail is Options::series is not true (-s on the command-line)
+  if (logger.isEnabledFor(log4cplus::DEBUG_LOG_LEVEL)) {
     vector<ConflictInfo> buf;
     int bsize = octreeSize * 4;
     Kernels::DownloadConflictInfo(buf, conflictInfoBuffer, bsize);
     LOG4CPLUS_TRACE(logger, "ConflictInfo (" << bsize << ")");
+
     for (int i = 0; i < bsize; ++i) {
-      if (buf[i] != conflictInfoBuffer_s[i]) {
-        LOG4CPLUS_WARN(logger, "conflictInfo_p " << buf[i]);
-        LOG4CPLUS_WARN(logger, "conflictInfo_s " << conflictInfoBuffer_s[i]);
-        LOG4CPLUS_WARN(logger, "conflict " << conflicts_s[i]);
-        // if (i == 409) exit(0);
-      }
+      // if (buf[i] != conflictInfoBuffer_s[i]) {
+      //   LOG4CPLUS_WARN(logger, "conflictInfo_p " << buf[i]);
+      //   if (Options::series) {
+      //     LOG4CPLUS_WARN(logger, "conflictInfo_s " << conflictInfoBuffer_s[i]);
+      //   }
+      //   LOG4CPLUS_WARN(logger, "conflict " << conflicts_s[i]);
+      //   // if (i == 409) exit(0);
+      // }
       if (buf[i].num_samples > 0) {
         // LOG4CPLUS_TRACE(logger, "  " << buf[i]);
       } else if (buf[i].num_samples < 0) {
-        LOG4CPLUS_ERROR(logger, "num_samples = " << buf[i].num_samples);
-        LOG4CPLUS_WARN(logger, "conflictInfo_s " << conflictInfoBuffer_s[i]);
+        // LOG4CPLUS_ERROR(logger, "num_samples = " << buf[i].num_samples);
+        LOG4CPLUS_WARN(logger, "conflictInfo_p " << buf[i]);
       }
     }
   }
@@ -545,7 +554,7 @@ void Octree2::addConflictCells() {
   }
 }
 
-void Octree2::draw() {
+void Octree2::draw(const glm::mat4& mvMatrix) {
     Shaders::boxProgram->use();
     print_gl_error();
     glBindVertexArray(boxProgram_vao);
@@ -554,8 +563,13 @@ void Octree2::draw() {
     print_gl_error();
     glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * gl_instances.size(), gl_instances.data(), GL_STREAM_DRAW);
     print_gl_error();
-    glm::mat4 identity(1.0);
-    glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
+    // glm::mat4 identity(1.0);
+    // // jme
+    // glm::mat4 scale = glm::scale(identity, glm::vec3(2.0f, 2.0f, 2.0f));
+    // /jme
+    // glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
+    // glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(scale[0].x));
+    glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
     glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
     print_gl_error();
     glLineWidth(2.0);
