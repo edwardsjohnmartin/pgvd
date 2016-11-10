@@ -28,6 +28,7 @@ namespace Options {
 extern int device;
 extern std::vector<std::string> filenames;
   extern unsigned char max_level;
+extern bool series;
   //int tri_threshold;
   //bool simple_dist;
   //bool timings;
@@ -57,6 +58,8 @@ extern std::vector<std::string> filenames;
   extern bool showObjects;
   extern bool showOctree;
   extern bool showSketcher;
+
+extern int maxConflictIterations;
 
   extern bool zoomMode;
   //bool jitter;

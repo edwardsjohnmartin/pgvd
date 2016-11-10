@@ -21,7 +21,7 @@ using std::shared_ptr;
 // static const int kNumBits = 3;
 
 namespace Karras {
-    Timer t;
+    // Timer t;
 
     bool lessThanBigUnsigned(BigUnsigned& a, BigUnsigned&b) {
         if (compareBU(&a, &b) == -1) {

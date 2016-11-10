@@ -63,8 +63,10 @@ typedef struct ConflictInfo {
 inline std::ostream& operator<<(std::ostream& out, const LinePair& pair) {
   out << "" <<  pair.num_samples << " " << pair.s0
       << " " << pair.s1 << " "
-      << pair.alpha << " " <<  pair.k1_even << " "
-      << pair.k2_even << " " <<  pair.a0 << " "
+      << pair.alpha << " "
+      << pair.k1_even << " " << pair.k2_even << " "
+      << pair.k1_odd << " " << pair.k2_odd << " "
+      <<  pair.a0 << " "
       << "";
   return out;
 }
@@ -78,6 +80,18 @@ inline std::ostream& operator<<(std::ostream& out, const ConflictInfo& info) {
     out << " ****************";
   }
   return out;
+}
+inline bool operator==(const ConflictInfo& a, const ConflictInfo& b) {
+  return a.num_samples == b.num_samples &&
+      a.num_line_pairs == b.num_line_pairs &&
+      a.currentNode == b.currentNode &&
+      a.offsets[0] == b.offsets[0] &&
+      a.offsets[1] == b.offsets[1] &&
+      a.offsets[2] == b.offsets[2] &&
+      a.offsets[3] == b.offsets[3];
+}
+inline bool operator!=(const ConflictInfo& a, const ConflictInfo& b) {
+  return !(a == b);
 }
 #endif
 

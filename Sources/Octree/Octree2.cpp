@@ -222,15 +222,49 @@ void Octree2::getResolutionPoints() {
       octreeSize, conflictsBuffer, linesBuffer,
       quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts,
       resolutionPredicates);
-  assert(success == CL_SUCCESS);
+  assert_cl_error(success);
+  CLFW::DefaultQueue.finish();
+
+  vector<ConflictInfo> conflictInfoBuffer_s(octreeSize*4);
+  vector<Conflict> conflicts_s;
+  if (Options::series) {
+    // Serial version
+    unsigned int totalOctnodes_s = octreeSize;
+    vector<Line> orderedLines_s;
+    vector<intn> qPoints_s;
+    vector<unsigned int> resolutionCounts_s(totalOctnodes_s*4);
+    vector<int> predicates_s(totalOctnodes_s*4);
+    Kernels::DownloadConflicts(conflicts_s, conflictsBuffer, totalOctnodes_s*4);
+    Kernels::DownloadLines(linesBuffer, orderedLines_s, lines.size());
+    Kernels::DownloadQPoints(
+        qPoints_s, quantizedPointsBuffer, karras_points.size());
+
+    success |= Kernels::GetResolutionPointsInfo_s(
+        totalOctnodes_s, conflicts_s.data(), orderedLines_s.data(),
+        qPoints_s.data(), conflictInfoBuffer_s.data(),
+        resolutionCounts_s.data(), predicates_s.data());
+  }
+
 
   if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
+    // This will fail is Options::series is not true (-s on the command-line)
     vector<ConflictInfo> buf;
     int bsize = octreeSize * 4;
     Kernels::DownloadConflictInfo(buf, conflictInfoBuffer, bsize);
     LOG4CPLUS_TRACE(logger, "ConflictInfo (" << bsize << ")");
     for (int i = 0; i < bsize; ++i) {
-      LOG4CPLUS_TRACE(logger, "  " << buf[i]);
+      if (buf[i] != conflictInfoBuffer_s[i]) {
+        LOG4CPLUS_WARN(logger, "conflictInfo_p " << buf[i]);
+        LOG4CPLUS_WARN(logger, "conflictInfo_s " << conflictInfoBuffer_s[i]);
+        LOG4CPLUS_WARN(logger, "conflict " << conflicts_s[i]);
+        // if (i == 409) exit(0);
+      }
+      if (buf[i].num_samples > 0) {
+        // LOG4CPLUS_TRACE(logger, "  " << buf[i]);
+      } else if (buf[i].num_samples < 0) {
+        LOG4CPLUS_ERROR(logger, "num_samples = " << buf[i].num_samples);
+        LOG4CPLUS_WARN(logger, "conflictInfo_s " << conflictInfoBuffer_s[i]);
+      }
     }
   }
 
@@ -242,23 +276,26 @@ void Octree2::getResolutionPoints() {
   // cout << test[0] << " =? " << sizeof(ConflictInfo) << endl;
   // cout << "Test = " << test[0] << endl;
 
+  LOG4CPLUS_TRACE(logger, "Getting scannedCounts");
   success = CLFW::get(
       scannedCounts, "sResCnts",
       Kernels::nextPow2(octreeSize * 4) * sizeof(cl_int));
-  assert(success == CL_SUCCESS);
-  LOG4CPLUS_TRACE(logger, "1");
+  assert_cl_error(success);
+
+  LOG4CPLUS_TRACE(logger, "Doing stream scan");
   success = Kernels::StreamScan_p(
       resolutionCounts, scannedCounts, Kernels::nextPow2(4 * octreeSize),
       "resolutionIntermediate", false);
-  assert(success == CL_SUCCESS);
+  assert_cl_error(success);
+
   LOG4CPLUS_TRACE(logger, "Reading resolutionPointsSize "
                   << octreeSize);
   success = CLFW::DefaultQueue.enqueueReadBuffer(
       scannedCounts, CL_TRUE,
       (octreeSize * 4 * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
       &resolutionPointsSize);
-  assert(success == CL_SUCCESS);
-  LOG4CPLUS_TRACE(logger, "Read scannedCounts");
+  assert_cl_error(success);
+  LOG4CPLUS_TRACE(logger, "Read scannedCounts " << resolutionPointsSize);
 
   if (resolutionPointsSize < 0) {
     return;
@@ -270,7 +307,7 @@ void Octree2::getResolutionPoints() {
       octreeSize, resolutionPointsSize, conflictsBuffer, linesBuffer,
       quantizedPointsBuffer, conflictInfoBuffer, scannedCounts,
       resolutionPredicates, resolutionPointsBuffer);
-  assert(success == CL_SUCCESS);
+  assert_cl_error(success);
 
   vector<intn> gpuResolutionPoints(resolutionPointsSize);
   CLFW::DefaultQueue.enqueueReadBuffer(
@@ -315,7 +352,7 @@ void Octree2::insertResolutionPoints() {
       error |= CLFW::DefaultQueue.enqueueCopyBuffer(oldQPointsBuffer, quantizedPointsBuffer, 0, 0, original * sizeof(intn));
     }
     error |= CLFW::DefaultQueue.enqueueCopyBuffer(resolutionPointsBuffer, quantizedPointsBuffer, 0, original * sizeof(intn), additional * sizeof(intn));
-    assert(error == CL_SUCCESS);
+    assert_cl_error(error);
   }
 
   //CLFW::DefaultQueue.finish();
@@ -325,7 +362,7 @@ void Octree2::build(const PolyLines *polyLines) {
   static log4cplus::Logger logger =
       log4cplus::Logger::getInstance("Octree2.build");
 
-  Timer t("overall");
+  Timer t(logger, "initialize");
   using namespace std;
   using namespace GLUtilities;
   using namespace Kernels;
@@ -345,7 +382,7 @@ void Octree2::build(const PolyLines *polyLines) {
   generatePoints(polyLines);
   if (karras_points.size() == 0) return;
 
-  LOG4CPLUS_INFO(logger, "Starting build");
+  t.restart("quantize");
   totalPoints = karras_points.size();
   computeBoundingBox(totalPoints);
   UploadKarrasPoints(karras_points, karrasPointsBuffer);
@@ -355,8 +392,13 @@ void Octree2::build(const PolyLines *polyLines) {
   LOG4CPLUS_TRACE(logger, "1");
 
   makeZOrderPoints();
+  t.restart("resolve conflicts");
   do {
+    Timer itTimer(logger, "Iteration");
     totalIterations++;
+    LOG4CPLUS_INFO(logger, "Iteration " << totalIterations
+                   << " (oct size: " << octreeSize << ")...");
+
     CLFW::DefaultQueue = CLFW::Queues[0];
     previousSize = octreeSize;
 
@@ -387,29 +429,32 @@ void Octree2::build(const PolyLines *polyLines) {
 
     LOG4CPLUS_TRACE(logger, "6");
 
-    // LOG4CPLUS_WARN(logger, "*** Warning: breaking out of conflict "
-    //                 << "detection loop early for debugging purposes.");
-    // // exit(0);
-    // break;
-
-    LOG4CPLUS_DEBUG(logger, "Iteration " << totalIterations);
+    if (totalIterations == Options::maxConflictIterations) {
+      LOG4CPLUS_WARN(logger, "*** Warning: breaking out of conflict "
+                     << "detection loop early for debugging purposes.");
+      // exit(0);
+      break;
+    }
   } while (previousSize != octreeSize && resolutionPointsSize != 0);
+
+  LOG4CPLUS_INFO(logger, "Total iterations: " << totalIterations);
+  LOG4CPLUS_INFO(logger, "Octree size: " << octreeSize);
+
+  t.restart("downloading and drawing octree");
+
+  // LOG4CPLUS_WARN(logger, "*** Not drawing octree.");
+  // return;
 
   cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
   octree.resize(octreeSize);
   cl_int error = CLFW::DefaultQueue.enqueueReadBuffer(
       octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree.data());
-  assert(error == CL_SUCCESS);
+  assert_cl_error(error);
 
   /* Add the octnodes so they'll be rendered with OpenGL. */
   addOctreeNodes();
   /* Add conflict cells so they'll be rendered with OpenGL. */
   addConflictCells();
-
-  // cout << "Total iterations: " << totalIterations << endl;
-  // cout << "Octree size: " << octree.size() << endl;
-  LOG4CPLUS_DEBUG(logger, "Total iterations: " << totalIterations);
-  LOG4CPLUS_INFO(logger, "Octree size: " << octree.size());
 }
 
 /* Drawing Methods */
@@ -423,18 +468,29 @@ void Octree2::addOctreeNodes() {
     addOctreeNodes(0, center, bb.maxwidth, color);
 }
 
-void Octree2::addOctreeNodes(int index, floatn offset, float scale, float3 color) {
-    Instance i = { offset.x, offset.y, 0.0, scale, color.x, color.y, color.z };
-    gl_instances.push_back(i);
-    if (index != -1) {
-        OctNode current = octree[index];
-        scale /= 2.0;
-        float shift = scale / 2.0;
-        addOctreeNodes(current.children[0], { offset.x - shift, offset.y - shift }, scale, color);
-        addOctreeNodes(current.children[1], { offset.x + shift, offset.y - shift }, scale, color);
-        addOctreeNodes(current.children[2], { offset.x - shift, offset.y + shift }, scale, color);
-        addOctreeNodes(current.children[3], { offset.x + shift, offset.y + shift }, scale, color);
-    }
+void Octree2::addOctreeNodes(
+    int index, floatn offset, float scale, float3 color) {
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Octree2.addOctreeNodes");
+
+  LOG4CPLUS_TRACE(logger, "offset = " << offset << " scale = " << scale
+                  << " index = " << index);
+
+  Instance i = { offset.x, offset.y, 0.0, scale, color.x, color.y, color.z };
+  gl_instances.push_back(i);
+  if (index != -1) {
+    OctNode current = octree[index];
+    scale /= 2.0;
+    float shift = scale / 2.0;
+    addOctreeNodes(current.children[0], { offset.x - shift, offset.y - shift },
+                   scale, color);
+    addOctreeNodes(current.children[1], { offset.x + shift, offset.y - shift },
+                   scale, color);
+    addOctreeNodes(current.children[2], { offset.x - shift, offset.y + shift },
+                   scale, color);
+    addOctreeNodes(current.children[3], { offset.x + shift, offset.y + shift },
+                   scale, color);
+  }
 }
 
 void Octree2::addLeaf(int internalIndex, int childIndex, float3 color) {

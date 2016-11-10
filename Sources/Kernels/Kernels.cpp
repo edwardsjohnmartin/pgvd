@@ -9,17 +9,23 @@
 /* Testing methods */
 namespace Kernels {
     bool benchmarking = false;
-    Timer timer;
+log4cplus::Logger benchmarkLogger =
+    log4cplus::Logger::getInstance("Kernels.benchmark");
+Timer* benchmarkTimer = 0;
 
     void startBenchmark(string benchmarkName) {
         if (benchmarking) {
-            timer.restart(benchmarkName);
+          benchmarkTimer = new Timer(benchmarkLogger, benchmarkName);
+            // timer.restart(benchmarkName);
         }
     }
     void stopBenchmark() {
         if (benchmarking) {
             CLFW::DefaultQueue.finish();
-            timer.stop();
+            // timer.stop();
+            benchmarkTimer->stop();
+            delete benchmarkTimer;
+            benchmarkTimer = 0;
         }
     }
 
@@ -464,29 +470,56 @@ namespace Kernels {
         return CL_SUCCESS;
     }
 
-    cl_int StreamScan_p(cl::Buffer &input, cl::Buffer &result, cl_int globalSize, string intermediateName, bool exclusive) {
-        cl_int error = 0;
-        bool isOld;
-        cl::Kernel *kernel = &CLFW::Kernels["StreamScanKernel"];
-        cl::CommandQueue *queue = &CLFW::DefaultQueue;
-        int localSize = std::min((int)kernel->getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), globalSize);
-        int currentNumWorkgroups = (globalSize / localSize) + 1;
+cl_int StreamScan_p(
+    cl::Buffer &input, cl::Buffer &result, const cl_int globalSize,
+    string intermediateName, bool exclusive) {
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Kernels.StreamScan_p");
+  cl_int error = 0;
+  bool isOld;
+  cl::Kernel *kernel = &CLFW::Kernels["StreamScanKernel"];
+  cl::CommandQueue *queue = &CLFW::DefaultQueue;
 
-        cl::Buffer intermediate, intermediateCopy;
-        error |= CLFW::get(intermediate, intermediateName, sizeof(cl_int) * currentNumWorkgroups);
-        error |= CLFW::get(intermediateCopy, intermediateName + "copy", sizeof(cl_int) * currentNumWorkgroups, isOld);
+  const int wgSize = (int)kernel->getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(
+      CLFW::DefaultDevice);
+  const int localSize = std::min(wgSize, globalSize);
+  int currentNumWorkgroups = (globalSize / localSize) + 1;
 
-        if (!isOld) error |= queue->enqueueFillBuffer<cl_int>(intermediateCopy, { -1 }, 0, sizeof(cl_int) * currentNumWorkgroups);
-        error |= queue->enqueueCopyBuffer(intermediateCopy, intermediate, 0, 0, sizeof(cl_int) * currentNumWorkgroups);
-        error |= kernel->setArg(0, input);
-        error |= kernel->setArg(1, result);
-        error |= kernel->setArg(2, intermediate);
-        error |= kernel->setArg(3, cl::__local(localSize * sizeof(cl_int)));
-        error |= kernel->setArg(4, cl::__local(localSize * sizeof(cl_int)));
-        //error |= kernel->setArg(5, exclusive);
-        error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
-        return error;
-    };
+  LOG4CPLUS_DEBUG(logger, "wgSize = " << wgSize);
+  LOG4CPLUS_DEBUG(logger, "localSize = " << localSize);
+  LOG4CPLUS_DEBUG(logger, "globalSize = " << globalSize);
+
+  cl::Buffer intermediate, intermediateCopy;
+  error |= CLFW::get(intermediate, intermediateName,
+                     sizeof(cl_int) * currentNumWorkgroups);
+  error |= CLFW::get(intermediateCopy, intermediateName + "copy",
+                     sizeof(cl_int) * currentNumWorkgroups, isOld);
+
+  if (!isOld) {
+    error |= queue->enqueueFillBuffer<cl_int>(
+        intermediateCopy, { -1 }, 0, sizeof(cl_int) * currentNumWorkgroups);
+    assert_cl_error(error);
+  }
+  error |= queue->enqueueCopyBuffer(
+      intermediateCopy, intermediate, 0, 0,
+      sizeof(cl_int) * currentNumWorkgroups);
+  assert_cl_error(error);
+  error |= kernel->setArg(0, input);
+  assert_cl_error(error);
+  error |= kernel->setArg(1, result);
+  assert_cl_error(error);
+  error |= kernel->setArg(2, intermediate);
+  assert_cl_error(error);
+  error |= kernel->setArg(3, cl::__local(localSize * sizeof(cl_int)));
+  assert_cl_error(error);
+  error |= kernel->setArg(4, cl::__local(localSize * sizeof(cl_int)));
+  assert_cl_error(error);
+  //error |= kernel->setArg(5, exclusive);
+  error |= queue->enqueueNDRangeKernel(
+      *kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
+  assert_cl_error(error);
+  return error;
+}
 
     cl_int StreamScan_s(unsigned int* buffer, unsigned int* result, const int size) {
         int nextPowerOfTwo = (int)pow(2, ceil(log(size) / log(2)));
@@ -537,30 +570,42 @@ cl_int RadixSortBigUnsigned_p(
   const size_t globalSize = nextPow2(size);
   cl::Buffer predicate, address, bigUnsignedTemp, temp;
   error |= CLFW::get(address, "BUAddress", sizeof(cl_int)*(globalSize));
-  error |= CLFW::get(bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
+  assert_cl_error(error);
+  error |= CLFW::get(
+      bigUnsignedTemp, "bigUnsignedTemp", sizeof(BigUnsigned)*globalSize);
+  assert_cl_error(error);
   error |= CLFW::get(result, "sortedZPoints", sizeof(BigUnsigned)*globalSize);
-  error |= CLFW::DefaultQueue.enqueueCopyBuffer(input, result, 0, 0, sizeof(BigUnsigned) * globalSize);
+  assert_cl_error(error);
+  error |= CLFW::DefaultQueue.enqueueCopyBuffer(
+      input, result, 0, 0, sizeof(BigUnsigned) * globalSize);
+  assert_cl_error(error);
 
   if (error != CL_SUCCESS)
     return error;
   cl_uint test;
   cl_uint sum;
-  cl_int testSize = size;
+  // cl_int testSize = size;
+  cl_int testSize = globalSize;
   //For each bit
   startBenchmark("RadixSortBigUnsigned");
   for (unsigned int index = 0; index < mbits; index++) {
     //Predicate the 0's and 1's
     error |= BUBitPredicate(result, predicate, index, 0, testSize);
-    if (error != CL_SUCCESS)
-      return error;
+    assert(error == CL_SUCCESS);
+    // if (error != CL_SUCCESS)
+    //   return error;
     //Scan the predication buffers.
-    error |= StreamScan_p(predicate, address, testSize, "radixSortBUIntermediate");
-    if (error != CL_SUCCESS)
-      return error;
+    error |= StreamScan_p(
+        predicate, address, testSize, "radixSortBUIntermediate");
+    assert(error == CL_SUCCESS);
+    // if (error != CL_SUCCESS)
+    //   return error;
     //Compacting
-    error |= BUDoubleCompact(result, bigUnsignedTemp, predicate, address, testSize);
-    if (error != CL_SUCCESS)
-      return error;
+    error |= BUDoubleCompact(
+        result, bigUnsignedTemp, predicate, address, testSize);
+    assert(error == CL_SUCCESS);
+    // if (error != CL_SUCCESS)
+    //   return error;
     //Swap result with input.
     temp = result;
     result = bigUnsignedTemp;
@@ -1120,6 +1165,42 @@ cl_int GetFacetPairs_p(cl::Buffer &orderedNodeIndices_i,
         error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalOctnodes * 4), cl::NullRange);
         return error;
     }
+
+// cl_int GetResolutionPointsInfo_s(
+//     unsigned int totalOctnodes,
+//     cl::Buffer &conflicts,
+//     cl::Buffer &orderedLines,
+//     cl::Buffer &qPoints,
+//     cl::Buffer &conflictInfoBuffer,
+//     cl::Buffer &resolutionCounts,
+//     cl::Buffer &predicates) {
+
+cl_int GetResolutionPointsInfo_s(
+    unsigned int totalOctnodes,
+    Conflict* conflicts,
+    Line* orderedLines,
+    intn* qPoints,
+    ConflictInfo* conflictInfoBuffer,
+    unsigned int* resolutionCounts,
+    int* predicates) {
+
+  for (int i = 0; i < totalOctnodes*4; ++i) {
+    Conflict& c = conflicts[i];
+    ConflictInfo& info = conflictInfoBuffer[i];
+    info.currentNode = i;
+    if (c.color == -2) {
+      Line firstLine = orderedLines[c.i[0]];
+      Line secondLine = orderedLines[c.i[1]];
+      intn q1 = qPoints[firstLine.firstIndex];
+      intn q2 = qPoints[firstLine.secondIndex];
+      intn r1 = qPoints[secondLine.firstIndex];
+      intn r2 = qPoints[secondLine.secondIndex];
+      sample_conflict_count(&info, q1, q2, r1, r2, c.origin, c.width);
+    }
+  }
+
+  return CL_SUCCESS;
+}
 
 cl_int GetResolutionPoints_p(
     unsigned int totalOctnodes, unsigned int totalAdditionalPoints,

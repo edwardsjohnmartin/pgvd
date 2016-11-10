@@ -79,3 +79,19 @@ public:
   static cl_int query(cl::Device &device);
   static cl_int Build(cl::Program &program, cl::Program::Sources &sources, cl::Context &context = DefaultContext, cl::Device &device = DefaultDevice);
 };
+
+std::string get_cl_error_msg(cl_int error);
+
+#define print_cl_error(error) { \
+  std::string msg = get_cl_error_msg(error); \
+  std::cout << __FILE__ << " " << __LINE__ << " OpenCL error: " << msg << endl; \
+  error = CL_SUCCESS; \
+}
+
+#define assert_cl_error(error) { \
+  if (error != CL_SUCCESS) { \
+    std::string msg = get_cl_error_msg(error);  \
+    std::cout << __FILE__ << " " << __LINE__ << " OpenCL error: " << msg << endl; \
+    } \
+    assert(error == CL_SUCCESS); \
+}

@@ -29,6 +29,7 @@ namespace Options {
 int device = -1;
   std::vector<std::string> filenames;
   unsigned char max_level = 6;
+bool series = false;
   //int tri_threshold;
   //bool simple_dist;
   //bool timings;
@@ -59,6 +60,8 @@ bool showObjects = true;
 bool showOctree = true;
 bool showSketcher = true;
 
+int maxConflictIterations = -1;
+
 bool zoomMode;
 
 bool debug = false;
@@ -75,9 +78,16 @@ bool processArg(int& i, char** argv) {
     ++i;
     device = atoi(argv[i]);
     ++i;
+  } else if (strcmp(argv[i], "-m") == 0) {
+    ++i;
+    maxConflictIterations = atoi(argv[i]);
+    ++i;
   } else if (strcmp(argv[i], "-v") == 0) {
     ++i;
     debug = true;
+  } else if (strcmp(argv[i], "-s") == 0) {
+    ++i;
+    series = true;
   } else if (strcmp(argv[i], "-o") == 0) {
     ++i;
     cl_options += "-cl-opt-disable ";

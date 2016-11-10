@@ -96,9 +96,18 @@ cl_int DownloadConflictInfo(vector<ConflictInfo> &out, cl::Buffer &in, cl_int si
         vector<int> &counts, Line* orderedlines, intn* quantizedPoints, vector<intn> &newPoints);
     cl_int GetResolutionPointsInfo_p(unsigned int totalOctnodes, cl::Buffer &conflicts, cl::Buffer &orderedLines, 
         cl::Buffer &quantizedPoints, cl::Buffer &conflictInfoBuffer, cl::Buffer &resolutionCounts, cl::Buffer &predicates);
+cl_int GetResolutionPointsInfo_s(
+    unsigned int totalOctnodes,
+    Conflict* conflicts,
+    Line* orderedLines,
+    intn* qPoints,
+    ConflictInfo* conflictInfoBuffer,
+    unsigned int* resolutionCounts,
+    int* predicates);
     cl_int GetResolutionPoints_p(unsigned int totalOctnodes, unsigned int totalAdditionalPoints, cl::Buffer &conflicts,
         cl::Buffer &orderedLines, cl::Buffer &quantizedPoints, cl::Buffer &conflictInfoBuffer,
         cl::Buffer &scannedCounts, cl::Buffer &predicates, cl::Buffer &resolutionPoints);
 
     std::string buToString(BigUnsigned bu);
+
 }
