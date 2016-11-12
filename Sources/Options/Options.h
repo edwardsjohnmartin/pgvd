@@ -29,6 +29,8 @@ extern int device;
 extern std::vector<std::string> filenames;
   extern unsigned char max_level;
 extern bool series;
+
+extern float xmin, ymin, xmax, ymax;
   //int tri_threshold;
   //bool simple_dist;
   //bool timings;
@@ -58,6 +60,8 @@ extern bool series;
   extern bool showObjects;
   extern bool showOctree;
   extern bool showSketcher;
+
+extern float conflict_color[3];
 
 extern int maxConflictIterations;
 

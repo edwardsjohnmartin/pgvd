@@ -63,7 +63,7 @@ typedef struct ConflictInfo {
 #ifdef __cplusplus
 #include <iostream>
 inline std::ostream& operator<<(std::ostream& out, const LinePair& pair) {
-  out << "n=" <<  pair.num_samples << "; s0=" << pair.s0
+  out << "num_samples=" <<  pair.num_samples << "; s0=" << pair.s0
       << "; s1=" << pair.s1 << "; alpha="
       << pair.alpha << "; k1_even="
       << pair.k1_even << "; k2_even=" << pair.k2_even << "; k1_odd="

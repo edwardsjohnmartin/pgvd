@@ -560,7 +560,7 @@ cl_int get_line_segment_pairs(
         LineSegment ac, bc;
         if (clip_ray(&a, &s0, &ac) && clip_ray(&b, &s1, &bc)) {
             if (half_intersection) {
-                clip_v_half(&ac, &bc, a_half, b_half);
+                // clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
@@ -588,7 +588,7 @@ cl_int get_line_segment_pairs(
         }
         if (clip_ray(&a, &s0, &ac) && clip_ray(&bn, &s1, &bc)) {
             if (half_intersection) {
-                clip_v_half(&ac, &bc, a_half, b_half);
+                // clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
@@ -616,7 +616,7 @@ cl_int get_line_segment_pairs(
         }
         if (clip_ray(&an, &s0, &ac) && clip_ray(&b, &s1, &bc)) {
             if (half_intersection) {
-                clip_v_half(&ac, &bc, a_half, b_half);
+                // clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
@@ -644,7 +644,7 @@ cl_int get_line_segment_pairs(
         }
         if (clip_ray(&an, &s0, &ac) && clip_ray(&bn, &s1, &bc)) {
             if (half_intersection) {
-                clip_v_half(&ac, &bc, a_half, b_half);
+                // clip_v_half(&ac, &bc, a_half, b_half);
             }
             else if (inside_box(&ac.p1, &bb)) {
                 Ray bc_ray = make_ray(&bc);
@@ -801,6 +801,13 @@ void sample_v_conflict(
   // q = q0 + tv
   // r = r0 + fw
 
+  // if (info->currentNode == 955) {
+  //   line_pair->k1_even = v.x;
+  //   line_pair->k2_even = v.y;
+  //   line_pair->k1_odd = w.x;
+  //   line_pair->k2_odd = w.y;
+  // }
+
   // Handle starting with an intersection
   //error: THIS COMPARISON IS BROKEN ON OPENCL!!!
   if (q0.x == r0.x && q0.y == r0.y) {
@@ -848,11 +855,25 @@ void sample_v_conflict(
   // an axis.
   const bool opposite = rtheta > -EPSILON;
 
-  cl_float nc = ncross(&w, &v);
+  const cl_float nc = ncross(&w, &v);
+
   bool antiparallel = (nc < ERROR);
   const cl_float alpha = alpha_f(opposite, &p_origin, &q0, &r0, &u, &v, &w);
+
+  // if (info->currentNode == 712) {
+  //   line_pair->alpha = nc;//alpha;
+  //   line_pair->k1_even = v.x;
+  //   line_pair->k2_even = v.y;
+  //   line_pair->k1_odd = w.x;
+  //   line_pair->k2_odd = w.y;
+  //   // line_pair->k1_even = p_origin.x;
+  //   // line_pair->k2_even = p_origin.y;
+  //   // line_pair->k1_odd = u.x;
+  //   // line_pair->k2_odd = u.y;
+  //   return;
+  // }
   // If alpha is less than one then the lines are directed toward each other
-  if (alpha < 1-EPSILON) {
+  if (alpha < 1-EPSILON || fabs(v.x) < EPSILON || fabs(w.x) < EPSILON) {
     antiparallel = true;
   }
   if (antiparallel) {
@@ -867,6 +888,7 @@ void sample_v_conflict(
     line_pair->p_origin = p_origin;
     line_pair->u = u;
     line_pair->a0 = 1;
+    info->padding = 0;
     return;
   }
 #ifdef __cplusplus
@@ -897,9 +919,11 @@ void sample_v_conflict(
 
   // // info->offsets[0] = (cl_int)(mylog(alpha)*100);
   // // cl_int temp = (cl_int) log_alpha;
-  // info->offsets[0] = max_i;//log_alpha*1000;
+  // info->offsets[0] = max_odd;//log_alpha*1000;
+  // info->offsets[1] = max_even;//log_alpha*1000;
+  // info->offsets[2] = max_i;//log_alpha*1000;
   // // info->offsets[0] = temp;
-  info->padding = log_alpha;
+  // info->padding = log_alpha;
   // info->padding = sn;
 
   // After getting the s values we transform the bisector back to the original
@@ -944,17 +968,20 @@ void sample_v_conflict(
     }
   }
 
-  line_pair->num_samples = max_i;
-  line_pair->s0 = s0;
-  line_pair->s1 = s1;
-  line_pair->alpha = alpha;
-  line_pair->k1_even = k1_even;
-  line_pair->k2_even = k2_even;
-  line_pair->k1_odd = k1_odd;
-  line_pair->k2_odd = k2_odd;
-  line_pair->p_origin = p_origin;
-  line_pair->u = u;
-  line_pair->a0 = a0;
+  // TODO
+  // if (info->currentNode != 955) {
+    line_pair->num_samples = max_i;
+    line_pair->s0 = s0;
+    line_pair->s1 = s1;
+    line_pair->alpha = alpha;
+    line_pair->k1_even = k1_even;
+    line_pair->k2_even = k2_even;
+    line_pair->k1_odd = k1_odd;
+    line_pair->k2_odd = k2_odd;
+    line_pair->p_origin = p_origin;
+    line_pair->u = u;
+    line_pair->a0 = a0;
+  // }
 
   // // TODO remove
   // line_pair->s0 = sqrt(pown(alpha, 1));
@@ -986,25 +1013,42 @@ void sample_conflict_impl(ConflictInfo* info,
   LineSegment s0 = make_segment_from_point(&q0_, &q1_);
   LineSegment s1 = make_segment_from_point(&r0_, &r1_);
 
+//   if (info->currentNode == 57) {
+// #ifdef __cplusplus
+//     printf("Break here\n");
+// #endif
+//   }
+
   LineSegmentPair pairs[4];
   // Get "v" or "pair" lines
   const cl_int num_pairs = get_line_segment_pairs(
       &s0, &s1, pairs, &origin_, width);
 
-  // if (info->currentNode == 9) {
-  //   info->num_samples = -3;
-  //   info->num_line_pairs = num_pairs;
-  //   info->offsets[0] = origin__.x;
-  //   info->offsets[1] = origin__.y;
-  //   info->offsets[2] = origin__.x;
-  //   info->offsets[3] = origin__.y;
-  //   return;
-  // }
-
   info->num_samples = 0;
   info->offsets[0] = info->offsets[1] = info->offsets[2] = info->offsets[3] = 0;
 
   const BB bb_ = make_bb_from_data(&origin_, width);
+
+  // if (info->currentNode == 57) {
+  //   // info->num_samples = -3;
+  //   // info->num_line_pairs = num_pairs;
+  //   info->offsets[0] = origin__.x;
+  //   info->offsets[1] = origin__.y;
+  //   info->offsets[2] = width;
+  //   // info->line_pairs[0].k1_even = q0_.x;
+  //   // info->line_pairs[1].k2_even = q0_.y;
+  //   // info->line_pairs[2].k1_odd = q1_.x;
+  //   // info->line_pairs[3].k2_odd = q1_.y;
+  //   info->line_pairs[0].k1_even = r0_.x;
+  //   info->line_pairs[0].k2_even = r0_.y;
+  //   info->line_pairs[0].k1_odd = r1_.x;
+  //   info->line_pairs[0].k2_odd = r1_.y;
+  //   // info->line_pairs[0].k1_even = r0_int.x;
+  //   // info->line_pairs[0].k2_even = r0_int.y;
+  //   // info->line_pairs[0].k1_odd = r1_int.x;
+  //   // info->line_pairs[0].k2_odd = r1_int.y;
+  //   return;
+  // }
 
   cl_int idx = 0;
   for (cl_int i = 0; i < num_pairs; ++i) {
@@ -1016,6 +1060,19 @@ void sample_conflict_impl(ConflictInfo* info,
     //  cl_int j = 3;
     //}
 
+    // // if (info->currentNode == 57 && i == 0) {
+    // if (info->currentNode == 57) {
+    //   // info->offsets[0] = a_valid;
+    //   // info->offsets[1] = b_valid;
+    //   // info->offsets[2] = small_bb.w;
+    //   // info->offsets[3] = small_bb.h;
+    //   // info->offsets[0] = a->p0.x;
+    //   // info->offsets[1] = a->p0.y;
+    //   // info->offsets[2] = a->p1.x;
+    //   // info->offsets[3] = a->p1.y;
+    //   // return;
+    // }
+
     bool a_valid, b_valid;
     *a = clip_segment(a, &bb_, &a_valid);
     *b = clip_segment(b, &bb_, &b_valid);
@@ -1026,32 +1083,48 @@ void sample_conflict_impl(ConflictInfo* info,
     add_to_bb(&b->p0, &small_bb);
     add_to_bb(&b->p1, &small_bb);
 
-    // if (info->currentNode == 9) {
-    //   info->num_samples = -3;
-    //   info->num_line_pairs = num_pairs;
-    //   info->offsets[0] = a_valid;
-    //   info->offsets[1] = b_valid;
-    //   info->offsets[2] = small_bb.w;
-    //   info->offsets[3] = small_bb.h;
+    // if (info->currentNode == 57) {
+      
+    //   // info->num_samples = -3;
+    //   // info->num_line_pairs = num_pairs;
+    //   // info->offsets[0] = a_valid;
+    //   // info->offsets[1] = b_valid;
+    //   // info->offsets[2] = small_bb.w;
+    //   // info->offsets[3] = small_bb.h;
     //   return;
     // }
     
+    info->line_pairs[idx].num_samples = 0;
     if (a_valid && b_valid && small_bb.w >= 1 && small_bb.h >= 1) {
       sample_v_conflict(&(info->line_pairs[idx]), a->p0, a->p1 - a->p0,
                         b->p0, b->p1 - b->p0,
-                        small_bb.o, small_bb.w, small_bb.h, origin0, width0, info);
-      info->num_samples += info->line_pairs[idx].num_samples;
-      if (info->currentNode == 409) {
-        return;
+                        small_bb.o, small_bb.w, small_bb.h,
+                        origin0, width0, info);
+      if (info->line_pairs[idx].num_samples > 0) {
+        info->num_samples += info->line_pairs[idx].num_samples;
+
+        if (idx < 3) {
+          info->offsets[idx + 1] =
+              info->offsets[idx] + info->line_pairs[idx].num_samples;
+        }
+        ++idx;
       }
-      if (idx < 3) {
-        info->offsets[idx + 1] =
-            info->offsets[idx] + info->line_pairs[idx].num_samples;
-      }
-      ++idx;
     }
   }
+  // if (info->currentNode == 57) {
+    // info->num_samples = 58;
+    // info->line_pairs[0].num_samples = 58;
+  // }
   info->num_line_pairs = idx;
+
+  // If no samples were found, sample two points in the upper-left
+  // and upper-right quadrants
+  if (idx == 0 && width > 1) {
+    info->num_samples = 2;
+    info->offsets[0] = origin__.x;
+    info->offsets[1] = origin__.y;
+    info->offsets[2] = width;
+  }
 }
 
 void sample_conflict_count(
@@ -1060,23 +1133,36 @@ void sample_conflict_count(
     const intn origin, const cl_int width) {
 
     sample_conflict_impl(info, q0, q1, r0, r1, origin, width);
-    // if (info->num_samples < 0) {
+    // if (info->num_samples <= 0) {
     //   sample_conflict_impl(info, q0, q1, r0, r1, origin, width);
     // }
 }
 
-void sample_conflict_kernel(const cl_int i, ConflictInfo* info, floatn* samples) {
+void sample_conflict_kernel(
+    const cl_int i, ConflictInfo* info, floatn* samples) {
+  if (info->line_pairs[0].num_samples == 0) {
+    intn origin = make_intn(info->offsets[0], info->offsets[1]);
+    cl_int width = info->offsets[2];
+    if (i == 0) {
+      *samples = make_floatn(
+          origin.x + width/4, origin.y + width/4);
+    } else {
+      *samples = make_floatn(
+          origin.x + 3*width/4, origin.y + 3*width/4);
+    }
+  } else {
     // k will be the local sample index
     cl_int k = i;
     // j is the line pair index
     cl_int j = 0;
     // This for loop will iterate no more than 3 times
     while (k >= info->line_pairs[j].num_samples) {
-        k -= info->line_pairs[j].num_samples;
-        ++j;
+      k -= info->line_pairs[j].num_samples;
+      ++j;
     }
 
     const LinePair* line_pair = &info->line_pairs[j];
     const floatn p = get_sample(k, line_pair);
     *samples = p;
+  }
 }

@@ -151,3 +151,11 @@ inline bool BB_is_square(const BoundingBox *bb) {
 	}
 	return true;
 }
+
+#ifdef __cplusplus
+#include <iostream>
+inline std::ostream& operator<<(std::ostream& out, const BoundingBox& bb) {
+  out << bb.minimum << " " << bb.maximum;
+  return out;
+}
+#endif
