@@ -490,7 +490,7 @@ void Octree2::addOctreeNodes() {
 
     if (octreeSize == 0) return;
     center = (bb.minimum + bb.maxwidth*.5);
-    float3 color = { 1.0, 1.0, 1.0 };
+    float3 color = { 0.75, 0.75, 0.75 };
     addOctreeNodes(0, center, bb.maxwidth, color);
 }
 
