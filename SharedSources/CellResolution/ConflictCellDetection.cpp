@@ -98,7 +98,10 @@ void FindConflictCells(
                 min_.y += (L & 2) ? leafWidth : 0;
                 // Note: subtracting .1F forces liang barskey to act half open.
                 floatn max_ = min_ + (leafWidth - .1F); 
-
+                intn Q1, Q2, Q3, Q4;
+                intn Q5 = make_intn(-1, -1);
+                intn Q6 = make_intn(-1, -1);
+                
                 //Then, for each node from the leaf's parent to the root
                 int N = gid;
                 while (N != -1) 
@@ -111,8 +114,8 @@ void FindConflictCells(
                         //Then for each line this node is a bCell to...
                         for (int currentIndex = firstIndex; currentIndex <= lastIndex; ++currentIndex) 
                         {
-                            intn Q1 = points[lines[nodeToFacet[currentIndex]].firstIndex];
-                            intn Q2 = points[lines[nodeToFacet[currentIndex]].secondIndex];
+                            Q1 = points[lines[nodeToFacet[currentIndex]].firstIndex];
+                            Q2 = points[lines[nodeToFacet[currentIndex]].secondIndex];
 
                             //If the line isn't degenerate...
                             if (Q1.x != Q2.x || Q1.y != Q2.y) 
@@ -131,16 +134,25 @@ void FindConflictCells(
                                         //If the cell has no color, then color it.
                                         if (conflicts[4 * gid + L].color == -1) 
                                         {
+                                            //Keep track of the line to later look for a closer one.
+                                            Q3 = make_intn( Q1.x, Q1.y );
+                                            Q4 = make_intn( Q2.x, Q2.y );
                                             conflicts[4 * gid + L].color = lines[nodeToFacet[currentIndex]].color;
                                             conflicts[4 * gid + L].i[0] = nodeToFacet[currentIndex];
                                         }
                                         //Else if the colors don't match, then the cell is a conflict cell.
                                         else if (conflicts[4 * gid + L].color != lines[nodeToFacet[currentIndex]].color)
                                         {
-                                            conflicts[4 * gid + L].color = -2;
-                                            conflicts[4 * gid + L].i[1] = nodeToFacet[currentIndex];
-                                            conflicts[4 * gid + L].width = width;
-                                            conflicts[4 * gid + L].origin = convert_intn(min_);
+                                            //If there is no closer conflicting line... 
+                                            if (Q5.x != -1 || (distSegmentToSegment(Q3, Q4, Q5, Q6) > distSegmentToSegment(Q3, Q4, Q1, Q2)))
+                                            {
+                                                Q5 = make_intn(Q1.x, Q1.y);
+                                                Q6 = make_intn(Q2.x, Q2.y);
+                                                conflicts[4 * gid + L].color = -2;
+                                                conflicts[4 * gid + L].i[1] = nodeToFacet[currentIndex];
+                                                conflicts[4 * gid + L].width = width;
+                                                conflicts[4 * gid + L].origin = convert_intn(min_);
+                                            }
                                         }
                                     }
                                 }

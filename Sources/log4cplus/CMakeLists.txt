@@ -35,11 +35,11 @@ endif(NOT LOG4CPLUS_SINGLE_THREADED)
 
 set(BUILD_SHARED_LIBS FALSE CACHE BOOL "If TRUE, log4cplus is built as a shared library, otherwise as a static library")
 
-if (WIN32)
-  set (UNICODE_DEFAULT ON)
-else (WIN32)
-  set (UNICODE_DEFAULT OFF)
-endif (WIN32)
+# if (WIN32)
+#   set (UNICODE_DEFAULT ON)
+# else (WIN32)
+# endif (WIN32)
+set (UNICODE_DEFAULT OFF)
 
 if (MSVC)
   set (LOG4CPLUS_WORKING_LOCALE_DEFAULT ON)
