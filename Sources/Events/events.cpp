@@ -46,6 +46,9 @@ static void O(bool down) {
 }
 
 static void Z(bool down) {
+}
+
+static void R(bool down) {
   if (down) {
     // mvMatrix = glm::mat4(1.0);
     mvMatrix = glm::mat4(0.8);
@@ -105,6 +108,8 @@ void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
     case GLFW_KEY_O: O(down);
       break;
     case GLFW_KEY_Z: Z(down);
+      break;
+    case GLFW_KEY_R: R(down);
       break;
     case GLFW_KEY_Q: Q(down);
       break;
