@@ -144,15 +144,15 @@ void FindConflictCells(
                                         else if (conflicts[4 * gid + L].color != lines[nodeToFacet[currentIndex]].color)
                                         {
                                             //If there is no closer conflicting line... 
-                                            if (Q5.x != -1 || (distSegmentToSegment(Q3, Q4, Q5, Q6) > distSegmentToSegment(Q3, Q4, Q1, Q2)))
-                                            {
+                                           // if (Q5.x != -1 || (distSegmentToSegment(Q3, Q4, Q5, Q6) > distSegmentToSegment(Q3, Q4, Q1, Q2)))
+                                            //{
                                                 Q5 = make_intn(Q1.x, Q1.y);
                                                 Q6 = make_intn(Q2.x, Q2.y);
                                                 conflicts[4 * gid + L].color = -2;
                                                 conflicts[4 * gid + L].i[1] = nodeToFacet[currentIndex];
                                                 conflicts[4 * gid + L].width = width;
                                                 conflicts[4 * gid + L].origin = convert_intn(min_);
-                                            }
+                                            //}
                                         }
                                     }
                                 }

@@ -158,7 +158,7 @@ class PolyLines {
 
       float3 color = colors[i];
       glUniform3fv(Shaders::lineProgram->color_uniform_id, 1, color.s);
-
+      glLineWidth(2.0);
       if (Options::showObjectVertices) {
         glDrawArrays(GL_POINTS, first, len);
         print_gl_error();

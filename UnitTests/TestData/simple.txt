@@ -1,0 +1,5 @@
+..\\UnitTests\\TestData\\data2\\test1-1.dat
+..\\UnitTests\\TestData\\data2\\test1-2.dat
+..\\UnitTests\\TestData\\data2\\test1-3.dat
+..\\UnitTests\\TestData\\data2\\test1-4.dat
+..\\UnitTests\\TestData\\data2\\test1-5.dat
