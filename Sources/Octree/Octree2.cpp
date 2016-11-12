@@ -387,8 +387,10 @@ void Octree2::insertResolutionPoints() {
 void Octree2::build(const PolyLines *polyLines) {
   static log4cplus::Logger logger =
       log4cplus::Logger::getInstance("Octree2.build");
+  static log4cplus::Logger tlogger =
+      log4cplus::Logger::getInstance("Octree2.build.time");
 
-  Timer t(logger, "initialize");
+  Timer t(tlogger, "initialize");
   using namespace std;
   using namespace GLUtilities;
   using namespace Kernels;
