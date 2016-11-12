@@ -30,6 +30,11 @@ int device = -1;
   std::vector<std::string> filenames;
   unsigned char max_level = 6;
 bool series = false;
+
+float xmin = -1;
+float ymin = -1;
+float xmax = -1;
+float ymax = -1;
   //int tri_threshold;
   //bool simple_dist;
   //bool timings;
@@ -55,10 +60,12 @@ bool series = false;
   //std::map<std::string, std::string> key2value;
 
 // Render settings
-bool showObjectVertices;
+bool showObjectVertices = false;
 bool showObjects = true;
 bool showOctree = true;
 bool showSketcher = true;
+
+float conflict_color[3] = { 1.0, 0.0, 0.0 };
 
 int maxConflictIterations = -1;
 
@@ -91,6 +98,20 @@ bool processArg(int& i, char** argv) {
   } else if (strcmp(argv[i], "-o") == 0) {
     ++i;
     cl_options += "-cl-opt-disable ";
+  } else if (strcmp(argv[i], "--disable-conflict-color") == 0) {
+    ++i;
+    conflict_color[1] = 1.0;
+    conflict_color[2] = 1.0;
+  } else if (strcmp(argv[i], "--bb") == 0) {
+    ++i;
+    xmin = atof(argv[i]);
+    ++i;
+    ymin = atof(argv[i]);
+    ++i;
+    xmax = atof(argv[i]);
+    ++i;
+    ymax= atof(argv[i]);
+    ++i;
   } else if (strcmp(argv[i], "-f") == 0) {
     ++i;
     std::ifstream in(argv[i]);

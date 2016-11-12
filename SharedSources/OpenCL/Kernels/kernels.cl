@@ -283,6 +283,8 @@ __kernel void CountResolutionPointsKernel(
   info.currentNode = gid;
   info.num_line_pairs = 0;
   info.offsets[0] = info.offsets[1] = info.offsets[2] = info.offsets[3] = 0;
+  info.line_pairs[0].num_samples = 0;
+  info.padding = c.color;
   if (c.color == -2)
   {
     Line firstLine = orderedLines[c.i[0]];

@@ -112,15 +112,26 @@ void Octree2::generatePoints(const PolyLines *polyLines) {
 }
 
 void Octree2::computeBoundingBox(const int totalPoints) {
+  static log4cplus::Logger logger =
+      log4cplus::Logger::getInstance("Octree2.computeBoundingBox");
+
+  if (Options::xmin == -1 && Options::xmax == -1) {
     //Probably should be parallelized...
     floatn minimum = karras_points[0];
     floatn maximum = karras_points[0];
     for (int i = 1; i < totalPoints; ++i) {
-        minimum = min_floatn(karras_points[i], minimum);
-        maximum = max_floatn(karras_points[i], maximum);
+      minimum = min_floatn(karras_points[i], minimum);
+      maximum = max_floatn(karras_points[i], maximum);
     }
     bb = BB_initialize(&minimum, &maximum);
     bb = BB_make_centered_square(&bb);
+  } else {
+    bb.initialized = true;
+    bb.minimum = make_floatn(Options::xmin, Options::ymin);
+    bb.maximum = make_floatn(Options::xmax, Options::ymax);
+    bb.maxwidth = BB_max_size(&bb);
+  }
+  LOG4CPLUS_DEBUG(logger, bb);
 }
 
 void Octree2::quantizePoints(int numResolutionPoints) {
@@ -259,20 +270,26 @@ void Octree2::getResolutionPoints() {
     Kernels::DownloadConflictInfo(buf, conflictInfoBuffer, bsize);
     LOG4CPLUS_TRACE(logger, "ConflictInfo (" << bsize << ")");
 
+    int count = 0;
     for (int i = 0; i < bsize; ++i) {
-      // if (buf[i] != conflictInfoBuffer_s[i]) {
-      //   LOG4CPLUS_WARN(logger, "conflictInfo_p " << buf[i]);
-      //   if (Options::series) {
-      //     LOG4CPLUS_WARN(logger, "conflictInfo_s " << conflictInfoBuffer_s[i]);
-      //   }
-      //   LOG4CPLUS_WARN(logger, "conflict " << conflicts_s[i]);
-      //   // if (i == 409) exit(0);
-      // }
       if (buf[i].num_samples > 0) {
         // LOG4CPLUS_TRACE(logger, "  " << buf[i]);
       } else if (buf[i].num_samples < 0) {
         // LOG4CPLUS_ERROR(logger, "num_samples = " << buf[i].num_samples);
         LOG4CPLUS_WARN(logger, "conflictInfo_p " << buf[i]);
+      }
+      if (buf[i].num_samples == 0 && buf[i].padding == -2) {
+      // if (buf[i].currentNode == 712) {
+        LOG4CPLUS_WARN(logger, buf[i]);
+        // if (buf[i].num_line_pairs > 0) {
+        //   exit(0);
+        // }
+        if (buf[i].currentNode == 57) {
+          exit(0);
+        }
+        // count++;
+        // if (count > 5) {
+        // }
       }
     }
   }
@@ -537,18 +554,21 @@ void Octree2::addLeaf(int internalIndex, int childIndex, float3 color) {
 }
 
 void Octree2::addConflictCells() {
-  if (Options::debug) {
+  // if (Options::debug) {
     Kernels::DownloadConflicts(conflicts, conflictsBuffer, octree.size() * 4);
     // cout << "Conflicts" << endl;
     // for (int i = 0; i < conflicts.size(); i++) {
     //   cout << "  " << conflicts[i] << endl;
     // }
-  }
+  // }
   if (conflicts.size() == 0) return;
   for (int i = 0; i < octreeSize; ++i) {
     for (int j = 0; j < 4; j++) {
       if (conflicts[4 * i + j].color == -2) {
-        addLeaf(i, j, { 1.0, 0.0, 0.0 });
+        // addLeaf(i, j, { 1.0, 0.0, 0.0 });
+        addLeaf(i, j, { Options::conflict_color[0],
+                Options::conflict_color[1],
+                Options::conflict_color[2] });
       }
     }
   }
@@ -563,12 +583,6 @@ void Octree2::draw(const glm::mat4& mvMatrix) {
     print_gl_error();
     glBufferData(GL_ARRAY_BUFFER, sizeof(Instance) * gl_instances.size(), gl_instances.data(), GL_STREAM_DRAW);
     print_gl_error();
-    // glm::mat4 identity(1.0);
-    // // jme
-    // glm::mat4 scale = glm::scale(identity, glm::vec3(2.0f, 2.0f, 2.0f));
-    // /jme
-    // glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(identity[0].x)); //glm::value_ptr wont work on identity for some reason...
-    // glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(scale[0].x));
     glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
     glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
     print_gl_error();

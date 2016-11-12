@@ -15,7 +15,8 @@ using namespace GLUtilities;
 #define DOWN true
 #define UP false
 
-glm::mat4 mvMatrix(1.0);
+// glm::mat4 mvMatrix(1.0);
+glm::mat4 mvMatrix(0.2);
 
 static MouseData md;
 static GLFWcursor* crossHairCursor;
@@ -23,25 +24,31 @@ static floatn point1 = make_floatn(-1.0, -1.0);
 static floatn point2 = make_floatn(1.0, 1.0);
 
 static void C(bool down) {
+  if (down) {
     cout << "Clearing!" << endl;
     Data::lines->clear();
     //octree->build(*lines);
+  }
 }
 
 static void P(bool down) {
-    cout << "Toggling Points!" << endl;
-    Options::showObjectVertices = !Options::showObjectVertices;
+    if (down) {
+      cout << "Toggling Points!" << endl;
+      Options::showObjectVertices = !Options::showObjectVertices;
+    }
 }
 
 static void O(bool down) {
-    cout << "Toggling Octree!" << endl;
-    if (down)
-        Options::showOctree = !Options::showOctree;
+    if (down) {
+      cout << "Toggling Octree!" << endl;
+      Options::showOctree = !Options::showOctree;
+    }
 }
 
 static void Z(bool down) {
   if (down) {
-    mvMatrix = glm::mat4(1.0);
+    // mvMatrix = glm::mat4(1.0);
+    mvMatrix = glm::mat4(0.8);
   }
     // mvMatrix = glm::scale(mvMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
     // cout << "Toggling Zoom Mode!" << endl;
@@ -58,8 +65,10 @@ static void Z(bool down) {
 }
 
 static void Q(bool down) {
+  if (down) {
     cout << "Quitting!" << endl;
     glfwSetWindowShouldClose(GLUtilities::window, 1);
+  }
 }
 
 void LeftMouse(bool down, int mods) {
