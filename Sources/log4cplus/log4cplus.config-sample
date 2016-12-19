@@ -1,6 +1,7 @@
 #log4cplus.logger.processArgs=DEBUG
 #log4cplus.logger.Octree2=TRACE
-#log4cplus.logger.Octree2.makeZOrderPoints=TRACE
+#log4cplus.logger.Octree2.benchmark=INFO
+log4cplus.logger.Octree2.getConflictCells=INFO
 
 #log4cplus.rootLogger=TRACE, A1
 #log4cplus.rootLogger=DEBUG, A1

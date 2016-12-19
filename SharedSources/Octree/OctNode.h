@@ -33,6 +33,11 @@ typedef struct OctNode {
   cl_int parent;
 } OctNode;
 
+typedef struct Leaf {
+  cl_int parent;
+  cl_int zIndex;
+} Leaf;
+
 typedef struct FacetPair {
     cl_int first;
     cl_int last;

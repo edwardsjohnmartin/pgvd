@@ -28,10 +28,12 @@ private:
     std::vector<Line> lines;
     std::vector<Line> orderedLines;
     std::vector<Conflict> conflicts;
+    std::vector<Leaf> leaves;
     int octreeSize;
     BoundingBox bb;
     Resln resln;
     int totalPoints;
+    int totalLeaves;
     int resolutionPointsSize;
 
     std::vector<glm::vec3> offsets;
@@ -58,16 +60,17 @@ private:
     cl::Buffer orderedNodeIndices;
     cl::Buffer conflictsBuffer;
     cl::Buffer resolutionPointsBuffer;
+    cl::Buffer leavesBuffer;
 
-    void generatePoints(const PolyLines *polyLines);
-    void computeBoundingBox(const int totalPoints);
-    void quantizePoints(int numResolutionPoints = 0);
-    void makeZOrderPoints();
-    void GetUnorderedBCellFacetPairs();
-    void buildVertexOctree();
-    void identifyConflictCells();
+    void getPoints(const PolyLines *polyLines);
+    void getBoundingBox(const int totalPoints);
+    void getQuantizedPoints(int numResolutionPoints = 0);
+    void getZOrderPoints();
+    void getUnorderedBCellFacetPairs();
+    void getVertexOctree();
+    void getConflictCells();
     void getResolutionPoints();
-    void insertResolutionPoints();
+    void addResolutionPoints();
 
 public:
     Octree2();
@@ -89,6 +92,7 @@ private:
     void addOctreeNodes(int index, floatn offset, float scale, float3 color);
     void addLeaf(int internalIndex, int leafIndex, float3 color);
     void addConflictCells();
+    void drawResolutionPoints();
 };
 
 
