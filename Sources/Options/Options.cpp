@@ -72,7 +72,7 @@ int maxConflictIterations = -1;
 bool zoomMode;
 
 bool debug = false;
-std::string cl_options = "";
+std::string cl_options = "-cl-std=CL1.2 ";
 
 bool processArg(int& i, char** argv) {
   int orig_i = i;
