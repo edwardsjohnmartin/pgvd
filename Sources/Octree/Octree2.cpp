@@ -263,33 +263,26 @@ void Octree2::getResolutionPoints() {
     }
   }
 
-
+  //-----------------
+  // Debug
+  //-----------------
   if (logger.isEnabledFor(log4cplus::DEBUG_LOG_LEVEL)) {
     vector<ConflictInfo> buf;
     int bsize = octreeSize * 4;
     Kernels::DownloadConflictInfo(buf, conflictInfoBuffer, bsize);
-    LOG4CPLUS_TRACE(logger, "ConflictInfo (" << bsize << ")");
-
+    LOG4CPLUS_DEBUG(logger, "ConflictInfo (" << bsize << ")");
     int count = 0;
     for (int i = 0; i < bsize; ++i) {
       if (buf[i].num_samples > 0) {
-        // LOG4CPLUS_TRACE(logger, "  " << buf[i]);
+        LOG4CPLUS_TRACE(logger, "  " << buf[i]);
       } else if (buf[i].num_samples < 0) {
-        // LOG4CPLUS_ERROR(logger, "num_samples = " << buf[i].num_samples);
         LOG4CPLUS_WARN(logger, "conflictInfo_p " << buf[i]);
       }
       if (buf[i].num_samples == 0 && buf[i].padding == -2) {
-      // if (buf[i].currentNode == 712) {
         LOG4CPLUS_WARN(logger, buf[i]);
-        // if (buf[i].num_line_pairs > 0) {
-        //   exit(0);
-        // }
         if (buf[i].currentNode == 57) {
           exit(0);
         }
-        // count++;
-        // if (count > 5) {
-        // }
       }
     }
   }
@@ -314,6 +307,7 @@ void Octree2::getResolutionPoints() {
       "resolutionIntermediate", false);
   assert_cl_error(success);
 
+  // Get number of samples
   LOG4CPLUS_TRACE(logger, "Reading resolutionPointsSize "
                   << octreeSize);
   success = CLFW::DefaultQueue.enqueueReadBuffer(
@@ -345,6 +339,7 @@ void Octree2::getResolutionPoints() {
   using namespace GLUtilities;
   for (int i = 0; i < gpuResolutionPoints.size(); ++i) {
     intn q = gpuResolutionPoints[i];
+    LOG4CPLUS_TRACE(logger, q);
     floatn newp = UnquantizePoint(&q, &bb.minimum, resln.width, bb.maxwidth);
 
     resolutionPoints.push_back(q);
@@ -421,7 +416,17 @@ void Octree2::build(const PolyLines *polyLines) {
 
   makeZOrderPoints();
   t.restart("resolve conflicts");
+
+  if (Options::maxConflictIterations == 0) {
+    makeZOrderPoints();
+    CLFW::DefaultQueue.finish();
+    CLFW::DefaultQueue = CLFW::Queues[0];
+    buildVertexOctree();
+  }
+
   do {
+  // while (previousSize != octreeSize && resolutionPointsSize != 0 &&
+  //        totalIterations < Options::maxConflictIterations) {
     Timer itTimer(logger, "Iteration");
     totalIterations++;
     LOG4CPLUS_INFO(logger, "Iteration " << totalIterations
@@ -464,6 +469,12 @@ void Octree2::build(const PolyLines *polyLines) {
       break;
     }
   } while (previousSize != octreeSize && resolutionPointsSize != 0);
+  // }
+
+  // if (totalIterations == Options::maxConflictIterations) {
+  //   LOG4CPLUS_WARN(logger, "*** Warning: may have broken out of conflict "
+  //                  << "detection loop early for debugging purposes.");
+  // }
 
   LOG4CPLUS_INFO(logger, "Total iterations: " << totalIterations);
   LOG4CPLUS_INFO(logger, "Octree size: " << octreeSize);
@@ -492,7 +503,8 @@ void Octree2::addOctreeNodes() {
 
     if (octreeSize == 0) return;
     center = (bb.minimum + bb.maxwidth*.5);
-    float3 color = { 1.0, 1.0, 1.0 };
+    // float3 color = { 1.0, 1.0, 1.0 };
+    float3 color = { .75, 0.75, 0.75 };
     addOctreeNodes(0, center, bb.maxwidth, color);
 }
 

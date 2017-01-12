@@ -76,10 +76,14 @@ static void Q(bool down) {
 
 void LeftMouse(bool down, int mods) {
   // md.leftDown = down;
-  if ((mods & GLFW_MOD_SHIFT) != 0) {
+  if ((mods & GLFW_MOD_SHIFT) != 0 && (mods & GLFW_MOD_CONTROL) == 0) {
     Data::lines->addPoint({ md.x, -md.y });
     Data::octree->build(Data::lines);
     refresh();
+  } else if ((mods & GLFW_MOD_SHIFT) != 0 && (mods & GLFW_MOD_CONTROL) != 0) {
+    glm::mat4 T = glm::translate(glm::mat4(1.0f), glm::vec3(-md.x, md.y, 0.0f));
+    glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(.5f, .5f, 1.0f));
+    mvMatrix = S * T * mvMatrix;
   } else if ((mods & GLFW_MOD_CONTROL) != 0) {
     glm::mat4 T = glm::translate(glm::mat4(1.0f), glm::vec3(-md.x, md.y, 0.0f));
     glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 1.0f));

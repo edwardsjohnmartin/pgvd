@@ -124,7 +124,7 @@ namespace GLUtilities {
         glUniformMatrix4fv(
             Shaders::sketchProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
         print_gl_error();
-        glUniform1f(Shaders::sketchProgram->pointSize_id, 10.0);
+        glUniform1f(Shaders::sketchProgram->pointSize_id, 5.0);
         print_gl_error();
         glDrawArraysInstanced(GL_POINTS, 0, 1, points.size());
         print_gl_error();

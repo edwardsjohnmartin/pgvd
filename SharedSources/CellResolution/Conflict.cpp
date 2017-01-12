@@ -13,10 +13,15 @@
 #ifdef __cplusplus
 #define mylog log
 #define mypow pow
+#define mypowr pow
+#define mysqrt sqrt
 #else
 // #define mylog half_log
 #define mylog native_log
-#define mypow native_powr
+// #define mypow native_powr
+#define mypowr native_powr
+#define mypow pown
+#define mysqrt native_sqrt
 #endif
 
 //------------------------------------------------------------
@@ -736,16 +741,7 @@ void add_sample_debug(
     }
 }
 
-floatn get_sample(const cl_int i, const LinePair* lp) {
-  // const cl_int max_i = lp->num_samples;
-  // const cl_float alpha = lp->alpha;
-  // const cl_float k1_even = lp->k1_even;
-  // const cl_float k2_even = lp->k2_even;
-  // const cl_float k1_odd = lp->k1_odd;
-  // const cl_float k2_odd = lp->k2_odd;
-  // const floatn p_origin = lp->p_origin;
-  // const floatn u = lp->u;
-
+floatn get_sample(const cl_int i, const LinePair* lp, bool debug) {
   const bool parallel = (lp->k2_even == 0);
 
   cl_float s;
@@ -754,36 +750,24 @@ floatn get_sample(const cl_int i, const LinePair* lp) {
   } else if (i == 1) {
     s = lp->s1;
   } else if (i % 2 == 0) {
+    // even
     if (parallel) {
       s = lp->s0 + (i/2)*lp->a0;
     } else {
-      // const cl_float po = mypow(lp->alpha, i/2);
-      const cl_float po = sqrt(mypow(lp->alpha, i));
+      const cl_float po = mypow(lp->alpha, i/2);
       s = lp->k1_even + lp->k2_even * po;
     }
   } else {
+    // odd
     if (parallel) {
       s = lp->s1 + (i/2)*lp->a0;
     } else {
-      // const cl_float po = mypow(lp->alpha, i/2);
-      const cl_float po = sqrt(mypow(lp->alpha, i));
+      // Yes, i is odd and so i/2 truncates. This is because po expects i
+      // to be the i'th *odd* sample.
+      const cl_float po = mypow(lp->alpha, i/2);
       s = lp->k1_odd + lp->k2_odd * po;
     }
   }
-  // if (i == 0) {
-  //   s = lp->s0;
-  // }
-  // else if (i == 1) {
-  //   s = lp->s1;
-  // }
-  // else if (i % 2 == 0) {
-  //   const cl_float po = mypow(lp->alpha, i / 2.0F);
-  //   s = lp->k1_even + lp->k2_even * po;
-  // }
-  // else {
-  //   const cl_float po = mypow(lp->alpha, i / 2.0F);
-  //   s = lp->k1_odd + lp->k2_odd * po;
-  // }
   return lp->p_origin + lp->u*s;
 }
 
@@ -800,13 +784,6 @@ void sample_v_conflict(
   // p = p0 + su
   // q = q0 + tv
   // r = r0 + fw
-
-  // if (info->currentNode == 955) {
-  //   line_pair->k1_even = v.x;
-  //   line_pair->k2_even = v.y;
-  //   line_pair->k1_odd = w.x;
-  //   line_pair->k2_odd = w.y;
-  // }
 
   // Handle starting with an intersection
   //error: THIS COMPARISON IS BROKEN ON OPENCL!!!
@@ -860,18 +837,6 @@ void sample_v_conflict(
   bool antiparallel = (nc < ERROR);
   const cl_float alpha = alpha_f(opposite, &p_origin, &q0, &r0, &u, &v, &w);
 
-  // if (info->currentNode == 712) {
-  //   line_pair->alpha = nc;//alpha;
-  //   line_pair->k1_even = v.x;
-  //   line_pair->k2_even = v.y;
-  //   line_pair->k1_odd = w.x;
-  //   line_pair->k2_odd = w.y;
-  //   // line_pair->k1_even = p_origin.x;
-  //   // line_pair->k2_even = p_origin.y;
-  //   // line_pair->k1_odd = u.x;
-  //   // line_pair->k2_odd = u.y;
-  //   return;
-  // }
   // If alpha is less than one then the lines are directed toward each other
   if (alpha < 1-EPSILON || fabs(v.x) < EPSILON || fabs(w.x) < EPSILON) {
     antiparallel = true;
@@ -899,11 +864,6 @@ void sample_v_conflict(
   const cl_float beta = beta_f(opposite, &p_origin, &q0, &r0, &u, &v, &w);
   cl_float a0 = fabs(a_f(opposite, s0, &p_origin, &q0, &r0, &u, &v, &w));
 
-  // const cl_float s1 = s0 + a0 / (2 * u.x);
-  // const cl_float k1_even = beta / (1 - alpha);
-  // const cl_float k1_odd = beta / (1 - alpha);
-  // const cl_float k2_even = (alpha*s0 + beta - s0) / (alpha - 1);
-  // const cl_float k2_odd = (alpha*s1 + beta - s1) / (alpha - 1);
   const cl_float s1 = s0 + a0/(2*u.x);
   const cl_float k1_even = parallel ? 0 : beta / (1-alpha);
   const cl_float k1_odd = parallel ? 0 : beta / (1-alpha);
@@ -916,15 +876,6 @@ void sample_v_conflict(
   const cl_int max_odd = parallel ? (u.x*sn/a0) :
       (cl_int)ceil(mylog((sn-k1_odd)/k2_odd) / log_alpha);
   cl_int max_i = max_even + max_odd + 2;
-
-  // // info->offsets[0] = (cl_int)(mylog(alpha)*100);
-  // // cl_int temp = (cl_int) log_alpha;
-  // info->offsets[0] = max_odd;//log_alpha*1000;
-  // info->offsets[1] = max_even;//log_alpha*1000;
-  // info->offsets[2] = max_i;//log_alpha*1000;
-  // // info->offsets[0] = temp;
-  // info->padding = log_alpha;
-  // info->padding = sn;
 
   // After getting the s values we transform the bisector back to the original
   // frame. Get a copy of the transformed values first.
@@ -942,7 +893,7 @@ void sample_v_conflict(
   while (max_i > 0 && !max_done) {
     const cl_int i = max_i - 1;
     // const cl_float po = mypow(alpha, i / 2.0F);
-    const cl_float po = sqrt(mypow(alpha, i));
+    const cl_float po = mypow(sqrt(alpha), i);//sqrt(mypow(alpha, i));
     cl_float s;
     if (i % 2 == 0) {
       if (parallel) {
@@ -968,29 +919,17 @@ void sample_v_conflict(
     }
   }
 
-  // TODO
-  // if (info->currentNode != 955) {
-    line_pair->num_samples = max_i;
-    line_pair->s0 = s0;
-    line_pair->s1 = s1;
-    line_pair->alpha = alpha;
-    line_pair->k1_even = k1_even;
-    line_pair->k2_even = k2_even;
-    line_pair->k1_odd = k1_odd;
-    line_pair->k2_odd = k2_odd;
-    line_pair->p_origin = p_origin;
-    line_pair->u = u;
-    line_pair->a0 = a0;
-  // }
-
-  // // TODO remove
-  // line_pair->s0 = sqrt(pown(alpha, 1));
-  // line_pair->s1 = sqrt(pown(alpha, 2));
-  // line_pair->k1_even = sqrt(pown(alpha, 3));
-  // line_pair->s0 = pow(alpha, 1);
-  // line_pair->s1 = pown(alpha, 2);
-  // line_pair->k1_even = pown(alpha, 3);
-  // line_pair->k2_even = 3;
+  line_pair->num_samples = max_i;
+  line_pair->s0 = s0;
+  line_pair->s1 = s1;
+  line_pair->alpha = alpha;
+  line_pair->k1_even = k1_even;
+  line_pair->k2_even = k2_even;
+  line_pair->k1_odd = k1_odd;
+  line_pair->k2_odd = k2_odd;
+  line_pair->p_origin = p_origin;
+  line_pair->u = u;
+  line_pair->a0 = a0;
 }
 
 // The lines are given in "original" parameter space, where the endpoints
@@ -1013,12 +952,6 @@ void sample_conflict_impl(ConflictInfo* info,
   LineSegment s0 = make_segment_from_point(&q0_, &q1_);
   LineSegment s1 = make_segment_from_point(&r0_, &r1_);
 
-//   if (info->currentNode == 57) {
-// #ifdef __cplusplus
-//     printf("Break here\n");
-// #endif
-//   }
-
   LineSegmentPair pairs[4];
   // Get "v" or "pair" lines
   const cl_int num_pairs = get_line_segment_pairs(
@@ -1029,49 +962,10 @@ void sample_conflict_impl(ConflictInfo* info,
 
   const BB bb_ = make_bb_from_data(&origin_, width);
 
-  // if (info->currentNode == 57) {
-  //   // info->num_samples = -3;
-  //   // info->num_line_pairs = num_pairs;
-  //   info->offsets[0] = origin__.x;
-  //   info->offsets[1] = origin__.y;
-  //   info->offsets[2] = width;
-  //   // info->line_pairs[0].k1_even = q0_.x;
-  //   // info->line_pairs[1].k2_even = q0_.y;
-  //   // info->line_pairs[2].k1_odd = q1_.x;
-  //   // info->line_pairs[3].k2_odd = q1_.y;
-  //   info->line_pairs[0].k1_even = r0_.x;
-  //   info->line_pairs[0].k2_even = r0_.y;
-  //   info->line_pairs[0].k1_odd = r1_.x;
-  //   info->line_pairs[0].k2_odd = r1_.y;
-  //   // info->line_pairs[0].k1_even = r0_int.x;
-  //   // info->line_pairs[0].k2_even = r0_int.y;
-  //   // info->line_pairs[0].k1_odd = r1_int.x;
-  //   // info->line_pairs[0].k2_odd = r1_int.y;
-  //   return;
-  // }
-
   cl_int idx = 0;
   for (cl_int i = 0; i < num_pairs; ++i) {
     LineSegment* a = &pairs[i].s0;
     LineSegment* b = &pairs[i].s1;
-
-    //if (info->currentNode == 185 && i == 2) {
-    //  // break here.
-    //  cl_int j = 3;
-    //}
-
-    // // if (info->currentNode == 57 && i == 0) {
-    // if (info->currentNode == 57) {
-    //   // info->offsets[0] = a_valid;
-    //   // info->offsets[1] = b_valid;
-    //   // info->offsets[2] = small_bb.w;
-    //   // info->offsets[3] = small_bb.h;
-    //   // info->offsets[0] = a->p0.x;
-    //   // info->offsets[1] = a->p0.y;
-    //   // info->offsets[2] = a->p1.x;
-    //   // info->offsets[3] = a->p1.y;
-    //   // return;
-    // }
 
     bool a_valid, b_valid;
     *a = clip_segment(a, &bb_, &a_valid);
@@ -1083,17 +977,6 @@ void sample_conflict_impl(ConflictInfo* info,
     add_to_bb(&b->p0, &small_bb);
     add_to_bb(&b->p1, &small_bb);
 
-    // if (info->currentNode == 57) {
-      
-    //   // info->num_samples = -3;
-    //   // info->num_line_pairs = num_pairs;
-    //   // info->offsets[0] = a_valid;
-    //   // info->offsets[1] = b_valid;
-    //   // info->offsets[2] = small_bb.w;
-    //   // info->offsets[3] = small_bb.h;
-    //   return;
-    // }
-    
     info->line_pairs[idx].num_samples = 0;
     if (a_valid && b_valid && small_bb.w >= 1 && small_bb.h >= 1) {
       sample_v_conflict(&(info->line_pairs[idx]), a->p0, a->p1 - a->p0,
@@ -1162,7 +1045,7 @@ void sample_conflict_kernel(
     }
 
     const LinePair* line_pair = &info->line_pairs[j];
-    const floatn p = get_sample(k, line_pair);
+    const floatn p = get_sample(k, line_pair, info->currentNode==12);
     *samples = p;
   }
 }
