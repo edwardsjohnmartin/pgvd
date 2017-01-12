@@ -165,7 +165,8 @@ class PolyLines {
       }
       if (Options::showObjects) {
         glDrawArrays(GL_LINE_STRIP, first, len);
-        print_gl_error();
+        // print_gl_error();
+        ignore_gl_error();
       }
       first = lasts[i];
     }
