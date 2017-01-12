@@ -2,6 +2,7 @@
 #include "./SharedSources/ZOrder/z_order.h"
 #include "./SharedSources/Line/Line.h"
 #include "./SharedSources/CellResolution/ConflictCellDetection.h"
+#include "./SharedSources/Octree/BuildOctree.h"
 __kernel void QuantizePointsKernel(
   __global intn *quantizePoints,
   __global floatn *points,
@@ -168,6 +169,15 @@ __kernel void BUSingleCompactKernel(
   BUSingleCompact(inputBuffer, resultBuffer, predicateBuffer, addressBuffer, get_global_id(0));
 }
 
+__kernel void LeafDoubleCompactKernel(
+  __global Leaf *inputBuffer,
+  __global Leaf *resultBuffer,
+  __global unsigned *predicateBuffer,
+  __global unsigned *addressBuffer,
+  cl_int size)
+{
+  LeafDoubleCompact(inputBuffer, resultBuffer, predicateBuffer, addressBuffer, size, get_global_id(0));
+}
 
 //Binary Radix Tree Builder
 __kernel void BuildBinaryRadixTreeKernel(
@@ -197,7 +207,6 @@ __kernel void ComputeLocalSplitsKernel(
   
 }
 
-//This is dumb and will be merged with the other kernel.
 __kernel void BRT2OctreeKernel_init(
   __global BrtNode *I,
   __global OctNode *octree,
@@ -251,6 +260,7 @@ __kernel void LookUpOctnodeFromBCellKernel(
 
 __kernel void FindConflictCellsKernel(
   __global OctNode *octree, 
+  __global Leaf *leaves, 
   __global FacetPair *facetPairs,
   __global intn* qPoints,
   __global Line* lines,
@@ -261,7 +271,7 @@ __kernel void FindConflictCellsKernel(
 ) {
   const int gid = get_global_id(0);
   FindConflictCells(
-          octree, facetPairs, &od, 
+          octree, leaves, facetPairs, &od, 
           conflicts, nodeToFacet, lines, numLines, qPoints, gid);
 }
 
@@ -357,4 +367,14 @@ __kernel void GetFacetPairsKernel(
       //Then I am the last BCell/Facet belonging to my octnode
       facetPairs[me].last = gid;
   }
+}
+__kernel void ComputeLeavesKernel(
+  __global OctNode *octree,
+  __global Leaf *leaves,
+  __global cl_int *leafPredicates,
+  int octreeSize
+)
+{
+  const int gid = get_global_id(0);
+  ComputeLeaves(octree, leaves, leafPredicates, octreeSize, gid);
 }

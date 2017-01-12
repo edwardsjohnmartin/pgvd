@@ -31,7 +31,7 @@ void fixResolution(int& width, int& height) {
     }
 }
 
-void InitializeGLFW(int width = 1024, int height = 1024) {
+void InitializeGLFW(int width = 1000, int height = 1000) {
   using namespace GLUtilities;
   GLUtilities::window_height = height;
   GLUtilities::window_width = width;

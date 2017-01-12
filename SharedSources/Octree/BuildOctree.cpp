@@ -117,7 +117,6 @@ void brt2octree( const int gid, __global BrtNode* I, __global volatile OctNode* 
     }
   }
 }
-
 void brt2octree_init(const int brt_i, __global OctNode* octree ) {
   octree[brt_i].leaf = 15;
   for (int i = 0; i < (1 << DIM); ++i) {
@@ -131,6 +130,42 @@ void brt2octree_kernel(__global BrtNode* I, __global OctNode* octree, __global u
     brt2octree_init( i, octree);
   for (int brt_i = 1; brt_i < n-1; ++brt_i)
     brt2octree( brt_i, I, octree, local_splits, prefix_sums, n, octree_size);
+}
+
+// gid is between 0 and 4/8X the octree size.
+void ComputeLeaves(__global OctNode *octree, __global Leaf *leaves, __global cl_int *leafPredicates, cl_int octreeSize, cl_int gid) {
+  int parentIndex = gid / 4;
+  int leafIndex = gid % 4;
+  OctNode n = octree[parentIndex];
+  if (parentIndex < octreeSize && n.leaf & (1 << leafIndex)) {
+    leaves[gid].parent = parentIndex;
+    leaves[gid].zIndex = leafIndex;
+    leafPredicates[gid] = 1;
+  }
+  else {
+    leaves[gid].parent = -1;
+    leaves[gid].zIndex = -1;
+    leafPredicates[gid] = 0;
+  }
+
+}
+
+void LeafDoubleCompact(__global Leaf *inputBuffer, __global Leaf *resultBuffer, __global unsigned int *lPredicateBuffer, __global unsigned int *leftBuffer, const cl_int size, const int gid)
+{
+  int a = leftBuffer[gid];
+  int b = leftBuffer[size - 2];
+  int c = lPredicateBuffer[gid];
+  int e = lPredicateBuffer[size - 1];
+
+  //Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
+  int t = gid - a + (e + b);
+  int d = (!c) ? t : a - 1;
+
+  //This really suffers from poor coalescing
+#ifdef __OPENCL_VERSION__
+  barrier(CLK_GLOBAL_MEM_FENCE);
+#endif
+  resultBuffer[d] = inputBuffer[gid];
 }
 
 #ifndef __OPENCL_VERSION__
