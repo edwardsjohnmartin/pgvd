@@ -1,6 +1,3 @@
-// Had to add to would compile on Mac
-#include <GL/glew.h>
-
 #include "Kernels/Kernels.h"
 #include "HelperFunctions.hpp"
 #include "catch.hpp"

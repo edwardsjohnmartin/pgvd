@@ -10,6 +10,8 @@
 #pragma region Include files
 /* Host-Only Include files */
 #ifndef OpenCL
+// Had to move this here to compile on Mac
+#include "GLUtilities/gl_utils.h"
 #ifdef __APPLE__
 #include "./cl.hpp"
 #else
@@ -19,7 +21,6 @@
 #include  "Options/options.h"
 #include "./glm/gtc/matrix_transform.hpp"
 #include "clfw.hpp"
-#include "GLUtilities/gl_utils.h"
 #include "GLUtilities/Sketcher.h"
 #include "Vector/vec.h"
 #include <algorithm>
