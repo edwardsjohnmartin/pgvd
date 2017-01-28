@@ -100,7 +100,8 @@ inline int initMorton(BigUnsigned *result, Blk x) {
 }
 
 //~~BIT/BLOCK ACCESSORS~~//
-inline Blk getBUBlock(BigUnsigned *bu, Index i) {
+// Had to make static so it would link on Mac
+static inline Blk getBUBlock(BigUnsigned *bu, Index i) {
   return i >= bu->len ? 0 : bu->blk[i];
 }
 inline void setBUBlock(BigUnsigned *bu, Index i, Blk newBlock) {
@@ -124,7 +125,8 @@ inline Blk getShiftedBUBlock(BigUnsigned *num, Index x, int y) {
   Blk part2 = (x == num->len) ? 0 : (num->blk[x] << y);
   return part1 | part2;
 }
-inline bool getBUBit(BigUnsigned *bu, Index bi) {
+// Had to make static so it would link on Mac
+static inline bool getBUBit(BigUnsigned *bu, Index bi) {
   Blk blockIndex = bi / numBUBits;
   Blk bitIndex = bi % numBUBits;
   return (getBUBlock(bu, blockIndex) & (1 << bitIndex)) != 0;

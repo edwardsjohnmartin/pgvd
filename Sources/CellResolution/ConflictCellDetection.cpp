@@ -1,3 +1,6 @@
+// Had to add this here to avoid compilation error on Mac.
+#include <GL/glew.h>
+
 #include "BigUnsigned/BigUnsigned.h"
 #include "Line/Line.h"
 #include "Vector/vec.h"

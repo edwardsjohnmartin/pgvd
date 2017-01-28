@@ -3,7 +3,7 @@
 #include "clfw.hpp"
 #include <cstdlib>
 extern "C" {
-#include "BinaryRadixTree\BuildBRT.h"
+#include "BinaryRadixTree/BuildBRT.h"
 }
 
 int main( int argc, char* const argv[] )
