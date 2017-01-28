@@ -1,4 +1,5 @@
-set (PROGRAMS_SRC 
+set (Programs_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	${CMAKE_CURRENT_SOURCE_DIR}/ShaderProgram.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/ShaderProgram.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/LinesProgram.h

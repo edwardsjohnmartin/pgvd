@@ -1,3 +1,4 @@
-set (COLOR_SRC 
+set (Color_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	${CMAKE_CURRENT_SOURCE_DIR}/Color.h 
 	PARENT_SCOPE)

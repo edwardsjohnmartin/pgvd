@@ -1,0 +1,8 @@
+set (Boolean_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
+	${CMAKE_CURRENT_SOURCE_DIR}/bool.h
+	PARENT_SCOPE)
+
+ #set (Boolean_KRNLSRC
+ #	${CMAKE_CURRENT_SOURCE_DIR}/bool.h
+ #	PARENT_SCOPE)

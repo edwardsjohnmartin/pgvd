@@ -1,3 +1,3 @@
-set (TIMER_SRC 
-	${CMAKE_CURRENT_SOURCE_DIR}/timer.h 
+set (Timer_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	PARENT_SCOPE)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../SharedSources/Vector/vec.h"
+#include "Vector/vec.h"
 #include <ctime>
 #include <cstdlib>
 namespace Color {

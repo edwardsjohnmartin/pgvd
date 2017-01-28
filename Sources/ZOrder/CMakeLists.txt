@@ -1,0 +1,4 @@
+set(ZOrder_SRC
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
+	${CMAKE_CURRENT_SOURCE_DIR}/z_order.h
+	PARENT_SCOPE)

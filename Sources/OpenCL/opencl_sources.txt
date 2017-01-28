@@ -1,0 +1,5 @@
+./Sources/ParallelAlgorithms/ParallelAlgorithms.c
+./Sources/Octree/BuildOctree.cpp
+./Sources/CellResolution/ConflictCellDetection.cpp
+./Sources/CellResolution/Conflict.cpp
+./Sources/Kernels/kernels.h

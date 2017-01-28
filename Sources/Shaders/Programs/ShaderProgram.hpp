@@ -2,7 +2,7 @@
 
 #include <string>
 #include <assert.h>
-#include "../../GLUtilities/gl_utils.h"
+#include "GLUtilities/gl_utils.h"
 
 using namespace std;
 class ShaderProgram {

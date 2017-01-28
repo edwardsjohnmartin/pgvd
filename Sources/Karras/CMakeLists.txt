@@ -1,4 +1,5 @@
-set (KARRAS_SRC 
+set (Karras_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	${CMAKE_CURRENT_SOURCE_DIR}/Karras.h 
 	${CMAKE_CURRENT_SOURCE_DIR}/Karras.cpp 
 	PARENT_SCOPE)

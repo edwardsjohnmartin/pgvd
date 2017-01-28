@@ -5,12 +5,12 @@
 
 #include "./glm/gtc/matrix_transform.hpp"
 extern "C" {
-  #include "../../SharedSources/Line/Line.h"
+  #include "Line/Line.h"
 }
-#include "../../Sources/Shaders/Shaders.hpp"
-#include "../../SharedSources/Vector/vec.h"
-#include "../Options/Options.h"
-#include "../Color/Color.h"
+#include "Shaders/Shaders.hpp"
+#include "Vector/vec.h"
+#include "Options/Options.h"
+#include "Color/Color.h"
 #include <cstring>
 #include <iostream>
 
@@ -110,8 +110,8 @@ class PolyLines {
         //then add the lines in this polyline
         for (int j = 0; j < (last - first) - 1; ++j) {
           Line line;
-          line.firstIndex = first + j - totalSkips;
-          line.secondIndex = first + j + 1 - totalSkips;
+          line.first = first + j - totalSkips;
+          line.second = first + j + 1 - totalSkips;
           line.color = first;
           lines.push_back(line);
         }

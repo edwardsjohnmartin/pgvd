@@ -1,4 +1,8 @@
-set (KERNELS_SRC 
+set (Kernels_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	${CMAKE_CURRENT_SOURCE_DIR}/Kernels.h 
-	${CMAKE_CURRENT_SOURCE_DIR}/Kernels.cpp 
 	PARENT_SCOPE)
+
+ set (Kernels_KRNLSRC 
+ 	${CMAKE_CURRENT_SOURCE_DIR}/Kernels.h
+ 	PARENT_SCOPE)

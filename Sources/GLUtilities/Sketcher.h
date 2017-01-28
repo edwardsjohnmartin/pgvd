@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
-#include "../Shaders/Shaders.hpp"
-#include "../../SharedSources/Vector/vec.h"
-#include "../GLUtilities/gl_utils.h"
+#include "Shaders/Shaders.hpp"
+#include "Vector/vec.h"
+#include "GLUtilities/gl_utils.h"
 #include <glm/glm.hpp>
 using namespace std;
 namespace GLUtilities {
@@ -11,10 +11,10 @@ namespace GLUtilities {
         float4 color;
     } Point;
 
-    typedef struct Line {
+    typedef struct SketcherLine {
         Point p1;
         Point p2;
-    } Line;
+    } SketcherLine;
 
     typedef struct Box {
         float4 min;
@@ -25,7 +25,7 @@ namespace GLUtilities {
     class Sketcher
     {
         std::vector<Point> points;
-        std::vector<Line> lines;
+        std::vector<SketcherLine> lines;
         std::vector<Box> boxes;
 
         GLuint VBO;
@@ -137,7 +137,7 @@ namespace GLUtilities {
         Shaders::sketchProgram->use();
         glBindVertexArray(linesVAO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Line) * lines.size(), lines.data(), GL_STREAM_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(SketcherLine) * lines.size(), lines.data(), GL_STREAM_DRAW);
         glm::mat4 identity(1.0F);
         // glUniformMatrix4fv(
         //     Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
@@ -159,7 +159,7 @@ namespace GLUtilities {
         void add(Point p) {
             points.push_back(p);
         }
-        void add(Line l) {
+        void add(SketcherLine l) {
             lines.push_back(l);
         }
         void add(Box b) {

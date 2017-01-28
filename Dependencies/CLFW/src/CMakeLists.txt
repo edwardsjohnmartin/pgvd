@@ -11,4 +11,6 @@ set ( INCLUDE_DIR
 )  
 
 include_directories(${INCLUDE_DIR})
+MESSAGE("testing ${OPENCL_INCLUDE_DIR}")
+
 add_library(CLFW ${SRC} ${INCLUDE_DIR})

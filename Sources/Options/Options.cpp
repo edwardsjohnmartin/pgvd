@@ -73,7 +73,7 @@ namespace Options {
 
   bool debug = false;
   bool benchmarking = false;
-  std::string cl_options = "";
+  std::string cl_options = "-cl-std=CL1.2 -I ./Sources -D OpenCL";//"-x spir -cl-std=CL2.0";
 
 #define $(flag) (strcmp(argv[i], flag) == 0)
   bool processArg(int& i, char** argv) {

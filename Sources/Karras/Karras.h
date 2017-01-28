@@ -1,19 +1,19 @@
 #ifndef __KARRAS_H__
 #define __KARRAS_H__
 
-#include "../GLUtilities/gl_utils.h"
+#include "GLUtilities/gl_utils.h"
 
 #include <vector>
 #include <stdexcept>
 
-// #include "./SharedSources/OpenCL/defs.h"
-#include "../../SharedSources/Vector/vec.h"
+// #include "./Sources/OpenCL/defs.h"
+#include "Vector/vec.h"
 extern "C" {
-  #include "../../SharedSources/OctreeResolution/Resln.h"
+  #include "OctreeResolution/Resln.h"
 }
-#include "../../SharedSources/BoundingBox/BoundingBox.h"
-#include "../../SharedSources/ZOrder/z_order.h"
-#include "../../SharedSources/Octree/OctNode.h"
+#include "BoundingBox/BoundingBox.h"
+#include "ZOrder/z_order.h"
+#include "Octree/OctNode.h"
 
 namespace Karras {
 

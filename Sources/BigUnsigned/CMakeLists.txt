@@ -1,0 +1,5 @@
+set (BigUnsigned_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
+	${CMAKE_CURRENT_SOURCE_DIR}/BigUnsigned.h 
+	${CMAKE_CURRENT_SOURCE_DIR}/LCP.h 
+	PARENT_SCOPE)

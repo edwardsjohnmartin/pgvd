@@ -2,7 +2,6 @@
 #include "clfw.hpp"
 
 #include "../../../Sources/Options/Options.h"
-
 //using namespace std;
 //using namespace cl;
 /* Verbose things */
@@ -14,20 +13,23 @@ bool CLFW::lastBufferOld = false;
 #endif
 
 void CLFW::Print(std::string s, int fgcode, int bgcode, bool _verbose) {
-  
-#ifdef _MSC_VER
-  if (IsDebuggerPresent()) {
+//#ifdef _MSC_VER
+//  if (IsDebuggerPresent()) {
     if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG)))
       printf("CLFW: %-70s\n", s.c_str());
-  }
-  else {
-    if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG)))
-      printf("\033[%d;%dmCLFW: %-70s\033[0m\n", fgcode, bgcode, s.c_str());
-  }
-#else
-  if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG))) 
-    printf("\033[%d;%dmCLFW: %-70s\033[0m\n",fgcode, bgcode, s.c_str());
-#endif // _MSC_VER
+//  }
+//  else {
+//    if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG))) {
+//      std::cout << '\033';
+//      printf("%c[%d;%dmCLFW: %-70s%c[0m\n", '\033', fgcode, bgcode, s.c_str(), '\033');
+//      std::cout << '\033'<< "0m";
+//
+//    }
+//  }
+//#else
+//  if (_verbose || ((fgcode == errorFG) && (bgcode = errorBG))) 
+//    printf("\033[%d;%dmCLFW: %-70s\033[0m\n",fgcode, bgcode, s.c_str());
+//#endif // _MSC_VER
 }
 
 /* Source file management */
@@ -55,6 +57,7 @@ cl_int CLFW::loadFile(const char* name, char** buffer, long* length)
 }
 
 /* Member Variables */
+Vendor CLFW::SelectedVendor;
 cl::Device CLFW::DefaultDevice;
 cl::Context CLFW::DefaultContext;
 cl::CommandQueue CLFW::DefaultQueue;
@@ -109,9 +112,9 @@ cl_int CLFW::Initialize(bool _verbose, bool queryMode, unsigned int numQueues) {
       SecondaryQueue = queue;
   }
   error |= get(DefaultSources);
+
   error |= Build(DefaultProgram, DefaultSources);
   error |= get(Kernels);
-  
   return error;
 }
 
@@ -188,7 +191,7 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
   sources.clear();
   char* text = 0;
   long temp;
-  loadFile("./SharedSources/OpenCL/opencl_sources.txt", &text, &temp);
+  loadFile("./Sources/OpenCL/opencl_sources.txt", &text, &temp);
   try {
     char* file = strtok(text, "\n\r\n\0");
     do {
@@ -201,7 +204,7 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
     } while (file != NULL);
   }
   catch (...) {
-    Print("Unable to open ./SharedSources/OpenCL/opencl_sources.txt!!", errorFG, errorBG);
+    Print("Unable to open ./Sources/OpenCL/opencl_sources.txt!!", errorFG, errorBG);
   }
   return CL_SUCCESS;
 }
@@ -289,8 +292,12 @@ cl_int CLFW::query(cl::Device &device) {
 
   Print("Which device would you like to use? (enter a number between 0 and " + std::to_string(Devices.size()-1) + ")", infoFG, infoBG, true);
 
-  for (cl_uint i = 0; i < Devices.size(); ++i)
-    Print("[" + std::to_string(i) + "] : " + Devices[i].getInfo<CL_DEVICE_NAME>(), infoFG, infoBG, true);
+  for (cl_uint i = 0; i < Devices.size(); ++i) {
+    Print("[" + std::to_string(i) + "] : " + Devices[i].getInfo<CL_DEVICE_NAME>() 
+      + " " + Devices[i].getInfo<CL_DEVICE_VERSION>().c_str(), infoFG, infoBG, true);
+    Print(Devices[i].getInfo<CL_DEVICE_VERSION>(), infoFG, infoBG, true);
+  }
+
 
   int selection = Options::device;
   if (selection == -1) {
@@ -304,12 +311,31 @@ cl_int CLFW::query(cl::Device &device) {
 
   device = Devices[selection];
   Print("Selected " + device.getInfo<CL_DEVICE_NAME>(), successFG, successBG, true);
+  cl_platform_id selectedPlatformId = device.getInfo<CL_DEVICE_PLATFORM>();
+  cl::Platform platform(selectedPlatformId);
+  std::string vendor = platform.getInfo<CL_PLATFORM_VENDOR>();
+  if (vendor.find("NVIDIA") != std::string::npos) {
+    SelectedVendor = Vendor::Nvidia;
+  }
+  else if (vendor.find("Intel") != std::string::npos) {
+    SelectedVendor = Vendor::Intel;
+  } 
+  else SelectedVendor = Vendor::UnknownPlatform;
   return CL_SUCCESS;
 }
 
 cl_int CLFW::Build(cl::Program &program, cl::Program::Sources &sources, cl::Context &context, cl::Device &device) {
   cl_int error;
+  //char* spir;
+  //long length;
+  //cl_int spirError;
+  //loadFile("./kernel.spir", &spir, (long*)&length);
+  //cl_program spirProgram = clCreateProgramWithIL(context(), spir, length, &error);
+
+  //program = cl::Program(spirProgram);
   program = cl::Program(context, sources, &error);
+
+
   if (error != CL_SUCCESS) {
 	  Print("Error creating program:", errorFG, errorBG);
 	  return error;

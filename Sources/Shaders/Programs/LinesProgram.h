@@ -7,8 +7,8 @@
 #include "./glm/mat4x4.hpp"
 #include "./glm/gtc/type_ptr.hpp"
 
-#include "../../GLUtilities/gl_utils.h"
-#include "../../Color/Color.h"
+#include "GLUtilities/gl_utils.h"
+#include "Color/Color.h"
 
 using namespace GLUtilities;
 class LinesProgram {
@@ -31,11 +31,11 @@ class LinesProgram {
     GLint major, minor;
     glGetIntegerv(GL_MAJOR_VERSION, &major);
     glGetIntegerv(GL_MINOR_VERSION, &minor);
-    std::string vshaderfn = "./SharedSources/OpenGL/Shaders/lines-v1.2.vert";
-    std::string fshaderfn = "./SharedSources/OpenGL/Shaders/lines-v1.2.frag";
+    std::string vshaderfn = "./Sources/OpenGL/Shaders/lines-v1.2.vert";
+    std::string fshaderfn = "./Sources/OpenGL/Shaders/lines-v1.2.frag";
     if ((major == 4 && minor >= 1) || major >= 5) {
-      vshaderfn = "./SharedSources/OpenGL/Shaders/lines.vert";
-      fshaderfn = "./SharedSources/OpenGL/Shaders/lines.frag";
+      vshaderfn = "./Sources/OpenGL/Shaders/lines.vert";
+      fshaderfn = "./Sources/OpenGL/Shaders/lines.frag";
     }
     assert(parse_file_into_str( vshaderfn.c_str(), vertex_shader, 1024 * 256));
     assert(parse_file_into_str( fshaderfn.c_str(), fragment_shader, 1024 * 256));

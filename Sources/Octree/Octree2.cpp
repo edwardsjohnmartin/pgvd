@@ -2,23 +2,20 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <ctime>
+#include <chrono>
 
-#include "../GLUtilities/gl_utils.h"
+#include "GLUtilities/gl_utils.h"
 #include "./Octree2.h"
-#include "../Timer/timer.h"
-#include "log4cplus/logger.h"
-#include "log4cplus/loggingmacros.h"
+#include "Catch/HelperFunctions.hpp"
 
 using namespace std;
 using namespace Kernels;
 
-#define benchmark(text) if (Options::benchmarking) { \
-  static log4cplus::Logger logger = log4cplus::Logger::getInstance("Octree2.benchmark"); \
-  Timer t(logger, text); \
-}
-#define check(function) {cl_int error = function; assert_cl_error(error);}
+#define benchmark(text)
+#define check(error) {assert_cl_error(error);}
 
-Octree2::Octree2() {
+Quadtree::Quadtree() {
   const int n = 4;
 
   // Octree drawn using instanced, indexed rendered cubes.
@@ -73,69 +70,282 @@ Octree2::Octree2() {
   resln = make_resln(1 << Options::max_level);
 }
 
-void Octree2::build(const PolyLines *polyLines) {
+cl_int Quadtree::placePointsOnCurve(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &qpoints_o, cl::Buffer &zpoints_o) {
+  using namespace Kernels;
+  cl_int error = 0;
+
+  /* Quantize the points. */
+  error |= QuantizePoints_p(points_i, totalPoints, bb, resln.width, uniqueString, qpoints_o);
+  check(error);
+
+  /* Convert the points to Z-Order */
+  error |= QPointsToZPoints_p(qpoints_o, totalPoints, resln.bits, uniqueString, zpoints_o);
+  check(error);
+
+  return error;
+}
+
+cl_int Quadtree::buildVertexOctree(
+	cl::Buffer zpoints_i, 
+	int totalPoints, 
+	Resln resln, 
+	BoundingBox bb, 
+	string uniqueString, 
+	cl::Buffer &octree_o, 
+	cl_int &totalOctnodes_o, 
+	cl::Buffer &leaves_o, 
+	cl_int &totalLeaves_o) 
+{
+  using namespace Kernels;
+  cl_int error = 0;
+  cl_int uniqueTotalPoints = totalPoints;
+  cl::Buffer zpoints_copy, brt;
+	/* Make a copy of the zpoints. */
+	CLFW::get(zpoints_copy, uniqueString + "zptscpy", nextPow2(sizeof(BigUnsigned) * totalPoints));
+	error |= CLFW::DefaultQueue.enqueueCopyBuffer(zpoints_i, zpoints_copy, 0, 0, totalPoints * sizeof(BigUnsigned));
+
+  /* Radix sort the zpoints */
+  error |= RadixSortBigUnsigned_p(zpoints_copy, totalPoints, resln.mbits, uniqueString);
+  check(error);
+
+  /* Unique the zpoints */
+  error |= UniqueSorted(zpoints_copy, totalPoints, uniqueString, uniqueTotalPoints);
+  check(error);
+
+  /* Build a binary radix tree*/
+  error |= BuildBinaryRadixTree_p(zpoints_copy, uniqueTotalPoints, resln.mbits, uniqueString, brt);
+  check(error);
+
+  /* Convert the binary radix tree to an octree*/
+  error |= BinaryRadixToOctree_p(brt, uniqueTotalPoints, uniqueString, octree_o, totalOctnodes_o); //occasionally currentSize is 0...
+  check(error);
+
+  /* Use the internal octree nodes to calculate leaves */
+  error |= GetLeaves_p(octree_o, totalOctnodes_o, leaves_o, totalLeaves_o);
+  check(error);
+
+  return error;
+}
+
+cl_int Quadtree::resolveAmbiguousCells(
+  cl::Buffer octree_i, 
+  cl_int numOctNodes, 
+  cl::Buffer leaves_i, 
+  cl_int numLeaves, 
+  cl::Buffer lines_i, 
+  cl_int totalLines, 
+  cl::Buffer qpoints_i,
+	cl_int totalPoints,
+  cl::Buffer LCPToLine_i,
+  cl::Buffer LCPBounds_i
+) { 
+	if (totalLines <= 1) return CL_SUCCESS;
+  using namespace Kernels;
+  cl::Buffer sparseConflicts;
+  cl_int error = 0;
+
+  /* Determine points to resolve conflict cells */
+  error |= FindConflictCells_p( octree_i, leaves_i, numLeaves, LCPToLine_i,
+		LCPBounds_i, lines_i, totalLines, qpoints_i, resln.width, sparseConflicts);
+	check(error);
+
+	//vector<Conflict>conflicts_vec;
+	//CLFW::Download<Conflict>(sparseConflicts, numLeaves, conflicts_vec);
+	//writeToFile<Conflict>(conflicts_vec, "TestData//simple//sparseConflicts.bin");
+	//cout << endl;
+
+	/* Remove the non-conflict cells */
+	cl::Buffer cPred, cAddr, conflicts;
+	cl_int numConflicts;
+	error |= CLFW::get(conflicts, "conflicts", sizeof(Conflict) * numLeaves);
+	error |= CLFW::get(cPred, "cPred", sizeof(cl_int) * numLeaves);
+	error |= CLFW::get(cAddr, "cAddr", sizeof(cl_int) * numLeaves);
+	error |= PredicateConflicts_p(sparseConflicts, numLeaves, "", cPred);
+	error |= StreamScan_p(cPred, numLeaves, "cnflctaddr",  cAddr);
+	error |= CLFW::Download<cl_int>(cAddr, numLeaves - 1, numConflicts);
+	error |= CompactConflicts_p(sparseConflicts, cPred, cAddr, numLeaves, conflicts);
+
+	/* Use the conflicts to generate resolution points */
+	cl::Buffer conflictInfo, numPtsPerConflict, scannedNumPtsPerConflict, predPntToConflict, pntToConflict;
+	cl_int numResPts;
+	error |= GetResolutionPointsInfo_p(conflicts, numConflicts, qpoints, conflictInfo, numPtsPerConflict);
+
+	/*vector<ConflictInfo> ci;
+	vector<cl_int> numc;
+	CLFW::Download<ConflictInfo>(conflictInfo, numConflicts, ci);
+	writeToFile<ConflictInfo>(ci, "TestData//simple//conflictInfo.bin");
+	CLFW::Download<cl_int>(numPtsPerConflict, numConflicts, numc);
+*/
+
+
+	error |= CLFW::get(scannedNumPtsPerConflict, "snptspercnflct", nextPow2(sizeof(cl_int) * numConflicts));
+	error |= StreamScan_p(numPtsPerConflict, numConflicts, "conflictInfo", scannedNumPtsPerConflict);
+	error |= CLFW::Download<cl_int>(scannedNumPtsPerConflict, numConflicts - 1, numResPts);
+	error |= PredicatePointToConflict_p(scannedNumPtsPerConflict, numConflicts, numResPts, predPntToConflict);
+	error |= CLFW::get(pntToConflict, "pnt2Conflict", nextPow2(sizeof(cl_int) * numResPts));
+	error |= StreamScan_p(predPntToConflict, numResPts, "pnt2Conf",  pntToConflict);
+
+
+	//vector<cl_int> pointToInfo_;
+	//CLFW::Download<cl_int>(pntToConflict, numResPts, pointToInfo_);
+	//writeToFile<cl_int>(pointToInfo_, "TestData//simple//pntToConflict.bin");
+	//cout << endl;
+//	vector<Conflict> conflicts_vec;
+//	CLFW::Download<Conflict>(conflicts, numConflicts, conflicts_vec);
+//	writeToFile<Conflict>(conflicts_vec, "TestData//simple//conflicts.bin");
+////	writeToFile<cl_int>(numConflicts, "TestData//simple//numConflicts.bin");
+
+	/* Determine the number of points needed to solve each conflict. */
+	//cl::Buffer conflictInfoBuffer, resolutionCounts,
+	//	resolutionPredicates, scannedCounts;
+	//error |= GetResolutionPointsInfo_p(
+	//	totalLeaves, conflicts, lines_i,
+	//	qpoints_i, conflictInfoBuffer, resolutionCounts,
+	//	resolutionPredicates);
+	//
+  //if (lines.size() > 1) {
+  //  //  do {
+  //  
+  //  CLFW::DefaultQueue = CLFW::Queues[0];
+  //  cl::Buffer resZPoints;
+
+  //  getResolutionPoints();
+  //  drawResolutionPoints();
+
+  //  /* */
+  //  //      getZOrderPoints(resQPoints, resZPoints, "rZPoints", totalResPoints);
+  //  ////      addResolutionPoints();
+  //  //      int otherOctreeSize;
+  //  //      cl::Buffer otherOctree;
+  //  //      getVertexOctree(resZPoints, totalResPoints, otherOctree, "otherOctree", otherOctreeSize);
+  //  //   
+  //  //    vector<OctNode> otherOctreevec1, otherOctreevec2;
+  //  //    cl_int error = Kernels::DownloadOctNodes(otherOctreevec1, otherOctree, otherOctreeSize);
+  //  //cl::Buffer octnodePredication, octnodeAddresses;
+  //  //    // Create duplicate predication
+  //  //PredicateDuplicateNodes_p(octreeBuffer, otherOctree, otherOctreeSize, octnodePredication);
+  //  //    error |= CLFW::DefaultQueue.finish();
+  //  //    error |= Kernels::DownloadOctNodes(otherOctreevec2, otherOctree, otherOctreeSize);
+  //  //vector<cl_int> addrs;
+
+  //  // Perform Octnode Compaction
+  //  /*CLFW::get(octnodeAddresses, "octaddrs", Kernels::nextPow2(otherOctreeSize) * sizeof(cl_int));
+  //  Kernels::StreamScan_p(octnodePredication, octnodeAddresses, Kernels::nextPow2(otherOctreeSize), "mergeScanI");
+  //  Kernels::Download<cl_int>(octnodeAddresses, addrs, otherOctreeSize);
+  //  cout << addrs[addrs.size() - 1] << endl;*/
+
+  //  //    cl::Buffer compactNodes;
+  //  //    CLFW::get(compactNodes, "compactNodes", Kernels::nextPow2(otherOctreeSize) * sizeof(OctNode));
+  //  //   // Kernels::OctnodeDoubleCompact(otherOctree, compactNodes, octnodePredication, octnodeAddresses, Kernels::nextPow2(otherOctreeSize));
+
+  //  //    // Merge octrees
+  //  //    cl::Buffer mergedOctree;
+  //  //    CLFW::get(mergedOctree, "mergedOctree", (octreeSize + addrs[addrs.size() - 1]) * sizeof(OctNode));
+  //  ////    // Repair indices
+
+  //  //    //cout << otherOctreeSize << endl;
+
+  //  //    //  //getZOrderPoints(); //TODO: only z-order the additional points here...
+
+  //  //    //  /*
+  //  //    //    On one queue, sort the lines for the ambiguous cell detection.
+  //  //    //    On the other, start building the karras octree.
+  //  //    //  */
+  //  //    //  
+  //  //    //  /* Identify the cells that contain more than one object. */
+  //  //    //  if (lines.size() == 0 || lines.size() == 1) break;
+  //  //    //  /* Resolve one iteration of conflicts. */
+  //  //    drawResolutionPoints();
+  //  //    //  break;
+  //  //    //  if (totalIterations == Options::maxConflictIterations) {
+  //  //    //    //LOG4CPLUS_WARN(logger, "*** Warning: breaking out of conflict "
+  //  //    //      //<< "detection loop early for debugging purposes.");
+  //  //    //    // exit(0);
+  //  //    break;
+  //  //    //  }
+  //  //  } while (previousSize != octreeSize && totalResPoints != 0);
+  //}
+  return error;
+}
+
+void Quadtree::clear() {
   using namespace GLUtilities;
   Sketcher::instance()->clear();
+  initialOctreeSize = 0;
+  totalResPoints = 0;
 
-  int totalIterations = 0;
-  int previousSize;
-  octreeSize = 0;
-  resolutionPointsSize = 0;
-
-  karras_points.clear();
+  points.clear();
   gl_instances.clear();
   octree.clear();
   resolutionPoints.clear();
+}
 
-  /* Quantize the polygon points. */
-  getPoints(polyLines);
-  if (karras_points.size() == 0) return;
+void Quadtree::build(const PolyLines *polyLines) {
+  using namespace Kernels;
+  CLFW::DefaultQueue = CLFW::Queues[0];
+  cl_int error = 0;
 
-  totalPoints = karras_points.size();
-  getBoundingBox(totalPoints);
-  UploadKarrasPoints(karras_points, karrasPointsBuffer);
-  UploadLines(lines, linesBuffer);
-  getQuantizedPoints();
-  getZOrderPoints();
+  /* Clear the old quadtree */
+  clear();  
 
-  do {
-    totalIterations++;
+  /* Extract points from objects, and calculate a bounding box. */
+  getPoints(polyLines, points, lines);
 
-    CLFW::DefaultQueue = CLFW::Queues[0];
-    previousSize = octreeSize;
+  if (points.size() == 0) return;
+  getBoundingBox(points, points.size(), bb);
 
-    addResolutionPoints();
-    getZOrderPoints(); //TODO: only z-order the additional points here...
-    /*
-      On one queue, sort the lines for the ambiguous cell detection.
-      On the other, start building the karras octree.
-    */
-    CLFW::DefaultQueue = CLFW::Queues[1];
-    getUnorderedBCellFacetPairs();
-    CLFW::DefaultQueue = CLFW::Queues[0];
-    getVertexOctree();
-    Kernels::GetLeaves_p(CLFW::Buffers["octree"], leavesBuffer, octreeSize, totalLeaves);
-    CLFW::Queues[0].finish();
-    CLFW::Queues[1].finish();
-    /* Identify the cells that contain more than one object. */
-    if (lines.size() == 0 || lines.size() == 1) break;
-    getConflictCells();
-    /* Resolve one iteration of conflicts. */
-    //getResolutionPoints();
-    //drawResolutionPoints();
-    break;
-    if (totalIterations == Options::maxConflictIterations) {
-      //LOG4CPLUS_WARN(logger, "*** Warning: breaking out of conflict "
-        //<< "detection loop early for debugging purposes.");
-      // exit(0);
-    break;
-    }
-  } while (previousSize != octreeSize && resolutionPointsSize != 0);
+  /* Upload the data to OpenCL buffers */
+  error |= CLFW::get(pointsBuffer, "pts", points.size() * sizeof(floatn));
+  error |= CLFW::get(linesBuffer, "lines", lines.size()*sizeof(Line));
+  error |= CLFW::Upload<floatn>(points, pointsBuffer);
+  error |= CLFW::Upload<Line>(lines, linesBuffer);
+  check(error);
 
-  cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
-  octree.resize(octreeSize);
-  check(CLFW::DefaultQueue.enqueueReadBuffer(
-    octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*octreeSize, octree.data()));
+  /* Place the points on a Z-Order curve */
+  error |= placePointsOnCurve(pointsBuffer, points.size(), resln, bb, "initial", qpoints, zpoints);
+  check(error);
+	
+  /* On one queue, build the initial vertex octree */
+  CLFW::DefaultQueue = CLFW::Queues[0];
+  error |= buildVertexOctree(zpoints, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
+  check(error);
+  
+	/* On another queue, compute line bounding cells and generate the unordered line indices. */
+  CLFW::DefaultQueue = CLFW::Queues[1];
+  error |= GetLineLCPs_p(linesBuffer, lines.size(), zpoints, resln.mbits, LineLCPs);
+	vector<BigUnsigned>zpoints_vec;
+	CLFW::Download<BigUnsigned>(zpoints, points.size(), zpoints_vec);
+	writeToFile<BigUnsigned>(zpoints_vec, "TestData//simple//zpoints.bin");
+	vector<LCP> LineLCPs_vec;
+	CLFW::Download<LCP>(LineLCPs, lines.size(), LineLCPs_vec);
+	writeToFile(LineLCPs_vec, "TestData//simple//line_lcps.bin");
+  error |= InitializeFacetIndices_p(lines.size(), lineIndices);
+  check(error);
+
+  CLFW::Queues[0].finish();
+  CLFW::Queues[1].finish();
+
+  /* For each bounding cell, look up it's surrounding octnode in the tree. */
+  error |= LookUpOctnodeFromLCP_p(LineLCPs, lines.size(), octreeBuffer, LCPToOctNode);
+  check(error);
+
+  /* Sort the node to line pairs by key. This gives us a node to facet mapping for conflict cell detection. */
+  error |= RadixSortPairsByKey(LCPToOctNode, lineIndices, lines.size());
+  check(error);
+
+  /* For each octnode, determine the first and last bounding cell index to be used for conflict cell detection. */
+  error |= GetLCPBounds_p(LCPToOctNode, lines.size(), initialOctreeSize, LCPBounds);
+  check(error);
+
+  /* Finally, resolve the ambiguous cells. */
+  error |= resolveAmbiguousCells(octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves, 
+		linesBuffer, lines.size(), qpoints, points.size(), lineIndices, LCPBounds);
+  check(error);
+
+  /* Read back the octree. */
+  octree.resize(initialOctreeSize);
+  error |= CLFW::DefaultQueue.enqueueReadBuffer( octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*initialOctreeSize, octree.data());
+  check(error);
 
   /* Add the octnodes and conflict cells so they'll be rendered with OpenGL. */
   addOctreeNodes();
@@ -158,7 +368,7 @@ inline floatn getMaxFloat(const floatn a, const floatn b) {
   return result;
 }
 
-void Octree2::getPoints(const PolyLines *polyLines) {
+void Quadtree::getPoints(const PolyLines *polyLines, vector<floatn> &points, std::vector<Line> &lines) {
   benchmark("getPoints");
 
   const vector<vector<floatn>> polygons = polyLines->getPolygons();
@@ -168,21 +378,21 @@ void Octree2::getPoints(const PolyLines *polyLines) {
   for (int i = 0; i < polygons.size(); ++i) {
     const vector<floatn>& polygon = polygons[i];
     for (int j = 0; j < polygon.size(); ++j) {
-      karras_points.push_back(polygon[j]);
+      points.push_back(polygon[j]);
     }
   }
 }
 
-void Octree2::getBoundingBox(const int totalPoints) {
+void Quadtree::getBoundingBox(const vector<floatn> &points, const int totalPoints, BoundingBox &bb) {
   benchmark("getBoundingBox");
 
   if (Options::xmin == -1 && Options::xmax == -1) {
     //Probably should be parallelized...
-    floatn minimum = karras_points[0];
-    floatn maximum = karras_points[0];
+    floatn minimum = points[0];
+    floatn maximum = points[0];
     for (int i = 1; i < totalPoints; ++i) {
-      minimum = getMinFloat(karras_points[i], minimum);
-      maximum = getMaxFloat(karras_points[i], maximum);
+      minimum = getMinFloat(points[i], minimum);
+      maximum = getMaxFloat(points[i], maximum);
     }
     bb = BB_initialize(&minimum, &maximum);
     bb = BB_make_centered_square(&bb);
@@ -195,183 +405,120 @@ void Octree2::getBoundingBox(const int totalPoints) {
   }
 }
 
-void Octree2::getQuantizedPoints(int numResolutionPoints) {
-  check(Kernels::QuantizePoints_p(totalPoints, karrasPointsBuffer, quantizedPointsBuffer, bb.minimum, resln.width, bb.maxwidth));
-}
+//void Quadtree::getQuantizedPoints() {
+//  check(Kernels::QuantizePoints_p(totalPoints, karrasPointsBuffer, quantizedPointsBuffer, bb.minimum, resln.width, bb.maxwidth));
+//}
+//
+//void Quadtree::getZOrderPoints(cl::Buffer qPoints, cl::Buffer &zpoints, string zPointsName, int totalPoints) {
+//  check(Kernels::PointsToMorton_p(qPoints, zpoints, zPointsName, totalPoints, resln.bits));
+//}
+//
+//void Quadtree::getUnorderedBCellFacetPairs() {
+//  check(Kernels::GetBCellLCP_p(linesBuffer, zpoints, BCells,
+//    unorderedLineIndices, lines.size(), resln.mbits));
+//}
+//
+//void Quadtree::getVertexOctree(cl::Buffer zpoints_i, cl_int numZPoints, cl::Buffer &octree_o, string octreeName, int &octreeSize_o) {
+//  check(Kernels::BuildOctree_p(
+//    zpoints_i, numZPoints, octree_o, octreeName, octreeSize_o, resln.bits, resln.mbits));
+//}
 
-void Octree2::getZOrderPoints() {
-  static log4cplus::Logger logger =
-    log4cplus::Logger::getInstance("Octree2.makeZOrderPoints");
 
-  check(Kernels::PointsToMorton_p( quantizedPointsBuffer, zpoints, totalPoints, resln.bits));
-  
-  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
-    vector<BigUnsigned> buf;
-    Kernels::DownloadZPoints(buf, zpoints, totalPoints);
-    LOG4CPLUS_TRACE(logger, "ZPoints (" << totalPoints << ")");
-    for (int i = 0; i < totalPoints; i++) {
-      LOG4CPLUS_TRACE(logger, "  " << Kernels::buToString(buf[i]));
-    }
-  }
-}
+/*
+Quick microsecond timer:
 
-void Octree2::getUnorderedBCellFacetPairs() {
-  static log4cplus::Logger logger =
-    log4cplus::Logger::getInstance("Octree2.getUnorderedBCellFacetPairs");
+start = std::chrono::steady_clock::now();
+end = std::chrono::steady_clock::now();
+elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+std::cout << "sort:" << elapsed.count() << " microseconds." << std::endl;
+*/
+//void Quadtree::getConflictCells(cl::Buffer octree_i) {
+//
+//}
 
-  check(Kernels::GetBCellLCP_p(linesBuffer, zpoints, BCells,
-    unorderedLineIndices, lines.size(), resln.mbits));
-
-  if (logger.isEnabledFor(log4cplus::TRACE_LOG_LEVEL)) {
-    vector<cl_int> buf;
-    int debugSize = lines.size();
-    Kernels::DownloadInts(unorderedLineIndices, buf, debugSize);
-    LOG4CPLUS_TRACE(logger, "UnorderedBCellFacetIds (" << debugSize << ")");
-    for (int i = 0; i < debugSize; i++) {
-      LOG4CPLUS_TRACE(logger, "  " << buf[i]);
-    }
-    vector<BCell> buf2;
-    Kernels::DownloadBCells(buf2, BCells, debugSize);
-    LOG4CPLUS_TRACE(logger, "UnorderedBCellFacets (" << debugSize << ")");
-    for (int i = 0; i < debugSize; i++) {
-      LOG4CPLUS_TRACE(logger, "  " << Kernels::buToString(buf2[i].lcp)
-        << " (" << buf2[i].lcpLength << ")");
-    }
-  }
-}
-
-void Octree2::getVertexOctree() {
-  static log4cplus::Logger logger =
-    log4cplus::Logger::getInstance("Octree2.buildVertexOctree");
-
-  check(Kernels::BuildOctree_p(
-    zpoints, totalPoints, octreeSize, resln.bits, resln.mbits));
-
-  LOG4CPLUS_DEBUG(logger, "octreeSize = " << octreeSize);
-}
-
-void Octree2::getConflictCells() {
-
-  cl::Buffer octreeBuffer = CLFW::Buffers["octree"];
-
-  OctreeData od;
-  od.fmin = bb.minimum;
-  od.size = octreeSize;
-  od.qwidth = resln.width;
-  od.maxDepth = resln.bits;
-  od.fwidth = bb.maxwidth;
-
-  cl::Buffer facetPairs;
-  check(Kernels::LookUpOctnodeFromBCell_p(BCells, octreeBuffer, unorderedNodeIndices, lines.size()));
-  check(Kernels::RadixSortPairsByKey(unorderedNodeIndices, unorderedLineIndices, orderedNodeIndices, orderedLineIndices, lines.size()));
-  check(Kernels::GetFacetPairs_p(orderedNodeIndices, facetPairs, lines.size(), octreeSize));
-  //CLFW::DefaultQueue.finish();
-  //static log4cplus::Logger logger =
-  //  log4cplus::Logger::getInstance("Octree2.getConflictCells");
-  //Timer t(logger, "GetConflictCells");
-  check(Kernels::FindConflictCells_p(
-    octreeBuffer, 
-    leavesBuffer,
-    totalLeaves,
-    facetPairs, 
-    od, 
-    conflictsBuffer, 
-    orderedLineIndices, 
-    linesBuffer, 
-    lines.size(), 
-    quantizedPointsBuffer));
-  //CLFW::DefaultQueue.finish();
-
-}
-
-void Octree2::getResolutionPoints() {
-  if (lines.size() < 2) return;
-  resolutionPoints.resize(0);
-  resolutionPointsSize = 0;
-  
-  cl::Buffer conflictInfoBuffer, resolutionCounts,
-    resolutionPredicates, scannedCounts;
-  
-  check(Kernels::GetResolutionPointsInfo_p(
-    totalLeaves, conflictsBuffer, linesBuffer,
-    quantizedPointsBuffer, conflictInfoBuffer, resolutionCounts,
-    resolutionPredicates));
-  check(CLFW::get(
-    scannedCounts, "sResCnts",
-    Kernels::nextPow2(totalLeaves) * sizeof(cl_int)));
-
-  check(Kernels::StreamScan_p(
-    resolutionCounts, scannedCounts, Kernels::nextPow2(totalLeaves),
-    "resolutionIntermediate", false));
-
-  check(CLFW::DefaultQueue.enqueueReadBuffer(
-    scannedCounts, CL_TRUE,
-    (totalLeaves * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
-    &resolutionPointsSize));
-    
-  if (resolutionPointsSize > 100000) {
-    vector<cl_int> resolutionCountsVec;
-    vector<cl_int> scannedCountsVec;
-    DownloadInts(resolutionCounts, resolutionCountsVec, Kernels::nextPow2(totalLeaves));
-    DownloadInts(scannedCounts, scannedCountsVec, Kernels::nextPow2(totalLeaves));
-    cout << "Something likely went wrong. " << resolutionPointsSize << " seems like a lot of resolution points.." << endl;
-    resolutionPointsSize = 0;
-    return;
-  }
-
-  if (resolutionPointsSize < 0) {
-    return;
-  }
-  check(Kernels::GetResolutionPoints_p(
-    totalLeaves, resolutionPointsSize, conflictsBuffer, linesBuffer,
-    quantizedPointsBuffer, conflictInfoBuffer, scannedCounts,
-    resolutionPredicates, resolutionPointsBuffer));
-}
-
-void Octree2::addResolutionPoints() {
-  benchmark("addResolutionPoints");
-  if (resolutionPointsSize < 0) {
-    cout << "Error computing resolution points." << endl;
-    return;
-  }
-  if (resolutionPointsSize != 0) {
-    int original = totalPoints;
-    int additional = resolutionPointsSize;
-    totalPoints += additional;
-    cl_int error = 0;
-
-    //If the new resolution points wont fit inside the existing buffer.
-    if (original + additional > nextPow2(original)) {
-      cl::Buffer oldQPointsBuffer = quantizedPointsBuffer;
-      CLFW::Buffers["qPoints"] = cl::Buffer(CLFW::Contexts[0], CL_MEM_READ_WRITE, nextPow2(original + additional) * sizeof(intn));
-      quantizedPointsBuffer = CLFW::Buffers["qPoints"];
-      error |= CLFW::DefaultQueue.enqueueCopyBuffer(oldQPointsBuffer, quantizedPointsBuffer, 0, 0, original * sizeof(intn));
-    }
-    error |= CLFW::DefaultQueue.enqueueCopyBuffer(resolutionPointsBuffer, quantizedPointsBuffer, 0, original * sizeof(intn), additional * sizeof(intn));
-    assert_cl_error(error);
-  }
-  if (Options::benchmarking) CLFW::DefaultQueue.finish();
-}
+//void Quadtree::getResPoints(
+//	cl::Buffer conflicts_i, 
+//	int numConflicts, 
+//	cl::Buffer lines_i, 
+//	cl::Buffer qpoints_i) 
+//{
+//	using namespace Kernels;
+//	cl_int error = 0;
+////  if (lines.size() < 2) return;
+////  resolutionPoints.resize(0);
+////  totalResPoints = 0;
+////
+//
+////  check(CLFW::get(
+////    scannedCounts, "sResCnts",
+////    Kernels::nextPow2(totalLeaves) * sizeof(cl_int)));
+////
+////  check(Kernels::StreamScan_p(
+////    resolutionCounts, scannedCounts, Kernels::nextPow2(totalLeaves),
+////    "resolutionIntermediate"));
+////
+////  check(CLFW::DefaultQueue.enqueueReadBuffer(
+////    scannedCounts, CL_TRUE,
+////    (totalLeaves * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
+////    &totalResPoints));
+////
+////  if (totalResPoints > 100000) {
+////    vector<cl_int> resolutionCountsVec;
+////    vector<cl_int> scannedCountsVec;
+////    Download<cl_int>(resolutionCounts, resolutionCountsVec, Kernels::nextPow2(totalLeaves));
+////    Download<cl_int>(scannedCounts, scannedCountsVec, Kernels::nextPow2(totalLeaves));
+////    cout << "Something likely went wrong. " << totalResPoints << " seems like a lot of resolution points.." << endl;
+////    totalResPoints = 0;
+////    return;
+////  }
+////
+////  if (totalResPoints < 0) {
+////    return;
+////  }
+////  check(Kernels::GetResolutionPoints_p(
+////    totalLeaves, totalResPoints, conflictsBuffer, linesBuffer,
+////    quantizedPointsBuffer, conflictInfoBuffer, scannedCounts,
+////    resolutionPredicates, resQPoints));
+//}
+//
+//void Quadtree::addResolutionPoints() {
+//  benchmark("addResolutionPoints");
+//  if (totalResPoints < 0) {
+//    cout << "Error computing resolution points." << endl;
+//    return;
+//  }
+//  if (totalResPoints != 0) {
+//    int original = totalPoints;
+//    int additional = totalResPoints;
+//    totalPoints += additional;
+//    cl_int error = 0;
+//
+//    //If the new resolution points wont fit inside the existing buffer.
+//    if (original + additional > nextPow2(original)) {
+//      cl::Buffer oldQPointsBuffer = quantizedPointsBuffer;
+//      CLFW::Buffers["qPoints"] = cl::Buffer(CLFW::Contexts[0], CL_MEM_READ_WRITE, nextPow2(original + additional) * sizeof(intn));
+//      quantizedPointsBuffer = CLFW::Buffers["qPoints"];
+//      error |= CLFW::DefaultQueue.enqueueCopyBuffer(oldQPointsBuffer, quantizedPointsBuffer, 0, 0, original * sizeof(intn));
+//    }
+//    error |= CLFW::DefaultQueue.enqueueCopyBuffer(resQPoints, quantizedPointsBuffer, 0, original * sizeof(intn), additional * sizeof(intn));
+//    assert_cl_error(error);
+//  }
+//  if (benchmarking) CLFW::DefaultQueue.finish();
+//}
 
 /* Drawing Methods */
-void Octree2::addOctreeNodes() {
+void Quadtree::addOctreeNodes() {
   floatn temp;
   floatn center;
 
-  if (octreeSize == 0) return;
+  if (initialOctreeSize == 0) return;
   center = (bb.minimum + bb.maxwidth*.5);
   float3 color = { 0.75, 0.75, 0.75 };
   addOctreeNodes(0, center, bb.maxwidth, color);
 }
 
-void Octree2::addOctreeNodes(int index, floatn offset, float scale, float3 color)
+void Quadtree::addOctreeNodes(int index, floatn offset, float scale, float3 color)
 {
-  static log4cplus::Logger logger =
-    log4cplus::Logger::getInstance("Octree2.addOctreeNodes");
-
-  LOG4CPLUS_TRACE(logger, "offset = " << offset << " scale = " << scale
-    << " index = " << index);
-
   Instance i = { offset.x, offset.y, 0.0, scale, color.x, color.y, color.z };
   gl_instances.push_back(i);
   if (index != -1) {
@@ -389,7 +536,7 @@ void Octree2::addOctreeNodes(int index, floatn offset, float scale, float3 color
   }
 }
 
-void Octree2::addLeaf(int internalIndex, int childIndex, float3 color) {
+void Quadtree::addLeaf(int internalIndex, int childIndex, float3 color) {
   floatn center = BB_center(&bb);
   float octreeWidth = bb.maxwidth;
   OctNode node = octree[internalIndex];
@@ -423,15 +570,15 @@ void Octree2::addLeaf(int internalIndex, int childIndex, float3 color) {
   gl_instances.push_back(i);
 }
 
-void Octree2::addConflictCells() {
+void Quadtree::addConflictCells() {
   // if (Options::debug) {
-  Kernels::DownloadConflicts(conflicts, conflictsBuffer, totalLeaves);
-  Kernels::DownloadLeaves(leavesBuffer, leaves, totalLeaves);
+  CLFW::Download<Conflict>(CLFW::Buffers["sparseConflicts"], totalLeaves, conflicts);
+  CLFW::Download<Leaf>(leavesBuffer, totalLeaves, leaves);
   if (conflicts.size() == 0) return;
   for (int i = 0; i < conflicts.size(); ++i) {
     if (conflicts[i].color == -2)
     {
-      addLeaf(leaves[i].parent, leaves[i].zIndex,
+      addLeaf(leaves[i].parent, leaves[i].quadrant,
       { Options::conflict_color[0],
         Options::conflict_color[1],
         Options::conflict_color[2] });
@@ -439,10 +586,10 @@ void Octree2::addConflictCells() {
   }
 }
 
-void Octree2::drawResolutionPoints() {
+void Quadtree::drawResolutionPoints() {
   using namespace GLUtilities;
   vector<intn> resolutionPoints;
-  Kernels::DownloadQPoints(resolutionPoints, resolutionPointsBuffer, resolutionPointsSize);
+  CLFW::Download<intn>(resQPoints, totalResPoints, resolutionPoints);
   for (int i = 0; i < resolutionPoints.size(); ++i) {
     floatn point = UnquantizePoint(&resolutionPoints[i], &bb.minimum, resln.width, bb.maxwidth);
     Point p = {
@@ -450,11 +597,10 @@ void Octree2::drawResolutionPoints() {
       {0.0, 0.0, 1.0, 1.0}
     };
     Sketcher::instance()->add(p);
-
   }
 }
 
-void Octree2::draw(const glm::mat4& mvMatrix) {
+void Quadtree::draw(const glm::mat4& mvMatrix) {
   Shaders::boxProgram->use();
   print_gl_error();
   glBindVertexArray(boxProgram_vao);

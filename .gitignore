@@ -2,5 +2,10 @@ xcode
 release
 debug
 build
+build_old
+build_vs2015
 pgvdBuild
 .idea
+.DS_Store
+Sources/.DS_Store
+Sources/Kernels/.DS_Store

@@ -7,10 +7,6 @@
 #include "GlobalData/data.h"
 #include "Options/Options.h"
 
-#include "log4cplus/logger.h"
-#include "log4cplus/loggingmacros.h"
-#include "log4cplus/configurator.h"
-
 void InitializeGLFWEventCallbacks() {
   using namespace GLUtilities;
   glfwSetKeyCallback(window, key_cb);
@@ -74,10 +70,7 @@ void readMesh(const string& filename) {
 
 int processArgs(int argc, char** argv) {
   using namespace Options;
-
-  static log4cplus::Logger logger =
-      log4cplus::Logger::getInstance("processArgs");
-
+  
   int i = 1;
   // if (argc > 1) {
   bool stop = false;
@@ -94,7 +87,6 @@ int processArgs(int argc, char** argv) {
 
   for (; i < argc; ++i) {
     string filename(argv[i]);
-    LOG4CPLUS_DEBUG(logger, "Read " << filename);
     filenames.push_back(filename);
   }
   //TODO: fix this.
@@ -109,19 +101,6 @@ int processArgs(int argc, char** argv) {
 //     ./QUADTREE -d 1 -l 24 data/test1-*.dat // doesn't resolve conflict cells (although it does find them)
 int main(int argc, char** argv) {
   using namespace std;
-
-  // Initialize log4cplus
-  log4cplus::initialize();
-  ifstream config_in("log4cplus.config");
-  if (config_in) {
-    config_in.close();
-    log4cplus::PropertyConfigurator config("log4cplus.config");
-    config.configure();
-  } else {
-    log4cplus::BasicConfigurator config;
-    config.configure();
-  }
-
   processArgs(argc, argv);
 
   // Options::showObjects = true;
@@ -133,7 +112,7 @@ int main(int argc, char** argv) {
   InitializeGLFW();
   Shaders::create();
   Data::lines = new PolyLines();
-  Data::octree = new Octree2();
+  Data::octree = new Quadtree();
 
   for (int i = 0; i < Options::filenames.size(); ++i) {
     readMesh(Options::filenames[i]);

@@ -2,5 +2,5 @@
 
 namespace Data {
   PolyLines *lines;
-  Octree2 *octree;
+  Quadtree *octree;
 };

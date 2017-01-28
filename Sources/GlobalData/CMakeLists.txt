@@ -1,4 +1,5 @@
-set (GLOBAL_DATA_SRC 
+set (GlobalData_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	${CMAKE_CURRENT_SOURCE_DIR}/data.h
 	${CMAKE_CURRENT_SOURCE_DIR}/data.cpp
 	PARENT_SCOPE)

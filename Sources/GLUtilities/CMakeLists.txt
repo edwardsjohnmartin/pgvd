@@ -1,4 +1,5 @@
-set (GL_UTILITIES_SRC 
+set (GLUtilities_SRC 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	${CMAKE_CURRENT_SOURCE_DIR}/gl_utils.h 
 	${CMAKE_CURRENT_SOURCE_DIR}/gl_utils.cpp 
 	${CMAKE_CURRENT_SOURCE_DIR}/Sketcher.h 

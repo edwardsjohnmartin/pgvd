@@ -19,6 +19,8 @@
 #include <string>
 #include <unordered_map>
 
+
+enum Vendor { Nvidia, Intel, UnknownPlatform };
 class CLFW{
 
 private:
@@ -37,6 +39,7 @@ private:
   static cl_int loadFile(const char* name, char** buffer, long* length);
 
 public:
+  static Vendor SelectedVendor;
   static bool verbose;
   static bool lastBufferOld;
   
@@ -78,7 +81,37 @@ public:
   static cl_int getBest(cl::Device &device, int characteristic = CL_DEVICE_MAX_COMPUTE_UNITS);
   static cl_int query(cl::Device &device);
   static cl_int Build(cl::Program &program, cl::Program::Sources &sources, cl::Context &context = DefaultContext, cl::Device &device = DefaultDevice);
+  template<typename T>
+  static cl_int Download(cl::Buffer & buffer, cl_int size, std::vector<T>& out);
+  template<typename T>
+  static cl_int Download(cl::Buffer & buffer, cl_int offset, T & out);
+  template<typename T>
+  static cl_int Upload(const std::vector<T> &input, cl::Buffer &buffer);
+	template<typename T>
+	static cl_int Upload(T &input, cl_int offset, cl::Buffer &buffer);
 };
+
+template<typename T>
+cl_int CLFW::Download(cl::Buffer &buffer, cl_int size, std::vector<T> &output) {
+  output.resize(size);
+  return CLFW::DefaultQueue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(T)*size, output.data());
+}
+
+template<typename T>
+cl_int CLFW::Download(cl::Buffer &buffer, cl_int offset, T &output) {
+  return CLFW::DefaultQueue.enqueueReadBuffer(buffer, CL_TRUE, offset * sizeof(T), sizeof(T), &output);
+}
+
+template<typename T>
+cl_int CLFW::Upload(const std::vector<T> &input, cl::Buffer &buffer) {
+  return CLFW::DefaultQueue.enqueueWriteBuffer(buffer, CL_TRUE, 0, sizeof(T) * input.size(), input.data());
+}
+
+// Note, T must be a power of two
+template<typename T>
+cl_int CLFW::Upload(T &input, cl_int offset, cl::Buffer &buffer) {
+	return CLFW::DefaultQueue.enqueueWriteBuffer(buffer, CL_TRUE, sizeof(T) * offset, sizeof(T), &input);
+}
 
 std::string get_cl_error_msg(cl_int error);
 

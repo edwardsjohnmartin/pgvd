@@ -1,0 +1,13 @@
+set(OpenGL_SHDR
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/boxes.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/boxes.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/lines.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/lines.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/sketchBox.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/sketchBox.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/sketchLine.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/sketchLine.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/sketchPoint.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/Shaders/sketchPoint.vert
+	PARENT_SCOPE)
