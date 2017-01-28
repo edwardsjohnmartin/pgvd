@@ -8,4 +8,8 @@ pgvdBuild
 .idea
 .DS_Store
 Sources/.DS_Store
+<<<<<<< HEAD
 Sources/Kernels/.DS_Store
+=======
+Sources/Kernels/.DS_Store
+>>>>>>> 550cbc18bb29268bf7147f05bb391d30346f3353
