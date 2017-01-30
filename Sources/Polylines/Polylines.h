@@ -4,10 +4,10 @@
 #include <vector>
 
 #include "./glm/gtc/matrix_transform.hpp"
+#include "Shaders/Shaders.hpp"
 extern "C" {
   #include "Line/Line.h"
 }
-#include "Shaders/Shaders.hpp"
 #include "Vector/vec.h"
 #include "Options/Options.h"
 #include "Color/Color.h"

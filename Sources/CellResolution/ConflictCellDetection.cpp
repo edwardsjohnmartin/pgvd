@@ -1,3 +1,8 @@
+#ifndef OpenCL
+// include necessary to compile on Mac
+#include "GLUtilities/gl_utils.h"
+#endif
+
 #include "BigUnsigned/BigUnsigned.h"
 #include "Line/Line.h"
 #include "Vector/vec.h"
