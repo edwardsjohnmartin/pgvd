@@ -101,7 +101,7 @@ template<typename T>
 inline vector<T> readFromFile(string filename, int totalElements) {
 	vector<T> result(totalElements);
   ifstream myfile;
-  myfile.open(filename, ios::in | ios::app | ios::binary);
+  myfile.open(filename, ios::in | ios::binary);
   if (myfile.is_open()) {
     myfile.read((char*)result.data(), totalElements * sizeof(T));
     myfile.close();
@@ -111,9 +111,9 @@ inline vector<T> readFromFile(string filename, int totalElements) {
 
 template<typename T>
 inline T readFromFile(string filename) {
-	T result;
+	T result = -1;
 	ifstream myfile;
-	myfile.open(filename, ios::in | ios::app | ios::binary);
+	myfile.open(filename, ios::in | ios::binary);
 	if (myfile.is_open()) {
 		myfile.read((char*)&result, sizeof(T));
 		myfile.close();

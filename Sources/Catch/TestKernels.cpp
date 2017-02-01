@@ -4,18 +4,39 @@
 using namespace cl;
 using namespace Kernels;
 
+static inline std::string BuToString(BigUnsigned bu) {
+		std::string representation = "";
+		if (bu.len == 0)
+    {
+      representation += "[0]";
+    }
+    else {
+      for (int i = bu.len; i > 0; --i) {
+        representation += "[" + std::to_string(bu.blk[i - 1]) + "]";
+      }
+    }
+  
+		return representation;
+}
+
 /* Reduction Kernels */
 Scenario("Additive Reduction", "[reduction]") {
 	Given("N random integers") {
 		vector<cl_int>small_input = generateDeterministicRandomIntegers(a_few);
-		vector<cl_int>large_input = generateDeterministicRandomIntegers(a_lot);
+    vector<cl_int>large_input(a_lot, 1);// = generateDeterministicRandomIntegers(a_lot, );
 		When("we reduce these numbers in series") {
 			int small_output_s, large_output_s;
 			Reduce_s(small_input, small_output_s);
 			Reduce_s(large_input, large_output_s);
 			Then("we get the summation of those integers") {
-				Require(small_output_s == -2787);
-				Require(large_output_s == -981456);
+        cl_int small_actual = 0;
+        cl_int large_actual = 0;
+        for (int i = 0; i < a_few; ++i)
+          small_actual += small_input[i];
+        for (int i = 0; i < a_lot; ++i)
+          large_actual += large_input[i];
+				Require(small_output_s == small_actual);
+				Require(large_output_s == large_actual);
 			}
 			Then("the series results match the parallel results") {
 				cl_int small_output_p, large_output_p;
@@ -503,8 +524,19 @@ Scenario("Quantize Points", "[zorder]") {
 					error |= CLFW::Download<intn>(b_large_output, a_lot, large_output_p);
 					Require(error == CL_SUCCESS);
 					int success = true;
-					for (int i = 0; i < a_few; ++i) success &= (small_output_s[i] == small_output_p[i]);
-					for (int i = 0; i < a_lot; ++i) success &= (large_output_s[i] == large_output_p[i]);
+          for (int i = 0; i < a_few; ++i) {
+            success &= (small_output_s[i] == small_output_p[i]);
+            if (!success) {
+              success &= (large_output_s[i] == large_output_p[i]);
+            }
+          }
+          for (int i = 0; i < a_lot; ++i) {
+            success &= (large_output_s[i] == large_output_p[i]);
+            if (!success) {
+              success &= (large_output_s[i] == large_output_p[i]);
+              cout<<large_output_s[i] << " vs " << large_output_p[i]<<endl;
+            }
+          }
 					Require(success == true);
 				}
 			}
@@ -969,6 +1001,10 @@ Scenario("Sample required resolution points", "[selected][resolution]") {
 					if (!success) {
 						success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_p[i]);
 						success &= (numPtsPerConflict_s[i] == numPtsPerConflict_p[i]);
+            if (!success) {
+              success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_p[i]);
+              success &= (numPtsPerConflict_s[i] == numPtsPerConflict_p[i]);
+            }
 					}
 				}
 				Require(success == true);
@@ -978,7 +1014,8 @@ Scenario("Sample required resolution points", "[selected][resolution]") {
 }
 Scenario("Predicate Conflict To Point", "[predication][resolution]") {
 	Given("the scanned number of resolution points to create per conflict") {
-		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
+		cl_int numConflicts = readFromFile<cl_int>("./TestData/simple/numConflicts.bin");
+    cl_int test = __builtin_bswap32(numConflicts);
 		cl_int numResPts = readFromFile<cl_int>("TestData//simple//numResPts.bin");
 		vector<cl_int> scannedNumPtsPerConflict = readFromFile<cl_int>("TestData//simple//scannedNumPtsPerConflict.bin", numConflicts);
 		When("we predicate the first point cooresponding to a conflict") {
@@ -1011,7 +1048,7 @@ Scenario("Predicate Conflict To Point", "[predication][resolution]") {
 		}
 	}
 }
-Scenario("Get resolution points", "[selected][resolution]") {
+Scenario("Get resolution points", "[resolution]") {
 	Given("a set of conflicts and cooresponding conflict infos, a resolution point to conflict mapping, "
 		+ "and the original quantized points used to build the octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");

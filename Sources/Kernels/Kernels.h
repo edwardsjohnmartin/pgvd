@@ -210,6 +210,17 @@ namespace Kernels {
 #define blockSize5 32
 #define blockSize6 1024
 #define nIsPow2 1
+  /* Avoid using this kernel at all costs. This kernel is mainly for unit testing. Instead, use Reduce_s. */
+  __kernel void oneThreadReduce(__global T *g_idata, __global T *g_odata, cl_int n) {
+    if (get_global_id(0) == 0) {
+      cl_int sum = 0;
+      for (int i = 0; i < n; ++i) {
+        sum += g_idata[i];
+      }
+      g_odata[0] = sum;
+    }
+  }
+  
 	/*
 	This version uses n/2 threads --
 	it performs the first level of reduction when reading from global memory
@@ -367,12 +378,19 @@ namespace Kernels {
 		// Non-Nvidia platforms can't take advantage of Nvidia SIMD warp unrolling optimizations.
 		// As a result, we default to the less efficient reduction number 3.
 		cl::Kernel &kernel3 = CLFW::Kernels["reduce3"];
-
+    error |= CLFW::get(outputBuffer, uniqueString + "reduceout", nextPow2(totalNumbers) * sizeof(cl_int));
+    
+    int maxThreads = std::min((int)kernel3.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), 128);
+    if (maxThreads == 1) {
+      kernel3 = CLFW::Kernels["oneThreadReduce"];
+      error |= kernel3.setArg(0, inputBuffer);
+      error |= kernel3.setArg(1, outputBuffer);
+      error |= kernel3.setArg(2, totalNumbers);
+      error |= queue.enqueueNDRangeKernel(kernel3, cl::NullRange, cl::NDRange(1), cl::NDRange(1));
+      return error;
+    }
 		int maxBlocks = 64;
-		int maxThreads = std::min((int)kernel3.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), 128);
-
-		error |= CLFW::get(outputBuffer, uniqueString + "reduceout", nextPow2(totalNumbers) * sizeof(cl_int));
-
+    
 		int whichKernel = 3;
 		int numBlocks = 0, finalNumBlocks = 0;
 		int numThreads = 0, finalNumThreads = 0;
@@ -381,28 +399,28 @@ namespace Kernels {
 		int s = numBlocks;
 
 		//Initial reduction (per block reduction)
-		kernel3.setArg(0, inputBuffer);
-		kernel3.setArg(1, outputBuffer);
-		kernel3.setArg(2, n);
-		kernel3.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+		error |= kernel3.setArg(0, inputBuffer);
+		error |= kernel3.setArg(1, outputBuffer);
+		error |= kernel3.setArg(2, n);
+		error |= kernel3.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
 
 		int globalWorkSize = numBlocks * numThreads;
 		int localWorkSize = numThreads;
 
-		queue.enqueueNDRangeKernel(kernel3, cl::NullRange,
+		error |= queue.enqueueNDRangeKernel(kernel3, cl::NullRange,
 			cl::NDRange(globalWorkSize), cl::NDRange(localWorkSize));
 
-		while (s > 1) {
+    while (s > 1) {
 			//Final reduction (adding each block's result together into one result)
 			getReductionNumBlocksAndThreads(whichKernel, s, maxBlocks, maxThreads, finalNumBlocks, finalNumThreads);
 			globalWorkSize = finalNumBlocks * finalNumThreads;
 			localWorkSize = finalNumThreads;
-			kernel3.setArg(0, outputBuffer);
-			kernel3.setArg(1, outputBuffer);
-			kernel3.setArg(2, n);
-			kernel3.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+			error |= kernel3.setArg(0, outputBuffer);
+			error |= kernel3.setArg(1, outputBuffer);
+			error |= kernel3.setArg(2, n);
+			error |= kernel3.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
 			s = (s + (finalNumThreads * 2 - 1)) / (finalNumThreads * 2);
-			queue.enqueueNDRangeKernel(kernel3, cl::NullRange,
+			error |= queue.enqueueNDRangeKernel(kernel3, cl::NullRange,
 				cl::NDRange(globalWorkSize), cl::NDRange(localWorkSize));
 		}
 		return error;
@@ -2630,14 +2648,34 @@ namespace Kernels {
 	)
 	{
 		const int gid = get_global_id(0);
+//    if (gid == 0) {
+//      printf("gpu size of conflict info: %d\n", sizeof(ConflictInfo));
+//    }
 		Conflict c = conflicts[gid];
 		ConflictInfo info = { 0 };
+    
+    // debug
+    bool debug = false;//(gid > 1 && gid < 10);
+    info.line_pairs[0].s0 = debug ? 1 : 0;
 		
 		intn q1 = qPoints[c.q1[0]];
 		intn q2 = qPoints[c.q1[1]];
 		intn r1 = qPoints[c.q2[0]];
 		intn r2 = qPoints[c.q2[1]];
+    
+    if (debug) {
+      printf("gpu\n");
+//      printf("gpu: q1: (%d, %d)\n", q1.x, q1.y);
+//      printf("gpu: q2: (%d, %d)\n", q2.x, q2.y);
+//      printf("gpu: r1: (%d, %d)\n", r1.x, r1.y);
+//      printf("gpu: r2: (%d, %d)\n", r2.x, r2.y);
+//      printf("gpu: o: (%d, %d)\n", c.origin.x, c.origin.y);
+//      printf("gpu: w: %d\n", c.width);
+    }
 		sample_conflict_count(&info, q1, q2, r1, r2, c.origin, c.width);
+    if (debug) {
+      printf("%d gpu - info.num_samples = %d\n", gid, info.num_samples);
+    }
 
 		info_array[gid] = info;
 		resolutionCounts[gid] = info.num_samples;
@@ -2656,7 +2694,7 @@ namespace Kernels {
 		cl::Kernel &kernel = CLFW::Kernels["CountResolutionPointsKernel"];
 
 		int globalSize = nextPow2(numConflicts);
-
+//    cout<<"cpu sizeof conflict info: "<<sizeof(ConflictInfo)<<endl;
 		error |= CLFW::get(conflictInfo_o, "conflictInfoBuffer", globalSize * sizeof(ConflictInfo));
 		error |= CLFW::get(numPtsPerConflict_o, "numPtsPerConflict", globalSize * sizeof(cl_int));
 		
@@ -2680,12 +2718,28 @@ namespace Kernels {
 		for (int gid = 0; gid < conflicts_i.size(); ++gid) {
 			Conflict c = conflicts_i[gid];
 			ConflictInfo info = { 0 };
+      
+      bool debug = false;//(gid > 1 && gid < 10);
+      info.line_pairs[0].s0 = debug ? 1 : 0;
 			
 			intn q1 = qpoints_i[c.q1[0]];
 			intn q2 = qpoints_i[c.q1[1]];
 			intn r1 = qpoints_i[c.q2[0]];
 			intn r2 = qpoints_i[c.q2[1]];
+      if (debug) {
+        printf("cpu\n");
+//        printf("cpu: q1: (%d, %d)\n", q1.x, q1.y);
+//        printf("cpu: q2: (%d, %d)\n", q2.x, q2.y);
+//        printf("cpu: r1: (%d, %d)\n", r1.x, r1.y);
+//        printf("cpu: r2: (%d, %d)\n", r2.x, r2.y);
+//        printf("cpu: o: (%d, %d)\n", c.origin.x, c.origin.y);
+//        printf("cpu: w: %d\n", c.width);
+      }
+      
 			sample_conflict_count(&info, q1, q2, r1, r2, c.origin, c.width);
+      if (debug) {
+        printf("%d cpu - info.num_samples = %d\n", gid, info.num_samples);
+      }
 
 			conflictInfo_o[gid] = info;
 			numPtsPerConflict_o[gid] = info.num_samples;
