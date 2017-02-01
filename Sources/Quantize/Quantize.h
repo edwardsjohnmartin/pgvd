@@ -5,7 +5,7 @@
 #define IMIN(a,b) ((int)(((a)<(b))?(a):(b)))
 inline intn QuantizePoint(const floatn *p, const floatn *minimum, const int reslnWidth, const float bbWidth) {
 	int effectiveWidth = reslnWidth;
-	floatn d_ = (((*p - *minimum) / bbWidth) * effectiveWidth);
+	floatn d_ = ((*p - *minimum) * (effectiveWidth / bbWidth));
 	return make_intn(IMIN(d_.x, reslnWidth-1), IMIN(d_.y, reslnWidth-1));
 }
 
