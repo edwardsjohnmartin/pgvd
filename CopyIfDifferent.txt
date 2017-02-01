@@ -1,0 +1,14 @@
+MACRO(copy_touched from to target_name)
+
+file(GLOB_RECURSE SRC_FILES ${from}/*.*)
+
+MESSAGE(${SRC_FILES})
+
+#for each file
+foreach(file ${SRC_FILES})
+	string(REGEX REPLACE ${from} "" filename ${file})
+	set(copy_command ${copy_command} cmake -E copy_if_different "${from}${filename}" "${to}${filename}" \n)
+endforeach()
+
+add_custom_target(${target_name} COMMAND ${copy_command})
+ENDMACRO()

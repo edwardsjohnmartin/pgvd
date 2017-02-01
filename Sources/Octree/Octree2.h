@@ -22,6 +22,7 @@ class Quadtree {
 private:
   std::vector<OctNode> octree;
   std::vector<floatn> points;
+	std::vector<cl_int> pointColors;
   std::vector<intn> quantized_points;
   std::vector<intn> resolutionPoints;
   std::vector<Line> lines;
@@ -47,7 +48,8 @@ private:
   GLuint positions_vbo;
   GLuint position_indices_vbo;
   GLuint instance_vbo;
-  cl::Buffer pointsBuffer;
+	cl::Buffer pointsBuffer;
+	cl::Buffer pntColorsBuffer;
   cl::Buffer qpoints;
   cl::Buffer zpoints;
   cl::Buffer zpointsCopy;
@@ -60,7 +62,7 @@ private:
   cl::Buffer leavesBuffer;
   cl::Buffer octreeBuffer;
 
-  void getPoints(const PolyLines *polyLines, vector<floatn> &points, std::vector<Line> &lines);
+	void getPoints(const PolyLines *polyLines, vector<floatn> &points, vector <cl_int> &pointColors, std::vector<Line> &lines);
   void getBoundingBox(const vector<floatn> &points, const int totalPoints, BoundingBox &bb);
   void getQuantizedPoints();
   void getZOrderPoints(cl::Buffer qPoints, cl::Buffer &zpoints, string zPointsName, int totalPoints);
@@ -86,7 +88,8 @@ public:
 private:
   void clear();
   cl_int placePointsOnCurve(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &qpoints_o, cl::Buffer &zpoints_o);
-  cl_int buildVertexOctree(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
+	cl_int buildVertexOctree(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
+	cl_int buildPrunedOctree(cl::Buffer points_i, cl::Buffer pntColors_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
   cl_int resolveAmbiguousCells(cl::Buffer octree_i, cl_int totalOctNodes, cl::Buffer leaves_i, cl_int totalLeaves, cl::Buffer lines_i, cl_int totalLines, cl::Buffer qPoints_i, cl_int totalPoints, cl::Buffer orderedLineIndices_i, cl::Buffer firstLastFacetPairs_i);
   /* Drawing Methods */
   void addOctreeNodes();

@@ -459,6 +459,64 @@ Scenario("Parallel Radix Sort (Big Unsigneds)", "[sort][integration]") {
 		}
 	}
 }
+Scenario("Parallel Radix Sort (BU-Int Pairs by Key)", "[sort][integration]") {
+	Given("An arbitrary set of unsigned key and integer value pairs") {
+		vector<BigUnsigned> small_keys_in(a_few);
+		vector<cl_int> small_values_in(a_few);
+		vector<BigUnsigned> large_keys_in(a_lot);
+		vector<cl_int> large_values_in(a_lot);
+
+		for (int i = 0; i < a_few; ++i) { 
+			initLongLongBU(&small_keys_in[i], a_few - i);
+			small_values_in[i] = a_few - i; 
+		}
+		for (int i = 0; i < a_lot; ++i) { 
+			initLongLongBU(&large_keys_in[i], a_lot - i);
+			large_values_in[i] = a_lot - i;
+		}
+
+		When("these pairs are sorted by key in parallel") {
+			cl_int error = 0;
+			cl::Buffer b_small_keys, b_small_values, b_large_keys, b_large_values;
+			error |= CLFW::get(b_small_keys, "b_small_keys", a_few * sizeof(BigUnsigned));
+			error |= CLFW::get(b_small_values, "b_small_values", a_few * sizeof(cl_int));
+			error |= CLFW::get(b_large_keys, "b_large_keys", a_lot * sizeof(BigUnsigned));
+			error |= CLFW::get(b_large_values, "b_large_values", a_lot * sizeof(cl_int));
+			error |= CLFW::Upload<BigUnsigned>(small_keys_in, b_small_keys);
+			error |= CLFW::Upload<cl_int>(small_values_in, b_small_values);
+			error |= CLFW::Upload<BigUnsigned>(large_keys_in, b_large_keys);
+			error |= CLFW::Upload<cl_int>(large_values_in, b_large_values);
+			Require(error == CL_SUCCESS);
+			error |= RadixSortBUIntPairsByKey(b_small_keys, b_small_values, 20, a_few);
+			Require(error == CL_SUCCESS);
+			error |= RadixSortBUIntPairsByKey(b_large_keys, b_large_values, 20, a_lot);
+			Require(error == CL_SUCCESS);
+			Then("The key value pairs are ordered by keys assending") {
+				vector<BigUnsigned> small_keys_out_p(a_few), large_keys_out_p(a_lot);
+				vector<cl_int> large_values_out_p(a_lot), small_values_out_p(a_few);
+				error |= CLFW::Download<BigUnsigned>(b_small_keys, a_few, small_keys_out_p);
+				error |= CLFW::Download<BigUnsigned>(b_large_keys, a_lot, large_keys_out_p);
+				error |= CLFW::Download<cl_int>(b_small_values, a_few, small_values_out_p);
+				error |= CLFW::Download<cl_int>(b_large_values, a_lot, large_values_out_p);
+				int success = true;
+				for (int i = 0; i < a_few; ++i) {
+					success &= (small_values_out_p[i] && small_values_out_p[i] == i + 1);
+					BigUnsigned temp;
+					initLongLongBU(&temp, i + 1);
+					success &= (compareBU(&small_keys_out_p[i], &temp)==0);
+				}
+				Require(success == true);
+				for (int i = 0; i < a_lot; ++i) {
+					success &= (large_values_out_p[i] && large_values_out_p[i] == i + 1);
+					BigUnsigned temp;
+					initLongLongBU(&temp, i + 1);
+					success &= (compareBU(&large_keys_out_p[i], &temp)==0);
+				}
+				Require(success == true);
+			}
+		}
+	}
+}
 
 /* Z-Order Kernels*/
 Scenario("Quantize Points", "[zorder]") {
@@ -543,9 +601,10 @@ Scenario("QPoints to ZPoints", "[zorder]") {
 	}
 }
 
-/* Hybrid Kernels */
-Scenario("Unique Sorted BigUnsigned", "[sort][hybrid][disabled]") {
+/* Unique Kernels */
+Scenario("Unique Sorted BigUnsigned", "[sort][unique]") {
 	Given("An ascending sorted set of BigUnsigneds") {
+		TODO("delete large binary for this");
 		vector<BigUnsigned> small_zpoints = readFromFile<BigUnsigned>("TestData//few_non-unique_s_zpoints.bin", a_few);
 		vector<BigUnsigned> large_zpoints = readFromFile<BigUnsigned>("TestData//lot_non-unique_s_zpoints.bin", a_lot);
 		When("those BigUnsigneds are uniqued in parallel") {
@@ -573,6 +632,57 @@ Scenario("Unique Sorted BigUnsigned", "[sort][hybrid][disabled]") {
 					success &= (compareBU(&small_zpoints[i], &p_small_zpoints[i]) == 0);
 				for (int i = 0; i < large_zpoints.size(); ++i)
 					success &= (compareBU(&large_zpoints[i], &p_large_zpoints[i]) == 0);
+				Require(success == true);
+			}
+		}
+	}
+}
+Scenario("Unique Sorted BigUnsigned color pairs", "[sort][unique]") {
+	Given("An ascending sorted set of BigUnsigneds") {
+		vector<BigUnsigned> small_keys(a_few);
+		vector<BigUnsigned> large_keys(a_few);
+		vector<cl_int> small_values(a_few);
+		vector<cl_int> large_values(a_lot);
+
+		for (int i = 0; i < a_few; ++i) {
+			small_values[i] = i / 2;
+			initLongLongBU(&small_keys[i], i / 2);
+		}
+		for (int i = 0; i < a_lot; ++i) {
+			large_values[i] = i / 2;
+			initLongLongBU(&large_keys[i], i / 2);
+		}
+
+		When("those BigUnsigneds are uniqued in parallel") {
+			cl_int error = 0, newSmallSize, newLargeSize;
+			cl::Buffer b_small_keys, b_unique_small_keys, b_large_keys, b_unique_large_keys;
+			cl::Buffer b_small_values, b_unique_small_values, b_large_values, b_unique_large_values;
+			error |= CLFW::get(b_small_keys, "b_small_zpoints", a_few * sizeof(BigUnsigned));
+			error |= CLFW::get(b_large_keys, "b_large_zpoints", a_lot * sizeof(BigUnsigned));
+			error |= CLFW::get(b_small_values, "b_small_values", a_few * sizeof(cl_int));
+			error |= CLFW::get(b_large_values, "b_large_values", a_lot * sizeof(cl_int));
+			error |= CLFW::Upload<BigUnsigned>(small_keys, b_small_keys);
+			error |= CLFW::Upload<BigUnsigned>(large_keys, b_large_keys);
+			error |= CLFW::Upload<cl_int>(small_values, b_small_values);
+			error |= CLFW::Upload<cl_int>(large_values, b_large_values);
+			error |= UniqueSortedBUIntPair(b_small_keys, b_small_values, a_few, "a", newSmallSize);
+			error |= UniqueSortedBUIntPair(b_large_keys, b_large_values, a_lot, "b", newLargeSize);
+			vector<BigUnsigned> p_small_zpoints(newSmallSize);
+			vector<BigUnsigned> p_large_zpoints(newLargeSize);
+			error |= CLFW::Download<BigUnsigned>(b_small_keys, newSmallSize, p_small_zpoints);
+			error |= CLFW::Download<BigUnsigned>(b_large_keys, newLargeSize, p_large_zpoints);
+			Then("the resulting set should match the uniqued series set.") {
+				auto sm_last = unique(small_keys.begin(), small_keys.end(), weakEqualsBU);
+				auto lg_last = unique(large_keys.begin(), large_keys.end(), weakEqualsBU);
+				small_keys.erase(sm_last, small_keys.end());
+				large_keys.erase(lg_last, large_keys.end());
+				Require(small_keys.size() == newSmallSize);
+				Require(large_keys.size() == newLargeSize);
+				cl_int success = 1;
+				for (int i = 0; i < small_keys.size(); ++i)
+					success &= (compareBU(&small_keys[i], &p_small_zpoints[i]) == 0);
+				for (int i = 0; i < large_keys.size(); ++i)
+					success &= (compareBU(&large_keys[i], &p_large_zpoints[i]) == 0);
 				Require(success == true);
 			}
 		}
@@ -613,6 +723,25 @@ Scenario("Build Binary Radix Tree", "[tree]") {
 					success &= (true == compareBrtNode(&large_brt_p[i], &large_brt_s[i]));
 				}
 				Require(success == true);
+			}
+		}
+	}
+}
+Scenario("Color Binary Radix Tree", "[tree]") {
+	Given("A binary radix tree and the colors of the tree's leaves") {
+		cl_int totalPoints = readFromFile<cl_int>("TestData//simple//uniqueTotalPoints.bin");
+		vector<cl_int> leafColors = readFromFile<cl_int>("TestData//simple//uniqueColors.bin", totalPoints);
+		vector<BrtNode> brt = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints-1);
+
+		When("we color these brt nodes from the leaves to the root in series") {
+			vector<cl_int> brtColors_s(totalPoints - 1);
+			TODO("improve the number of threads required for this kernel");
+			//ColorBRT_s(brt, leafColors, brtColors_s);
+			Then("the results should be valid") {
+			
+			}
+			Then("the series results should match the parallel results") {
+
 			}
 		}
 	}
@@ -928,7 +1057,7 @@ Scenario("Find Conflict Cells", "[conflict]") {
 }
 
 /* Ambiguous cell resolution kernels */
-Scenario("Sample required resolution points", "[selected][resolution]") {
+Scenario("Sample required resolution points", "[disabled][selected][resolution]") {
 	Given("a set of conflicts and the quantized points used to build the original octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
 		cl_int numPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
@@ -946,6 +1075,10 @@ Scenario("Sample required resolution points", "[selected][resolution]") {
 				for (int i = 0; i < numConflicts; ++i) {
 					success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_f[i]);
 					success &= (numPtsPerConflict_s[i] == numPtsPerConflict_f[i]);
+					if (!success) {
+						success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_f[i]);
+						success &= (numPtsPerConflict_s[i] == numPtsPerConflict_f[i]);
+					}
 				}
 				Require(success == true);
 			}
@@ -976,7 +1109,7 @@ Scenario("Sample required resolution points", "[selected][resolution]") {
 		}
 	}
 }
-Scenario("Predicate Conflict To Point", "[predication][resolution]") {
+Scenario("Predicate Conflict To Point", "[disabled][predication][resolution]") {
 	Given("the scanned number of resolution points to create per conflict") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
 		cl_int numResPts = readFromFile<cl_int>("TestData//simple//numResPts.bin");
@@ -1011,7 +1144,7 @@ Scenario("Predicate Conflict To Point", "[predication][resolution]") {
 		}
 	}
 }
-Scenario("Get resolution points", "[selected][resolution]") {
+Scenario("Get resolution points", "[disabled][resolution]") {
 	Given("a set of conflicts and cooresponding conflict infos, a resolution point to conflict mapping, "
 		+ "and the original quantized points used to build the octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");

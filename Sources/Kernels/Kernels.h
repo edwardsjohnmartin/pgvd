@@ -369,7 +369,7 @@ namespace Kernels {
 		cl::Kernel &kernel3 = CLFW::Kernels["reduce3"];
 
 		int maxBlocks = 64;
-		int maxThreads = std::min((int)kernel3.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), 128);
+		int maxThreads = 1;// std::min((int)kernel3.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), 128);
 
 		error |= CLFW::get(outputBuffer, uniqueString + "reduceout", nextPow2(totalNumbers) * sizeof(cl_int));
 
@@ -1553,6 +1553,63 @@ namespace Kernels {
 #endif
 #pragma endregion
 
+	// Radix Sort BU/Int pairs by Key
+#ifndef OpenCL
+	// NOTE: does not take into account negative numbers
+	inline cl_int RadixSortBUIntPairsByKey(
+		cl::Buffer &keys_io,
+		cl::Buffer &values_io,
+		cl_int mbits,
+		cl_int size)
+	{
+		startBenchmark();
+		cl_int error = 0;
+		const cl_int globalSize = nextPow2(size);
+
+		cl::Buffer predicate, address, tempKeys, tempValues, swap;
+		error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
+		error |= CLFW::get(tempKeys, "tempRadixKeys", sizeof(BigUnsigned)*globalSize);
+		error |= CLFW::get(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
+
+		if (error != CL_SUCCESS)
+			return error;
+
+		//For each bit
+		for (cl_int index = 0; index < mbits; index++) {
+			//Predicate the 0's and 1's
+			error |= PredicateBUByBit_p(keys_io, index, 0, size, "rdxsrtbyky", predicate);
+
+			//Scan the predication buffers.
+			error |= StreamScan_p(predicate, globalSize, "RSKBVI", address);
+
+			//Compacting
+			error |= BUCompact_p(keys_io, size, predicate, address, tempKeys);
+			error |= Compact_p(values_io, predicate, address, size, tempValues);
+
+			//Swap result with input.
+			swap = tempKeys;
+			tempKeys = keys_io;
+			keys_io = swap;
+
+			swap = tempValues;
+			tempValues = values_io;
+			values_io = swap;
+			cl_uint gpuSum;
+			//TODO: replace break out code. This was causing differences in running
+			//on John's mac between CPU and GPU.
+			//if (index % 8 == 0) {
+			//    //Checking order is expensive, but can save lots if we can break early.
+			//    CheckOrder(unsortedKeys_i, gpuSum, size);
+			//    if (gpuSum == 0) break;
+			//}
+		}
+
+		stopBenchmark();
+		return error;
+	}
+#endif
+#pragma endregion
+
 	/* Z-Order Kernels*/
 #pragma region Z-Order Kernels
 
@@ -1706,6 +1763,35 @@ namespace Kernels {
 		stopBenchmark();
 		return error;
 	}
+
+	inline cl_int UniqueSortedBUIntPair(
+		cl::Buffer &keys_io,
+		cl::Buffer &values_io,
+		cl_int originalSize,
+		string uniqueString,
+		cl_int &newSize
+		) {
+		startBenchmark();
+		int globalSize = nextPow2(originalSize);
+		cl_int error = 0;
+
+		cl::Buffer predicate, address, intermediate, result_keys, result_vals;
+		error = CLFW::get(predicate, uniqueString + "uniqpred", sizeof(cl_int)*(globalSize));
+		error |= CLFW::get(address, uniqueString + "uniqaddr", sizeof(cl_int)*(globalSize));
+		error |= CLFW::get(result_keys, uniqueString + "uniqkresult", sizeof(BigUnsigned) * globalSize);
+		error |= CLFW::get(result_vals, uniqueString + "uniqvresult", sizeof(cl_int) * globalSize);
+
+		error |= PredicateUnique_p(keys_io, predicate, originalSize);
+		error |= StreamScan_p(predicate, originalSize, uniqueString + "uniqI", address);
+		error |= BUCompact_p(keys_io, originalSize, predicate, address, result_keys);
+		error |= Compact_p(values_io, predicate, address, originalSize, result_keys);
+		keys_io = result_keys;
+		values_io = result_keys;
+
+		error |= CLFW::DefaultQueue.enqueueReadBuffer(address, CL_TRUE, (sizeof(cl_int)*originalSize - (sizeof(cl_int))), sizeof(cl_int), &newSize);
+		stopBenchmark();
+		return error;
+	}
 #endif
 
 	// Check Order
@@ -1848,8 +1934,7 @@ namespace Kernels {
 		stopBenchmark();
 		return error;
 	}
-#endif
-#ifndef OpenCL
+
 	inline cl_int ComputeLocalSplits_s(vector<BrtNode> &I, vector<cl_int> &local_splits, const cl_int size) {
 		startBenchmark();
 		if (size > 0) {
@@ -1898,12 +1983,58 @@ namespace Kernels {
 
 		return error;
 	}
-#endif
-#ifndef OpenCL
+
 	inline cl_int BuildBinaryRadixTree_s(vector<BigUnsigned> &zpoints, cl_int mbits, vector<BrtNode> &internalBRTNodes) {
 		startBenchmark();
 		for (int i = 0; i < zpoints.size() - 1; ++i) {
 			BuildBinaryRadixTree(internalBRTNodes.data(), zpoints.data(), mbits, zpoints.size(), i);
+		}
+		stopBenchmark();
+		return CL_SUCCESS;
+	}
+#endif
+
+	//Color Binary Radix Tree
+#ifdef OpenCL
+	//__kernel void BuildBinaryRadixTreeKernel(
+	//	__global BrtNode *I,
+	//	__global BigUnsigned* mpoints,
+	//	int mbits,
+	//	int size
+	//	)
+	//{
+	//	BuildBinaryRadixTree(I, mpoints, mbits, size, get_global_id(0));
+	//}
+#else
+/*	inline cl_int BuildBinaryRadixTree_p(
+		cl::Buffer &zpoints_i,
+		cl_int totalUniquePoints,
+		cl_int mbits,
+		string uniqueString,
+		cl::Buffer &internalBRTNodes_o
+		) {
+		startBenchmark();
+		cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
+		cl::CommandQueue &queue = CLFW::DefaultQueue;
+		cl_int globalSize = nextPow2(totalUniquePoints);
+
+		cl_int error = CLFW::get(internalBRTNodes_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
+
+		error |= kernel.setArg(0, internalBRTNodes_o);
+		error |= kernel.setArg(1, zpoints_i);
+		error |= kernel.setArg(2, mbits);
+		error |= kernel.setArg(3, totalUniquePoints);
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+		stopBenchmark();
+
+		return error;
+	}*/
+
+	inline cl_int ColorBRT_s(vector<BrtNode> brt_i, vector<cl_int> leafColors_i, vector<cl_int> brtColors_o) {
+		startBenchmark();
+		brtColors_o.resize(brt_i.size(), -1);
+		for (int i = 0; i < brt_i.size() - 1; ++i) {
+			ColorBrt(brt_i.data(), leafColors_i.data(), brtColors_o.data(), i);
 		}
 		stopBenchmark();
 		return CL_SUCCESS;

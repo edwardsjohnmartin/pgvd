@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 2.6)
+include(${CMAKE_CURRENT_SOURCE_DIR}/CopyIfDifferent.txt)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Must go before the project command
@@ -94,31 +95,28 @@ foreach(_source IN ITEMS ${SRC_LIST})
 	source_group("${_source_path_msvc}" FILES "${_source}")
 endforeach()  
 
-
 	# Temporary target to copy the kernel sources to where the main target is built.
-add_custom_target(
-	Copy_Source_To_Binary
-	COMMAND ${CMAKE_COMMAND} -E copy_directory 
-	${CMAKE_SOURCE_DIR}/Sources 
-	${CMAKE_CURRENT_BINARY_DIR}/Sources
+copy_touched (
+ ${CMAKE_SOURCE_DIR}/Sources
+ ${CMAKE_CURRENT_BINARY_DIR}/Sources
+ CopySourcesToBinary
 )
 
-add_custom_target(
-  Copy_Test_Data_To_Binary
-  COMMAND ${CMAKE_COMMAND} -E copy_directory 
-  ${CMAKE_SOURCE_DIR}/TestData 
-  ${CMAKE_CURRENT_BINARY_DIR}/TestData
+copy_touched (
+ ${CMAKE_SOURCE_DIR}/TestData
+ ${CMAKE_CURRENT_BINARY_DIR}/TestData
+ CopyUnitTestDataToBinary
 )
 
-add_dependencies(Unit_Tests Copy_Source_To_Binary)
-add_dependencies(Unit_Tests Copy_Test_Data_To_Binary)
-add_dependencies(Quadtree Copy_Source_To_Binary)
+add_dependencies(Unit_Tests CopyUnitTestDataToBinary)
+add_dependencies(Unit_Tests CopySourcesToBinary)
+add_dependencies(Quadtree CopySourcesToBinary)
 
 # Most platforms don't support SPIR-V yet. Eventually we'll switch to this though.
-string(REPLACE ";" " " _KERNEL_SRC "${KERNEL_SRC}")
-separate_arguments(KERNEL_SRC WINDOWS_COMMAND "${_KERNEL_SRC}")
+#string(REPLACE ";" " " _KERNEL_SRC "${KERNEL_SRC}")
+#separate_arguments(KERNEL_SRC WINDOWS_COMMAND "${_KERNEL_SRC}")
 
-add_custom_target(
-	Compile_Kernels
-	COMMAND clang -cc1 -emit-spirv -triple=spir-unknown-unknown -cl-std=CL2.0 -I ./Sources -D OpenCL -include ${KERNEL_SRC} -o kernel.spir
-)
+#add_custom_target(
+#	Compile_Kernels
+#	COMMAND clang -cc1 -emit-spirv -triple=spir-unknown-unknown -cl-std=CL2.0 -I ./Sources -D OpenCL -include ${KERNEL_SRC} -o kernel.spir
+#)

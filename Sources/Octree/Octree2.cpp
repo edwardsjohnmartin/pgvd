@@ -127,6 +127,57 @@ cl_int Quadtree::buildVertexOctree(
   return error;
 }
 
+cl_int Quadtree::buildPrunedOctree(
+	cl::Buffer zpoints_i,
+	cl::Buffer pntColors_i,
+	int totalPoints,
+	Resln resln,
+	BoundingBox bb,
+	string uniqueString,
+	cl::Buffer &octree_o,
+	cl_int &totalOctnodes_o,
+	cl::Buffer &leaves_o,
+	cl_int &totalLeaves_o)
+{
+	using namespace Kernels;
+	cl_int error = 0;
+	cl_int uniqueTotalPoints = totalPoints;
+	cl::Buffer zpoints_copy, brt;
+	/* Make a copy of the zpoints. */
+	CLFW::get(zpoints_copy, uniqueString + "zptscpy", nextPow2(sizeof(BigUnsigned) * totalPoints));
+	error |= CLFW::DefaultQueue.enqueueCopyBuffer(zpoints_i, zpoints_copy, 0, 0, totalPoints * sizeof(BigUnsigned));
+
+	/* Radix sort the zpoints */
+	error |= RadixSortBUIntPairsByKey(zpoints_copy, pntColors_i, totalPoints, resln.mbits);
+	check(error);
+	CLFW::DefaultQueue.finish();
+	/* Unique the zpoints */
+	error |= UniqueSortedBUIntPair(zpoints_copy, pntColors_i, totalPoints, uniqueString, uniqueTotalPoints);
+	check(error);
+	CLFW::DefaultQueue.finish();
+
+	/* Build a binary radix tree*/
+	error |= BuildBinaryRadixTree_p(zpoints_copy, uniqueTotalPoints, resln.mbits, uniqueString, brt);
+	check(error);
+	CLFW::DefaultQueue.finish();
+
+	vector<BrtNode> brt_vec;
+	//CLFW::Download<BrtNode>(brt, 1, brt_vec);
+	//writeToFile<BrtNode>(brt_vec, "TestData//simple//brt.bin");
+
+	/* Convert the binary radix tree to an octree*/
+	error |= BinaryRadixToOctree_p(brt, uniqueTotalPoints, uniqueString, octree_o, totalOctnodes_o); //occasionally currentSize is 0...
+	check(error);
+	CLFW::DefaultQueue.finish();
+
+	/* Use the internal octree nodes to calculate leaves */
+	error |= GetLeaves_p(octree_o, totalOctnodes_o, leaves_o, totalLeaves_o);
+	check(error);
+	CLFW::DefaultQueue.finish();
+
+	return error;
+}
+
 cl_int Quadtree::resolveAmbiguousCells(
   cl::Buffer octree_i, 
   cl_int numOctNodes, 
@@ -289,15 +340,17 @@ void Quadtree::build(const PolyLines *polyLines) {
   clear();  
 
   /* Extract points from objects, and calculate a bounding box. */
-  getPoints(polyLines, points, lines);
+  getPoints(polyLines, points, pointColors, lines);
 
   if (points.size() == 0) return;
   getBoundingBox(points, points.size(), bb);
 
   /* Upload the data to OpenCL buffers */
-  error |= CLFW::get(pointsBuffer, "pts", points.size() * sizeof(floatn));
+	error |= CLFW::get(pointsBuffer, "pts", points.size() * sizeof(floatn));
+	error |= CLFW::get(pntColorsBuffer, "ptcolr", points.size() * sizeof(floatn));
   error |= CLFW::get(linesBuffer, "lines", lines.size()*sizeof(Line));
   error |= CLFW::Upload<floatn>(points, pointsBuffer);
+	error |= CLFW::Upload<cl_int>(pointColors, pntColorsBuffer);
   error |= CLFW::Upload<Line>(lines, linesBuffer);
   check(error);
 
@@ -307,7 +360,7 @@ void Quadtree::build(const PolyLines *polyLines) {
 	
   /* On one queue, build the initial vertex octree */
   CLFW::DefaultQueue = CLFW::Queues[0];
-  error |= buildVertexOctree(zpoints, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
+  error |= buildPrunedOctree(zpoints, pntColorsBuffer, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
   check(error);
   
 	/* On another queue, compute line bounding cells and generate the unordered line indices. */
@@ -368,17 +421,18 @@ inline floatn getMaxFloat(const floatn a, const floatn b) {
   return result;
 }
 
-void Quadtree::getPoints(const PolyLines *polyLines, vector<floatn> &points, std::vector<Line> &lines) {
+void Quadtree::getPoints(const PolyLines *polyLines, vector<floatn> &points, vector<cl_int> &pointColors, std::vector<Line> &lines) {
   benchmark("getPoints");
 
   const vector<vector<floatn>> polygons = polyLines->getPolygons();
   lines = polyLines->getLines();
 
-  // Get all vertices into a 1D array (karras_points).
+  // Get all vertices into a 1D array.
   for (int i = 0; i < polygons.size(); ++i) {
     const vector<floatn>& polygon = polygons[i];
     for (int j = 0; j < polygon.size(); ++j) {
       points.push_back(polygon[j]);
+			pointColors.push_back(i);
     }
   }
 }

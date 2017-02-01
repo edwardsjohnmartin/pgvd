@@ -112,7 +112,7 @@ class PolyLines {
           Line line;
           line.first = first + j - totalSkips;
           line.second = first + j + 1 - totalSkips;
-          line.color = first;
+          line.color = i;
           lines.push_back(line);
         }
       }
