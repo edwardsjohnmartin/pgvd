@@ -220,15 +220,6 @@ cl_int Quadtree::resolveAmbiguousCells(
 	cl::Buffer conflictInfo, numPtsPerConflict, scannedNumPtsPerConflict, predPntToConflict, pntToConflict;
 	cl_int numResPts;
 	error |= GetResolutionPointsInfo_p(conflicts, numConflicts, qpoints, conflictInfo, numPtsPerConflict);
-
-	/*vector<ConflictInfo> ci;
-	vector<cl_int> numc;
-	CLFW::Download<ConflictInfo>(conflictInfo, numConflicts, ci);
-	writeToFile<ConflictInfo>(ci, "TestData//simple//conflictInfo.bin");
-	CLFW::Download<cl_int>(numPtsPerConflict, numConflicts, numc);
-*/
-
-
 	error |= CLFW::get(scannedNumPtsPerConflict, "snptspercnflct", nextPow2(sizeof(cl_int) * numConflicts));
 	error |= StreamScan_p(numPtsPerConflict, numConflicts, "conflictInfo", scannedNumPtsPerConflict);
 	error |= CLFW::Download<cl_int>(scannedNumPtsPerConflict, numConflicts - 1, numResPts);
@@ -236,6 +227,9 @@ cl_int Quadtree::resolveAmbiguousCells(
 	error |= CLFW::get(pntToConflict, "pnt2Conflict", nextPow2(sizeof(cl_int) * numResPts));
 	error |= StreamScan_p(predPntToConflict, numResPts, "pnt2Conf",  pntToConflict);
 
+	vector<cl_int> temp;
+	CLFW::Download<cl_int>(pntToConflict, numResPts, temp);
+	writeToFile<cl_int>(temp, "TestData//simple//pntToConflict.bin");
 
 	//vector<cl_int> pointToInfo_;
 	//CLFW::Download<cl_int>(pntToConflict, numResPts, pointToInfo_);
@@ -360,7 +354,7 @@ void Quadtree::build(const PolyLines *polyLines) {
 	
   /* On one queue, build the initial vertex octree */
   CLFW::DefaultQueue = CLFW::Queues[0];
-  error |= buildPrunedOctree(zpoints, pntColorsBuffer, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
+  error |= buildVertexOctree(zpoints, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
   check(error);
   
 	/* On another queue, compute line bounding cells and generate the unordered line indices. */

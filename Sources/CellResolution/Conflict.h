@@ -104,24 +104,24 @@ void sample_conflict_kernel(const cl_int i, ConflictInfo* info, floatn* samples)
 
 inline bool weakCompareLineInfo(LinePair *a, LinePair *b) {
 	/* a0 can at times be 10^6 off... That could be a bug... */
-	if ( fabs(a->a0 - b->a0 ) > .0001) return false;
-	if ( fabs(a->alpha - b->alpha ) > .0001) return false;
-	if ( fabs(a->k1_even - b->k1_even ) > .0001) return false;
-	if ( fabs(a->k1_odd - b->k1_odd ) > .0001) return false;
-	if ( fabs(a->k2_even - b->k2_even ) > .0001) return false;
-	if ( fabs(a->k2_odd - b->k2_odd ) > .0001) return false;
+	if ( fabs(a->a0 - b->a0 ) > .001) return false;
+	if ( fabs(a->alpha - b->alpha ) > 10.0) return false;
+	if ( fabs(a->k1_even - b->k1_even ) > .001) return false;
+	if ( fabs(a->k1_odd - b->k1_odd ) > .001) return false;
+	if ( fabs(a->k2_even - b->k2_even ) > .001) return false;
+	if ( fabs(a->k2_odd - b->k2_odd ) > .001) return false;
 	if (a->num_samples != b->num_samples) return false;
-	if ( fabs(a->p_origin.x - b->p_origin.x ) > .0001) return false;
-	if ( fabs(a->p_origin.y - b->p_origin.y ) > .0001) return false;
+	if ( fabs(a->p_origin.x - b->p_origin.x ) > .001) return false;
+	if ( fabs(a->p_origin.y - b->p_origin.y ) > .001) return false;
 #ifdef OCT3D
-	if ( fabs(a->p_origin.z - b->p_origin.z ) > .0001) return false;
+	if ( fabs(a->p_origin.z - b->p_origin.z ) > .001) return false;
 #endif
-	if ( fabs(a->s0 - b->s0 ) > .0001) return false;
-	if ( fabs(a->s1 - b->s1 ) > .0001) return false;
-	if ( fabs(a->u.x - b->u.x ) > .0001) return false;
-	if ( fabs(a->u.y - b->u.y ) > .0001) return false;
+	if ( fabs(a->s0 - b->s0 ) > .001) return false;
+	if ( fabs(a->s1 - b->s1 ) > .001) return false;
+	if ( fabs(a->u.x - b->u.x ) > .001) return false;
+	if ( fabs(a->u.y - b->u.y ) > .001) return false;
 #ifdef OCT3D
-	if ( fabs(a->u.z - b->u.z ) > .0001) return false;
+	if ( fabs(a->u.z - b->u.z ) > .001) return false;
 #endif
 	return true;
 }

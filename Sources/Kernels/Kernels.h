@@ -1975,7 +1975,7 @@ namespace Kernels {
 		int size
 	)
 	{
-		BuildBinaryRadixTree(I, mpoints, mbits, size, get_global_id(0));
+		BuildBinaryRadixTree(I, nullptr, mpoints, nullptr, mbits, size, false, get_global_id(0));
 	}
 #else
 	inline cl_int BuildBinaryRadixTree_p(
@@ -2003,9 +2003,10 @@ namespace Kernels {
 	}
 
 	inline cl_int BuildBinaryRadixTree_s(vector<BigUnsigned> &zpoints, cl_int mbits, vector<BrtNode> &internalBRTNodes) {
+		internalBRTNodes.resize(zpoints.size() - 1);
 		startBenchmark();
 		for (int i = 0; i < zpoints.size() - 1; ++i) {
-			BuildBinaryRadixTree(internalBRTNodes.data(), zpoints.data(), mbits, zpoints.size(), i);
+			BuildBinaryRadixTree(internalBRTNodes.data(), nullptr, zpoints.data(), nullptr, mbits, zpoints.size(), false, i);
 		}
 		stopBenchmark();
 		return CL_SUCCESS;
@@ -2014,45 +2015,67 @@ namespace Kernels {
 
 	//Color Binary Radix Tree
 #ifdef OpenCL
-	//__kernel void BuildBinaryRadixTreeKernel(
-	//	__global BrtNode *I,
-	//	__global BigUnsigned* mpoints,
-	//	int mbits,
-	//	int size
-	//	)
-	//{
-	//	BuildBinaryRadixTree(I, mpoints, mbits, size, get_global_id(0));
-	//}
+	__kernel void BuildColoredBinaryRadixTreeKernel(
+		__global BrtNode *I,
+		__global cl_int *IColors,
+		__global BigUnsigned* mpoints,
+		__global cl_int *pointColors,
+		int mbits,
+		int size
+		)
+	{
+		BuildBinaryRadixTree(I, IColors, mpoints, pointColors, mbits, size, true, get_global_id(0));
+	}
 #else
-/*	inline cl_int BuildBinaryRadixTree_p(
+	inline cl_int BuildColoredBinaryRadixTree_s(
 		cl::Buffer &zpoints_i,
+		cl::Buffer  &pointColors_i,
 		cl_int totalUniquePoints,
 		cl_int mbits,
 		string uniqueString,
-		cl::Buffer &internalBRTNodes_o
-		) {
+		cl::Buffer  &brt_o,
+		cl::Buffer  &brtColors_o)
+	{
 		startBenchmark();
 		cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl_int globalSize = nextPow2(totalUniquePoints);
 
-		cl_int error = CLFW::get(internalBRTNodes_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
+		cl_int error = CLFW::get(brt_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
+		error |= CLFW::get(brtColors_o, uniqueString + "brtc", sizeof(cl_int)* (globalSize));
 
-		error |= kernel.setArg(0, internalBRTNodes_o);
-		error |= kernel.setArg(1, zpoints_i);
-		error |= kernel.setArg(2, mbits);
-		error |= kernel.setArg(3, totalUniquePoints);
-		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
+		error |= kernel.setArg(0, brt_o);
+		error |= kernel.setArg(1, brtColors_o);
+		error |= kernel.setArg(2, zpoints_i);
+		error |= kernel.setArg(3, pointColors_i);
+		error |= kernel.setArg(4, mbits);
+		error |= kernel.setArg(5, totalUniquePoints);
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalUniquePoints - 1), cl::NullRange);
 		stopBenchmark();
 
 		return error;
-	}*/
+	}
 
-	inline cl_int ColorBRT_s(vector<BrtNode> brt_i, vector<cl_int> leafColors_i, vector<cl_int> brtColors_o) {
+	inline cl_int BuildColoredBinaryRadixTree_s(
+		vector<BigUnsigned> &zpoints_i, 
+		vector<cl_int> &pointColors_i, 
+		cl_int mbits, 
+		vector<BrtNode> &brt_o, 
+		vector<cl_int> &brtColors_o) 
+	{
+		brt_o.resize(zpoints_i.size() - 1);
+		brtColors_o.resize(zpoints_i.size() - 1);
 		startBenchmark();
-		brtColors_o.resize(brt_i.size(), -1);
-		for (int i = 0; i < brt_i.size() - 1; ++i) {
-			ColorBrt(brt_i.data(), leafColors_i.data(), brtColors_o.data(), i);
+		for (int i = 0; i < zpoints_i.size() - 1; ++i) {
+			BuildBinaryRadixTree(
+				brt_o.data(), 
+				brtColors_o.data(), 
+				zpoints_i.data(), 
+				pointColors_i.data(), 
+				mbits, 
+				zpoints_i.size(), 
+				true, 
+				i);
 		}
 		stopBenchmark();
 		return CL_SUCCESS;
@@ -2921,54 +2944,52 @@ namespace Kernels {
 	// Get Resolution Points
 #ifdef OpenCL
 	__kernel void GetResolutionPointsKernel(
-		__global Conflict* conflicts,
-		__global Line* orderedLines,
-		__global intn* qpoints,
-		__global int* predicates,
-		__global ConflictInfo* info_array,
-		__global int* scannedCounts,
-		__global intn* resolutionPoints
+		__global Conflict* conflicts_i,
+		__global ConflictInfo* conflictInfo_i,
+		__global cl_int* scannedNumPtsPerConflict_i,
+		__global cl_int* pntToConflict_i,
+		__global intn* qpoints_i,
+		__global intn* resolutionPoints_o
 	)
 	{
 		const int gid = get_global_id(0);
-		Conflict c = conflicts[gid];
-		ConflictInfo info = info_array[gid];
-		int predicator = predicates[gid];
-		int offset = (gid == 0) ? 0 : scannedCounts[gid - 1];
+		cl_int pntToConflict = pntToConflict_i[gid];
+		Conflict c = conflicts_i[pntToConflict];
+		ConflictInfo info = conflictInfo_i[pntToConflict];
 
-		intn q1 = qpoints[c.q1[0]];
-		intn q2 = qpoints[c.q1[1]];
-		intn r1 = qpoints[c.q2[0]];
-		intn r2 = qpoints[c.q2[1]];
-
-		//This is really bad in terms of efficient global memory usage... 
-		const int n = info.num_samples;
-		for (int i = 0; i < n; ++i) {
-			floatn sample;
-			sample_conflict_kernel(i, &info, &sample);
-			resolutionPoints[offset + i] = convert_intn(sample);
-		}
+		intn q1 = qpoints_i[c.q1[0]];
+		intn q2 = qpoints_i[c.q1[1]];
+		intn r1 = qpoints_i[c.q2[0]];
+		intn r2 = qpoints_i[c.q2[1]];
+		cl_int totalPrevPts = (pntToConflict == 0) ? 0 : scannedNumPtsPerConflict_i[pntToConflict - 1];
+		cl_int localIndx = gid - totalPrevPts;
+		floatn sample;
+		sample_conflict_kernel(localIndx, &info, &sample);
+		resolutionPoints_o[gid] = convert_intn(sample);
 	}
 #else
 	inline cl_int GetResolutionPoints_p(
-		cl_int totalLeaves, cl_int totalAdditionalPoints,
-		cl::Buffer &conflicts, cl::Buffer &orderedLines, cl::Buffer &qPoints,
-		cl::Buffer &conflictInfoBuffer, cl::Buffer &scannedCounts,
-		cl::Buffer &predicates, cl::Buffer &resolutionPoints) {
+		cl::Buffer &conflicts_i,
+		cl::Buffer &conflictInfo_i,
+		cl::Buffer &scannedNumPtsPerConflict_i,
+		cl_int numResPts,
+		cl::Buffer &pntToConflict_i,
+		cl::Buffer &qpoints_i,
+		cl::Buffer &resolutionPoints_o) 
+	{
 		startBenchmark();
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["GetResolutionPointsKernel"];
 		cl_int error = 0;
 
-		error |= CLFW::get(resolutionPoints, "ResPts", nextPow2(totalAdditionalPoints) * sizeof(intn));
-		error |= kernel.setArg(0, conflicts);
-		error |= kernel.setArg(1, orderedLines);
-		error |= kernel.setArg(2, qPoints);
-		error |= kernel.setArg(3, predicates);
-		error |= kernel.setArg(4, conflictInfoBuffer);
-		error |= kernel.setArg(5, scannedCounts);
-		error |= kernel.setArg(6, resolutionPoints);
-		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalLeaves), cl::NullRange);
+		error |= CLFW::get(resolutionPoints_o, "ResPts", nextPow2(numResPts) * sizeof(intn));
+		error |= kernel.setArg(0, conflicts_i);
+		error |= kernel.setArg(1, conflictInfo_i);
+		error |= kernel.setArg(2, scannedNumPtsPerConflict_i);
+		error |= kernel.setArg(3, pntToConflict_i);
+		error |= kernel.setArg(4, qpoints_i);
+		error |= kernel.setArg(5, resolutionPoints_o);
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numResPts), cl::NullRange);
 		stopBenchmark();
 		return error;
 	}
@@ -2976,13 +2997,14 @@ namespace Kernels {
 	inline cl_int GetResolutionPoints_s(
 		vector<Conflict> &conflicts_i, 
 		vector<ConflictInfo> &conflictInfo_i,
+		vector<cl_int> &scannedNumPtsPerConflict_i,
 		vector<cl_int> &pntToConflict_i, 
-		cl_int numResPoints,
+		cl_int numResPts,
 		vector<intn> &qpoints_i, 
 		vector<intn> &resolutionPoints_o
 		) {
-		resolutionPoints_o.resize(numResPoints);
-		for (int gid = 0; gid < numResPoints; gid++) {
+		resolutionPoints_o.resize(numResPts);
+		for (int gid = 0; gid < numResPts; gid++) {
 			cl_int pntToConflict = pntToConflict_i[gid];
 			Conflict c = conflicts_i[pntToConflict];
 			ConflictInfo info = conflictInfo_i[pntToConflict];
@@ -2991,9 +3013,10 @@ namespace Kernels {
 			intn q2 = qpoints_i[c.q1[1]];
 			intn r1 = qpoints_i[c.q2[0]];
 			intn r2 = qpoints_i[c.q2[1]];
-
+			cl_int totalPrevPts = (pntToConflict == 0) ? 0 : scannedNumPtsPerConflict_i[pntToConflict - 1];
+			cl_int localIndx = gid - totalPrevPts;
 			floatn sample;
-			sample_conflict_kernel(gid, &info, &sample);
+			sample_conflict_kernel(localIndx, &info, &sample);
 			resolutionPoints_o[gid] = convert_intn(sample);
 		}
 		return CL_SUCCESS;

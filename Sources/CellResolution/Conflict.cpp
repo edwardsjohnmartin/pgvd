@@ -916,7 +916,7 @@ void sample_v_conflict(
 	const cl_float alpha = alpha_f(opposite, &p_origin, &q0, &r0, &u, &v, &w);
 
 	// If alpha is less than one then the lines are directed toward each other
-	if (alpha < 1 - EPSILON || fabs(v.x) < EPSILON || fabs(w.x) < EPSILON) {
+	if (alpha < 1 - EPSILON || fabs(normalize(v).x) < EPSILON || fabs(normalize(w).x) < EPSILON) {
 		antiparallel = true;
 	}
 	if (antiparallel) {
@@ -1068,7 +1068,7 @@ void sample_conflict_impl(ConflictInfo* info,
     LineSegment* b = &pairs[i].s1;
 
     bool a_valid, b_valid;
-    *a = clip_segment(a, &bb_, &a_valid, debug);
+   *a = clip_segment(a, &bb_, &a_valid, debug);
     *b = clip_segment(b, &bb_, &b_valid, debug);
 
     BB small_bb = make_bb();

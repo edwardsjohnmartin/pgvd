@@ -759,20 +759,36 @@ Scenario("Build Binary Radix Tree", "[tree]") {
 		}
 	}
 }
-Scenario("Color Binary Radix Tree", "[tree]") {
-	Given("A binary radix tree and the colors of the tree's leaves") {
+Scenario("Build Colored Binary Radix Tree", "[disabled][tree]") {
+	Given("A set of colored unique ordered zpoints") {
+		cl_int mbits = readFromFile<cl_int>("TestData//simple//mbits.bin");
 		cl_int totalPoints = readFromFile<cl_int>("TestData//simple//uniqueTotalPoints.bin");
+		vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("TestData//simple//uniqueZPoints.bin", totalPoints);
 		vector<cl_int> leafColors = readFromFile<cl_int>("TestData//simple//uniqueColors.bin", totalPoints);
-		vector<BrtNode> brt = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints-1);
-
-		When("we color these brt nodes from the leaves to the root in series") {
-			vector<cl_int> brtColors_s(totalPoints - 1);
-			TODO("improve the number of threads required for this kernel");
-			//ColorBRT_s(brt, leafColors, brtColors_s);
-			Then("the results should be valid") {
-			
+		When("we build a colored binary radix tree using these points in series") {
+			vector<BrtNode> brt;
+			vector<cl_int> brtColors;
+			BuildColoredBinaryRadixTree_s(zpoints, leafColors, mbits, brt, brtColors);
+			Then("the resulting binary radix tree should be valid") {
+				TODO("test this");
 			}
 			Then("the series results should match the parallel results") {
+				TODO("test this");
+			}
+		}
+	}
+}
+Scenario("Propagate Brt Colors", "[disabled][tree]") {
+	Given("a colored binary radix tree") {
+		When("we propagate the BRT colors up the tree in series") {
+			TODO("program this");
+
+			Then("the results should be valid") {
+				TODO("test this");
+
+			}
+			Then("the series results should match the parallel results") {
+				TODO("test this");
 
 			}
 		}
@@ -1089,7 +1105,7 @@ Scenario("Find Conflict Cells", "[conflict]") {
 }
 
 /* Ambiguous cell resolution kernels */
-Scenario("Sample required resolution points", "[disabled][selected][resolution]") {
+Scenario("Sample required resolution points", "[selected][resolution]") {
 	Given("a set of conflicts and the quantized points used to build the original octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
 		cl_int numPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
@@ -1134,10 +1150,10 @@ Scenario("Sample required resolution points", "[disabled][selected][resolution]"
 					if (!success) {
 						success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_p[i]);
 						success &= (numPtsPerConflict_s[i] == numPtsPerConflict_p[i]);
-            if (!success) {
-              success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_p[i]);
-              success &= (numPtsPerConflict_s[i] == numPtsPerConflict_p[i]);
-            }
+						if (!success) {
+							success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_p[i]);
+							success &= (numPtsPerConflict_s[i] == numPtsPerConflict_p[i]);
+						}
 					}
 				}
 				Require(success == true);
@@ -1145,10 +1161,9 @@ Scenario("Sample required resolution points", "[disabled][selected][resolution]"
 		}
 	}
 }
-Scenario("Predicate Conflict To Point", "[disabled][predication][resolution]") {
+Scenario("Predicate Conflict To Point", "[selected][predication][resolution]") {
 	Given("the scanned number of resolution points to create per conflict") {
 		cl_int numConflicts = readFromFile<cl_int>("./TestData/simple/numConflicts.bin");
-    cl_int test = __builtin_bswap32(numConflicts);
 		cl_int numResPts = readFromFile<cl_int>("TestData//simple//numResPts.bin");
 		vector<cl_int> scannedNumPtsPerConflict = readFromFile<cl_int>("TestData//simple//scannedNumPtsPerConflict.bin", numConflicts);
 		When("we predicate the first point cooresponding to a conflict") {
@@ -1157,8 +1172,8 @@ Scenario("Predicate Conflict To Point", "[disabled][predication][resolution]") {
 			predPntToConflict(scannedNumPtsPerConflict.data(), predicates.data(), numConflicts - 2);
 			predPntToConflict(scannedNumPtsPerConflict.data(), predicates.data(), 10);
 			Require(predicates[4] == 1);
-			Require(predicates[57] == 1);
-			Require(predicates[73] == 1);
+			Require(predicates[56] == 1);
+			Require(predicates[72] == 1);
 		}
 		When("we predicate the first points in series") {
 			vector<cl_int> predication_s;
@@ -1181,8 +1196,7 @@ Scenario("Predicate Conflict To Point", "[disabled][predication][resolution]") {
 		}
 	}
 }
-
-Scenario("Get resolution points", "[disabled][resolution]") {
+Scenario("Get resolution points", "[selected][resolution]") {
 	Given("a set of conflicts and cooresponding conflict infos, a resolution point to conflict mapping, "
 		+ "and the original quantized points used to build the octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
@@ -1191,17 +1205,39 @@ Scenario("Get resolution points", "[disabled][resolution]") {
 		vector<Conflict> conflicts = readFromFile<Conflict>("TestData//simple//conflicts.bin", numConflicts);
 		vector<ConflictInfo> conflictInfo = readFromFile<ConflictInfo>("TestData//simple//conflictInfo.bin", numConflicts);
 		vector<cl_int> pntToConflict = readFromFile<cl_int>("TestData//simple//pntToConflict.bin", numResPts);
+		vector<cl_int> scannedNumPtsPerConflict = readFromFile<cl_int>("TestData//simple//scannedNumPtsPerConflict.bin", numConflicts);
 		vector<intn> qpoints = readFromFile<intn>("TestData//simple//qpoints.bin", numPts);
-
+		vector<cl_int>numPtsPerConflict_f = readFromFile<cl_int>("TestData//simple//numPtsPerConflict.bin", numConflicts);
+		vector<cl_int> test(numPtsPerConflict_f.size());
 		When("we use this data to get the resolution points in series") {
-			vector<intn> resPts_p;
-			GetResolutionPoints_s(conflicts, conflictInfo, pntToConflict, numResPts, qpoints, resPts_p);
-			
+			vector<intn> resPts_s;
+			GetResolutionPoints_s(conflicts, conflictInfo, scannedNumPtsPerConflict, pntToConflict, numResPts, qpoints, resPts_s);
 			Then("these points should be valid") {
-				TODO("validate the generated resolution points.");
+				vector<intn> resPts_f = readFromFile<intn>("TestData//simple//resPts.bin", numResPts);
+				cl_int success = true;
+				for (int i = 0; i < numResPts; ++i) success &= (resPts_s[i] == resPts_f[i]);
+				Require(success == true);
 			}
 			Then("the series results match the parallel results") {
-				TODO("compare series results with the parallel results");
+				cl_int error = 0;
+				vector<intn> resPts_p;
+				cl::Buffer b_conflicts, b_conflictInfo, b_scannedNumPtsPerConflict, b_pntToConflict, b_qpoints, b_resPts;
+				error |= CLFW::get(b_conflicts, "b_conflicts", numConflicts * sizeof(Conflict));
+				error |= CLFW::get(b_conflictInfo, "b_conflictInfo", numConflicts * sizeof(ConflictInfo));
+				error |= CLFW::get(b_scannedNumPtsPerConflict, "b_scannedNumPtsPerConflict", numConflicts * sizeof(cl_int));
+				error |= CLFW::get(b_pntToConflict, "b_pntToConflict", numResPts * sizeof(cl_int));
+				error |= CLFW::get(b_qpoints, "b_qpoints", numPts * sizeof(intn));
+				error |= CLFW::Upload<Conflict>(conflicts, b_conflicts);
+				error |= CLFW::Upload<ConflictInfo>(conflictInfo, b_conflictInfo);
+				error |= CLFW::Upload<cl_int>(scannedNumPtsPerConflict, b_scannedNumPtsPerConflict);
+				error |= CLFW::Upload<cl_int>(pntToConflict, b_pntToConflict);
+				error |= CLFW::Upload<intn>(qpoints, b_qpoints);
+				error |= GetResolutionPoints_p(b_conflicts, b_conflictInfo, b_scannedNumPtsPerConflict, numResPts, b_pntToConflict, b_qpoints, b_resPts);
+				error |= CLFW::Download<intn>(b_resPts, numResPts, resPts_p);
+				Require(error == CL_SUCCESS);
+				cl_int success = true;
+				for (int i = 0; i < numResPts; ++i) success &= (resPts_s[i] == resPts_p[i]);
+				Require(success == true);
 			}
 		}
 	}

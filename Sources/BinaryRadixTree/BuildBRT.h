@@ -17,7 +17,7 @@ inline int sign(const int i) {
 }
 #endif
 
-inline void BuildBinaryRadixTree(__global BrtNode *I, __global BigUnsigned* mpoints, int mbits, int size, const unsigned int gid)
+inline void BuildBinaryRadixTree(__global BrtNode *I, __global cl_int *IColors, __global BigUnsigned* mpoints, __global cl_int *pointColors, int mbits, int size, bool colored, const unsigned int gid)
 {
   BigUnsigned current;
   BigUnsigned left;
@@ -107,6 +107,13 @@ inline void BuildBinaryRadixTree(__global BrtNode *I, __global BigUnsigned* mpoi
     if (!I[gid].right_leaf) {
       I[right].parent = gid;
     }
+
+		if (colored) {
+			cl_int brtColor = (MIN(gid, j) == split) ? pointColors[split] : -1;
+			cl_int rightColor = (MAX(gid, j) == split + 1) ? pointColors[split + 1] : -1;
+			if (brtColor != rightColor && rightColor != -1) brtColor = -2;
+			IColors[gid] = brtColor;
+		}
   }
 }
 
