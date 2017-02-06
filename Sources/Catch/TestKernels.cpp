@@ -672,7 +672,7 @@ Scenario("Unique Sorted BigUnsigned", "[sort][unique]") {
 Scenario("Unique Sorted BigUnsigned color pairs", "[sort][unique]") {
 	Given("An ascending sorted set of BigUnsigneds") {
 		vector<BigUnsigned> small_keys(a_few);
-		vector<BigUnsigned> large_keys(a_few);
+		vector<BigUnsigned> large_keys(a_lot);
 		vector<cl_int> small_values(a_few);
 		vector<cl_int> large_values(a_lot);
 
@@ -722,7 +722,7 @@ Scenario("Unique Sorted BigUnsigned color pairs", "[sort][unique]") {
 }
 
 /* Tree Building Kernels */
-Scenario("Build Binary Radix Tree", "[tree]") {
+Scenario("Build Binary Radix Tree", "[selected][tree]") {
 	Given("A set of unique ordered zpoints") {
 		int lotmbits = 48;
 		int fewmbits = 6;
@@ -750,6 +750,8 @@ Scenario("Build Binary Radix Tree", "[tree]") {
 				int success = true;
 				for (int i = 0; i < a_few; ++i) {
 					success &= (true == compareBrtNode(&small_brt_p[i], &small_brt_s[i]));
+					if (!success)
+						success &= (true == compareBrtNode(&small_brt_p[i], &small_brt_s[i]));
 				}
 				for (int i = 0; i < a_lot; ++i) {
 					success &= (true == compareBrtNode(&large_brt_p[i], &large_brt_s[i]));
@@ -766,30 +768,74 @@ Scenario("Build Colored Binary Radix Tree", "[disabled][tree]") {
 		vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("TestData//simple//uniqueZPoints.bin", totalPoints);
 		vector<cl_int> leafColors = readFromFile<cl_int>("TestData//simple//uniqueColors.bin", totalPoints);
 		When("we build a colored binary radix tree using these points in series") {
-			vector<BrtNode> brt;
-			vector<cl_int> brtColors;
-			BuildColoredBinaryRadixTree_s(zpoints, leafColors, mbits, brt, brtColors);
-			Then("the resulting binary radix tree should be valid") {
-				TODO("test this");
+			vector<BrtNode> brt_s;
+			vector<cl_int> brtColors_s;
+			BuildColoredBinaryRadixTree_s(zpoints, leafColors, mbits, brt_s, brtColors_s);
+			Then("the resulting binary radix tree and cooresponding colors should be valid") {
+				vector<BrtNode> brt_f = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints - 1);
+				vector<cl_int> brtColors_f = readFromFile<cl_int>("TestData//simple//unpropagatedBrtColors.bin", totalPoints - 1);
+				cl_int success = true;
+				for (int i = 0; i < brt_s.size(); ++i) {
+					success &= (brtColors_s[i] == brtColors_f[i]);
+					success &= (compareBrtNode(&brt_s[i], &brt_f[i]));
+				}
+				Require(success == true);
 			}
 			Then("the series results should match the parallel results") {
-				TODO("test this");
+				cl_int error = 0;
+				vector<BrtNode> brt_p;
+				vector<cl_int> brtColors_p;
+				cl::Buffer b_zpoints, b_leafColors, b_brt, b_brtColors;
+				error |= CLFW::get(b_zpoints, "b_zpoints", totalPoints * sizeof(BigUnsigned));
+				error |= CLFW::get(b_leafColors, "b_leafColors", totalPoints * sizeof(cl_int));
+				error |= CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+				error |= CLFW::Upload<cl_int>(leafColors, b_leafColors);
+				error |= BuildColoredBinaryRadixTree_p(b_zpoints, b_leafColors, totalPoints, mbits, "", b_brt, b_brtColors);
+				error |= CLFW::Download<BrtNode>(b_brt, totalPoints - 1, brt_p);
+				error |= CLFW::Download<cl_int>(b_brtColors, totalPoints - 1, brtColors_p);
+				Require(error == CL_SUCCESS);
+				cl_int success = true;
+				for (int i = 0; i < brt_s.size(); ++i) {
+					success &= (brtColors_s[i] == brtColors_p[i]);
+					success &= (compareBrtNode(&brt_s[i], &brt_p[i]));
+				}
+				Require(success == true);
 			}
 		}
 	}
 }
-Scenario("Propagate Brt Colors", "[disabled][tree]") {
+Scenario("Propagate Brt Colors", "[tree][selected]") {
 	Given("a colored binary radix tree") {
+		cl_int totalPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
+		vector<BrtNode> brt = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints - 1);
+		vector<cl_int> brtColors_s = readFromFile<cl_int>("TestData//simple//unpropagatedBrtColors.bin", totalPoints - 1);
+		vector<cl_int> brtColors_f = readFromFile<cl_int>("TestData//simple//unpropagatedBrtColors.bin", totalPoints - 1);
+
 		When("we propagate the BRT colors up the tree in series") {
-			TODO("program this");
+			TODO("create brt leaf mapping");
+			PropagateBRTColors_s(brt, brtColors_s);
 
 			Then("the results should be valid") {
 				TODO("test this");
-
 			}
 			Then("the series results should match the parallel results") {
-				TODO("test this");
+				cl_int error = 0;
+				cl::Buffer b_brt, b_brtColors;
+				vector<cl_int> brtColors_p;
+				error |= CLFW::get(b_brt, "brt", (totalPoints - 1) * sizeof(BrtNode));
+				error |= CLFW::get(b_brtColors, "b_brtColors", (totalPoints - 1) * sizeof(cl_int));
+				error |= CLFW::Upload<BrtNode>(brt, b_brt);
+				error |= CLFW::Upload<cl_int>(brtColors_f, b_brtColors);
+				error |= PropagateBRTColors_p(b_brt, b_brtColors, totalPoints - 1, "");
+				error |= CLFW::Download<cl_int>(b_brtColors, totalPoints - 1, brtColors_p);
 
+				Require(error == CL_SUCCESS);
+
+				cl_int success = true;
+				for (cl_int i = 0; i < totalPoints - 1; i++) {
+					success &= brtColors_p[i] == brtColors_s[i];
+				}
+				Require(success == true);
 			}
 		}
 	}
@@ -800,15 +846,15 @@ Scenario("Build Quadtree", "[tree]") {
 		auto large_brt = readFromFile<BrtNode>("TestData//lot_brt.bin", a_lot);
 		When("we use that binary radix tree to build an octree in parallel") {
 			cl_int error = 0, small_octree_size, large_octree_size;
-			cl::Buffer b_small_brt, b_large_brt, b_small_octree, b_large_octree;
+			cl::Buffer b_small_brt, b_large_brt, b_small_octree, b_large_octree, nullBuffer;
 			error |= CLFW::get(b_small_brt, "b_small_brt", a_few * sizeof(BrtNode));
 			error |= CLFW::get(b_large_brt, "b_large_brt", a_lot * sizeof(BrtNode));
 			error |= CLFW::Upload<BrtNode>(small_brt, b_small_brt);
 			error |= CLFW::Upload<BrtNode>(large_brt, b_large_brt);
-			error |= BinaryRadixToOctree_p(b_small_brt, a_few, "a", b_small_octree, small_octree_size);
+			error |= BinaryRadixToOctree_p(b_small_brt, false, nullBuffer, a_few, "a", b_small_octree, small_octree_size);
 			vector<OctNode> small_octree_p(small_octree_size);// , 
 			error |= CLFW::Download<OctNode>(b_small_octree, small_octree_size, small_octree_p);
-			error |= BinaryRadixToOctree_p(b_large_brt, a_lot, "b", b_large_octree, large_octree_size);
+			error |= BinaryRadixToOctree_p(b_large_brt, false, nullBuffer, a_lot, "b", b_large_octree, large_octree_size);
 			vector<OctNode> large_octree_p(large_octree_size);
 			error |= CLFW::Download<OctNode>(b_large_octree, large_octree_size, large_octree_p);
 
@@ -1105,7 +1151,7 @@ Scenario("Find Conflict Cells", "[conflict]") {
 }
 
 /* Ambiguous cell resolution kernels */
-Scenario("Sample required resolution points", "[selected][resolution]") {
+Scenario("Sample required resolution points", "[resolution]") {
 	Given("a set of conflicts and the quantized points used to build the original octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
 		cl_int numPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
@@ -1161,7 +1207,7 @@ Scenario("Sample required resolution points", "[selected][resolution]") {
 		}
 	}
 }
-Scenario("Predicate Conflict To Point", "[selected][predication][resolution]") {
+Scenario("Predicate Conflict To Point", "[predication][resolution]") {
 	Given("the scanned number of resolution points to create per conflict") {
 		cl_int numConflicts = readFromFile<cl_int>("./TestData/simple/numConflicts.bin");
 		cl_int numResPts = readFromFile<cl_int>("TestData//simple//numResPts.bin");
@@ -1196,7 +1242,7 @@ Scenario("Predicate Conflict To Point", "[selected][predication][resolution]") {
 		}
 	}
 }
-Scenario("Get resolution points", "[selected][resolution]") {
+Scenario("Get resolution points", "[resolution]") {
 	Given("a set of conflicts and cooresponding conflict infos, a resolution point to conflict mapping, "
 		+ "and the original quantized points used to build the octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");

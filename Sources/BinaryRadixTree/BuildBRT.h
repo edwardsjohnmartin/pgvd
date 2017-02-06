@@ -109,9 +109,18 @@ inline void BuildBinaryRadixTree(__global BrtNode *I, __global cl_int *IColors, 
     }
 
 		if (colored) {
+
+			// Take on the left color if it exists.
 			cl_int brtColor = (MIN(gid, j) == split) ? pointColors[split] : -1;
+			
+			// Find the right color if it exists.
 			cl_int rightColor = (MAX(gid, j) == split + 1) ? pointColors[split + 1] : -1;
-			if (brtColor != rightColor && rightColor != -1) brtColor = -2;
+
+			// If the left doesn't have a color, take the right one.
+			if (brtColor == -1) brtColor = rightColor;
+
+			// Else if both left and right leaves have mismatching colors, mark as required.
+			else if (rightColor != -1 && brtColor != rightColor) brtColor = -2;
 			IColors[gid] = brtColor;
 		}
   }

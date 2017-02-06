@@ -1802,9 +1802,9 @@ namespace Kernels {
 		error |= PredicateUnique_p(keys_io, predicate, originalSize);
 		error |= StreamScan_p(predicate, originalSize, uniqueString + "uniqI", address);
 		error |= BUCompact_p(keys_io, originalSize, predicate, address, result_keys);
-		error |= Compact_p(values_io, predicate, address, originalSize, result_keys);
+		error |= Compact_p(values_io, predicate, address, originalSize, result_vals);
 		keys_io = result_keys;
-		values_io = result_keys;
+		values_io = result_vals;
 
 		error |= CLFW::DefaultQueue.enqueueReadBuffer(address, CL_TRUE, (sizeof(cl_int)*originalSize - (sizeof(cl_int))), sizeof(cl_int), &newSize);
 		stopBenchmark();
@@ -1911,6 +1911,8 @@ namespace Kernels {
 	__kernel void ComputeLocalSplitsKernel(
 		__global cl_int* local_splits,
 		__global BrtNode* I,
+		cl_int colored,
+		__global cl_int* colors,
 		const int size
 	)
 	{
@@ -1918,14 +1920,18 @@ namespace Kernels {
 		if (size > 0 && gid == 0) {
 			local_splits[0] = 1 + I[0].lcp.len/ DIM;
 		}
-		barrier(CLK_GLOBAL_MEM_FENCE);
 		if (gid < size - 1) {
-			ComputeLocalSplits(local_splits, I, gid);
+			ComputeLocalSplits(local_splits, I, colored, colors, gid);
 		}
-
 	}
 #else
-	inline cl_int ComputeLocalSplits_p(cl::Buffer &internalBRTNodes_i, cl_int totalBRT, string uniqueString, cl::Buffer &localSplits_o) {
+	inline cl_int ComputeLocalSplits_p(
+		cl::Buffer &internalBRTNodes_i, 
+		cl_int totalBRT, 
+		cl_int colored, 
+		cl::Buffer &colors,
+		string uniqueString, 
+		cl::Buffer &localSplits_o) {
 		startBenchmark();
 		cl_int globalSize = nextPow2(totalBRT);
 		cl::Kernel &kernel = CLFW::Kernels["ComputeLocalSplitsKernel"];
@@ -1946,20 +1952,28 @@ namespace Kernels {
 
 		error |= kernel.setArg(0, localSplits_o);
 		error |= kernel.setArg(1, internalBRTNodes_i);
-		error |= kernel.setArg(2, totalBRT);
+		error |= kernel.setArg(2, colored);
+		error |= kernel.setArg(3, colors);
+		error |= kernel.setArg(4, totalBRT);
 
 		error = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NullRange);
 		stopBenchmark();
 		return error;
 	}
 
-	inline cl_int ComputeLocalSplits_s(vector<BrtNode> &I, vector<cl_int> &local_splits, const cl_int size) {
+	inline cl_int ComputeLocalSplits_s(
+		vector<BrtNode> &I, 
+		bool colored, 
+		vector<cl_int> colors, 
+		vector<cl_int> &local_splits, 
+		const cl_int size) 
+	{
 		startBenchmark();
 		if (size > 0) {
 			local_splits[0] = 1 + I[0].lcp.len / DIM;
 		}
 		for (int i = 0; i < size - 1; ++i) {
-			ComputeLocalSplits(local_splits.data(), I.data(), i);
+			ComputeLocalSplits(local_splits.data(), I.data(), colored, colors.data(), i);
 		}
 		stopBenchmark();
 		return CL_SUCCESS;
@@ -1989,9 +2003,15 @@ namespace Kernels {
 		cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl_int globalSize = nextPow2(totalUniquePoints);
-
+		bool isOld;
+		cl::Buffer zeroBRTNodes;
 		cl_int error = CLFW::get(internalBRTNodes_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
-
+		error |= CLFW::get(zeroBRTNodes, uniqueString + "brtzero", sizeof(BrtNode)* (globalSize), isOld);
+		if (!isOld) {
+			BrtNode b = { 0 };
+			queue.enqueueFillBuffer<BrtNode>(zeroBRTNodes, { b }, 0, sizeof(BrtNode) * globalSize);
+		}
+		error |= queue.enqueueCopyBuffer(zeroBRTNodes, internalBRTNodes_o, 0, 0, sizeof(BrtNode)* (globalSize));
 		error |= kernel.setArg(0, internalBRTNodes_o);
 		error |= kernel.setArg(1, zpoints_i);
 		error |= kernel.setArg(2, mbits);
@@ -2027,7 +2047,7 @@ namespace Kernels {
 		BuildBinaryRadixTree(I, IColors, mpoints, pointColors, mbits, size, true, get_global_id(0));
 	}
 #else
-	inline cl_int BuildColoredBinaryRadixTree_s(
+	inline cl_int BuildColoredBinaryRadixTree_p(
 		cl::Buffer &zpoints_i,
 		cl::Buffer  &pointColors_i,
 		cl_int totalUniquePoints,
@@ -2037,22 +2057,29 @@ namespace Kernels {
 		cl::Buffer  &brtColors_o)
 	{
 		startBenchmark();
-		cl::Kernel &kernel = CLFW::Kernels["BuildBinaryRadixTreeKernel"];
+		cl::Kernel &kernel = CLFW::Kernels["BuildColoredBinaryRadixTreeKernel"];
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl_int globalSize = nextPow2(totalUniquePoints);
+		cl::Buffer zeroBrtNodes;
+		bool isOld;
 
 		cl_int error = CLFW::get(brt_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
+		error |= CLFW::get(zeroBrtNodes, uniqueString + "brtzero", sizeof(BrtNode)* (globalSize), isOld);
+		if (!isOld) {
+			BrtNode b = { 0 };
+			queue.enqueueFillBuffer<BrtNode>(zeroBrtNodes, { b }, 0, sizeof(BrtNode) * globalSize);
+		}
+		error |= queue.enqueueCopyBuffer(zeroBrtNodes, brt_o, 0, 0, sizeof(BrtNode)* (globalSize));
 		error |= CLFW::get(brtColors_o, uniqueString + "brtc", sizeof(cl_int)* (globalSize));
-
 		error |= kernel.setArg(0, brt_o);
 		error |= kernel.setArg(1, brtColors_o);
 		error |= kernel.setArg(2, zpoints_i);
 		error |= kernel.setArg(3, pointColors_i);
 		error |= kernel.setArg(4, mbits);
 		error |= kernel.setArg(5, totalUniquePoints);
+
 		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalUniquePoints - 1), cl::NullRange);
 		stopBenchmark();
-
 		return error;
 	}
 
@@ -2076,6 +2103,100 @@ namespace Kernels {
 				zpoints_i.size(), 
 				true, 
 				i);
+		}
+		stopBenchmark();
+		return CL_SUCCESS;
+	}
+#endif
+
+	//Propagate Binary Radix Tree Colors
+#ifdef OpenCL
+	__kernel void PropagateBRTColorsKernel(
+		__global BrtNode *brt_i,
+		volatile __global cl_int *brtColors_io,
+		cl_int totalBrtNodes
+		)
+	{
+		cl_int gid = get_global_id(0);
+		//for (int gid = 0; gid < totalBrtNodes; gid++) {
+
+			cl_int index = gid;
+			BrtNode node = brt_i[gid];
+
+			//Only run BRT nodes with leaves
+			if (node.left_leaf || node.right_leaf) {
+				cl_int currentColor = brtColors_io[gid];
+
+				//Traverse up the tree
+				while (index != 0) {
+					index = node.parent;
+					node = brt_i[index];
+
+					//If the parent has no color, paint it and exit.
+					cl_int r = atomic_cmpxchg(&brtColors_io[index], -1, currentColor);
+					if (r == -1)  break;
+					// else if our colors don't match, mark it
+					else if (r != currentColor) {
+						if (r != -2) brtColors_io[index] = -2;
+						currentColor = -2;
+					}
+				}
+			}
+		//}
+	}
+#else
+	inline cl_int PropagateBRTColors_p(
+		cl::Buffer &brt_i,
+		cl::Buffer &brtColors_io,
+		cl_int totalElements,
+		string uniqueString)
+	{
+		startBenchmark();
+		cl::Kernel &kernel = CLFW::Kernels["PropagateBRTColorsKernel"];
+		cl::CommandQueue &queue = CLFW::DefaultQueue;
+		cl_int globalSize = nextPow2(totalElements);
+		cl_int error = 0;
+		error |= kernel.setArg(0, brt_i);
+		error |= kernel.setArg(1, brtColors_io);
+		error |= kernel.setArg(2, totalElements);
+
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalElements), cl::NullRange);
+		stopBenchmark();
+		return error;
+	}
+
+	inline cl_int PropagateBRTColors_s(
+		vector<BrtNode> &brt_i,
+		vector<cl_int> &brtColors_io)
+	{
+		startBenchmark();
+		for (int gid = 0; gid < brt_i.size(); ++gid) {
+
+			cl_int index = gid;
+			BrtNode node = brt_i[gid];
+
+			//Only run BRT nodes with leaves
+			if (node.left_leaf || node.right_leaf) {
+				cl_int currentColor = brtColors_io[gid];
+
+				//Traverse up the tree
+				while (index != 0) {
+					index = node.parent;
+					node = brt_i[index];
+
+					//If the parent has no color, paint it and exit.
+						//atomic_cmpxchg(&brtColors_io[index], -1, currentColor);
+					cl_int r = brtColors_io[index];
+					if (brtColors_io[index] == -1) brtColors_io[index] = currentColor;
+
+					if (r == -1)  break;
+					// else if our colors don't match, mark it
+					else if (r != currentColor) {
+						if (r != -2) brtColors_io[index] = -2;
+						currentColor = -2;
+					}
+				}
+			}
 		}
 		stopBenchmark();
 		return CL_SUCCESS;
@@ -2119,6 +2240,8 @@ namespace Kernels {
 #else
 	inline cl_int BinaryRadixToOctree_p(
 		cl::Buffer &internalBRTNodes_i,
+		bool colored,
+		cl::Buffer colors_i,
 		cl_int totalBRTNode,
 		string uniqueString,
 		cl::Buffer &octree_o,
@@ -2143,7 +2266,7 @@ namespace Kernels {
 		error |= CLFW::get(scannedSplits, uniqueString + "scannedSplits", sizeof(cl_int) * globalSize);
 		error |= CLFW::get(flags, uniqueString + "flags", nextPow2(totalBRTNode) * sizeof(cl_int), isOld);
 		if (isOld) error |= CLFW::DefaultQueue.enqueueFillBuffer<cl_int>(flags, { 0 }, 0, sizeof(cl_int) * nextPow2(totalBRTNode));
-		error |= ComputeLocalSplits_p(internalBRTNodes_i, totalBRTNode, uniqueString, localSplits);
+		error |= ComputeLocalSplits_p(internalBRTNodes_i, totalBRTNode, colored, colors_i, uniqueString, localSplits);
 		error |= StreamScan_p(localSplits, globalSize, uniqueString + "octreeI", scannedSplits);
 		//Read in the required octree size
 		cl_int octreeSize;
@@ -2172,26 +2295,31 @@ namespace Kernels {
 	}
 #endif
 #ifndef OpenCL
-	inline cl_int BinaryRadixToOctree_s(vector<BrtNode> &internalBRTNodes, vector<OctNode> &octree) {
+	inline cl_int BinaryRadixToOctree_s(
+		vector<BrtNode> &internalBRTNodes_i, 
+		bool colored,
+		vector<cl_int> brtColors_i,
+		vector<OctNode> &octree_o
+		) {
 		startBenchmark();
-		int size = internalBRTNodes.size();
+		int size = internalBRTNodes_i.size();
 		vector<cl_int> localSplits(size);
-		ComputeLocalSplits_s(internalBRTNodes, localSplits, size);
+		ComputeLocalSplits_s(internalBRTNodes_i, colored, brtColors_i, localSplits, size);
 
 		vector<cl_int> prefixSums(size);
 		StreamScan_s(localSplits, prefixSums);
 
-		vector<cl_int> flags(internalBRTNodes.size(), 0);
+		vector<cl_int> flags(internalBRTNodes_i.size(), 0);
 
 		const int octreeSize = prefixSums[size - 1];
-		octree.resize(octreeSize);
-		octree[0].parent = -1;
-		octree[0].level = 0;
+		octree_o.resize(octreeSize);
+		octree_o[0].parent = -1;
+		octree_o[0].level = 0;
 		for (int i = 0; i < octreeSize; ++i)
-			brt2octree_init(octree.data(), i);
+			brt2octree_init(octree_o.data(), i);
 		for (int brt_i = 1; brt_i < size - 1; ++brt_i)
-			brt2octree(internalBRTNodes.data(), internalBRTNodes.size(), 
-				octree.data(), octree.size(), localSplits.data(), 
+			brt2octree(internalBRTNodes_i.data(), internalBRTNodes_i.size(), 
+				octree_o.data(), octree_o.size(), localSplits.data(), 
 				prefixSums.data(), flags.data(), brt_i);
 		stopBenchmark();
 		return CL_SUCCESS;

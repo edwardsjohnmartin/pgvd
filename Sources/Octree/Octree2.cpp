@@ -99,7 +99,7 @@ cl_int Quadtree::buildVertexOctree(
   using namespace Kernels;
   cl_int error = 0;
   cl_int uniqueTotalPoints = totalPoints;
-  cl::Buffer zpoints_copy, brt;
+  cl::Buffer zpoints_copy, brt, nullBuffer;
 	/* Make a copy of the zpoints. */
 	CLFW::get(zpoints_copy, uniqueString + "zptscpy", nextPow2(sizeof(BigUnsigned) * totalPoints));
 	error |= CLFW::DefaultQueue.enqueueCopyBuffer(zpoints_i, zpoints_copy, 0, 0, totalPoints * sizeof(BigUnsigned));
@@ -107,7 +107,7 @@ cl_int Quadtree::buildVertexOctree(
   /* Radix sort the zpoints */
   error |= RadixSortBigUnsigned_p(zpoints_copy, totalPoints, resln.mbits, uniqueString);
   check(error);
-
+	
   /* Unique the zpoints */
   error |= UniqueSorted(zpoints_copy, totalPoints, uniqueString, uniqueTotalPoints);
   check(error);
@@ -117,7 +117,7 @@ cl_int Quadtree::buildVertexOctree(
   check(error);
 
   /* Convert the binary radix tree to an octree*/
-  error |= BinaryRadixToOctree_p(brt, uniqueTotalPoints, uniqueString, octree_o, totalOctnodes_o); //occasionally currentSize is 0...
+  error |= BinaryRadixToOctree_p(brt, false, nullBuffer, uniqueTotalPoints, uniqueString, octree_o, totalOctnodes_o); //occasionally currentSize is 0...
   check(error);
 
   /* Use the internal octree nodes to calculate leaves */
@@ -142,39 +142,35 @@ cl_int Quadtree::buildPrunedOctree(
 	using namespace Kernels;
 	cl_int error = 0;
 	cl_int uniqueTotalPoints = totalPoints;
-	cl::Buffer zpoints_copy, brt;
+	cl::Buffer zpoints_copy, brt, brtColors;
 	/* Make a copy of the zpoints. */
 	CLFW::get(zpoints_copy, uniqueString + "zptscpy", nextPow2(sizeof(BigUnsigned) * totalPoints));
 	error |= CLFW::DefaultQueue.enqueueCopyBuffer(zpoints_i, zpoints_copy, 0, 0, totalPoints * sizeof(BigUnsigned));
 
 	/* Radix sort the zpoints */
-	error |= RadixSortBUIntPairsByKey(zpoints_copy, pntColors_i, totalPoints, resln.mbits);
+	error |= RadixSortBUIntPairsByKey(zpoints_copy, pntColors_i, resln.mbits, totalPoints);
 	check(error);
-	CLFW::DefaultQueue.finish();
+	
 	/* Unique the zpoints */
 	error |= UniqueSortedBUIntPair(zpoints_copy, pntColors_i, totalPoints, uniqueString, uniqueTotalPoints);
 	check(error);
-	CLFW::DefaultQueue.finish();
-
-	/* Build a binary radix tree*/
-	error |= BuildBinaryRadixTree_p(zpoints_copy, uniqueTotalPoints, resln.mbits, uniqueString, brt);
+	
+	/* Build a colored binary radix tree*/
+	error |= BuildColoredBinaryRadixTree_p(zpoints_copy, pntColorsBuffer, uniqueTotalPoints, resln.mbits, uniqueString, brt, brtColors);
 	check(error);
-	CLFW::DefaultQueue.finish();
 
-	vector<BrtNode> brt_vec;
-	//CLFW::Download<BrtNode>(brt, 1, brt_vec);
-	//writeToFile<BrtNode>(brt_vec, "TestData//simple//brt.bin");
+	/* Identify required cells */
+	error |= PropagateBRTColors_p(brt, brtColors, uniqueTotalPoints - 1, uniqueString);
+	check(error);
 
 	/* Convert the binary radix tree to an octree*/
-	error |= BinaryRadixToOctree_p(brt, uniqueTotalPoints, uniqueString, octree_o, totalOctnodes_o); //occasionally currentSize is 0...
+	error |= BinaryRadixToOctree_p(brt, true, brtColors, uniqueTotalPoints, uniqueString, octree_o, totalOctnodes_o); //occasionally currentSize is 0...
 	check(error);
-	CLFW::DefaultQueue.finish();
 
 	/* Use the internal octree nodes to calculate leaves */
 	error |= GetLeaves_p(octree_o, totalOctnodes_o, leaves_o, totalLeaves_o);
 	check(error);
-	CLFW::DefaultQueue.finish();
-
+	
 	return error;
 }
 
@@ -227,26 +223,10 @@ cl_int Quadtree::resolveAmbiguousCells(
 	error |= CLFW::get(pntToConflict, "pnt2Conflict", nextPow2(sizeof(cl_int) * numResPts));
 	error |= StreamScan_p(predPntToConflict, numResPts, "pnt2Conf",  pntToConflict);
 
-	vector<cl_int> temp;
-	CLFW::Download<cl_int>(pntToConflict, numResPts, temp);
-	writeToFile<cl_int>(temp, "TestData//simple//pntToConflict.bin");
-
-	//vector<cl_int> pointToInfo_;
-	//CLFW::Download<cl_int>(pntToConflict, numResPts, pointToInfo_);
-	//writeToFile<cl_int>(pointToInfo_, "TestData//simple//pntToConflict.bin");
-	//cout << endl;
-//	vector<Conflict> conflicts_vec;
-//	CLFW::Download<Conflict>(conflicts, numConflicts, conflicts_vec);
-//	writeToFile<Conflict>(conflicts_vec, "TestData//simple//conflicts.bin");
-////	writeToFile<cl_int>(numConflicts, "TestData//simple//numConflicts.bin");
-
 	/* Determine the number of points needed to solve each conflict. */
-	//cl::Buffer conflictInfoBuffer, resolutionCounts,
-	//	resolutionPredicates, scannedCounts;
-	//error |= GetResolutionPointsInfo_p(
-	//	totalLeaves, conflicts, lines_i,
-	//	qpoints_i, conflictInfoBuffer, resolutionCounts,
-	//	resolutionPredicates);
+	cl::Buffer resPts;
+	error |= GetResolutionPoints_p(conflicts, conflictInfo, scannedNumPtsPerConflict, numResPts, pntToConflict, qpoints, resPts);
+
 	//
   //if (lines.size() > 1) {
   //  //  do {
@@ -320,6 +300,7 @@ void Quadtree::clear() {
   totalResPoints = 0;
 
   points.clear();
+	pointColors.clear();
   gl_instances.clear();
   octree.clear();
   resolutionPoints.clear();
@@ -340,9 +321,10 @@ void Quadtree::build(const PolyLines *polyLines) {
   getBoundingBox(points, points.size(), bb);
 
   /* Upload the data to OpenCL buffers */
-	error |= CLFW::get(pointsBuffer, "pts", points.size() * sizeof(floatn));
-	error |= CLFW::get(pntColorsBuffer, "ptcolr", points.size() * sizeof(floatn));
-  error |= CLFW::get(linesBuffer, "lines", lines.size()*sizeof(Line));
+	error |= CLFW::get(pointsBuffer, "pts", Kernels::nextPow2(points.size()) * sizeof(floatn));
+	error |= CLFW::get(pntColorsBuffer, "ptcolr", Kernels::nextPow2(points.size()) * sizeof(floatn));
+  error |= CLFW::get(linesBuffer, "lines", Kernels::nextPow2(lines.size())*sizeof(Line));
+	check(error);
   error |= CLFW::Upload<floatn>(points, pointsBuffer);
 	error |= CLFW::Upload<cl_int>(pointColors, pntColorsBuffer);
   error |= CLFW::Upload<Line>(lines, linesBuffer);
@@ -354,49 +336,50 @@ void Quadtree::build(const PolyLines *polyLines) {
 	
   /* On one queue, build the initial vertex octree */
   CLFW::DefaultQueue = CLFW::Queues[0];
-  error |= buildVertexOctree(zpoints, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
+	//error |= buildVertexOctree(zpoints, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
+	error |= buildPrunedOctree(zpoints, pntColorsBuffer, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
   check(error);
   
-	/* On another queue, compute line bounding cells and generate the unordered line indices. */
-  CLFW::DefaultQueue = CLFW::Queues[1];
-  error |= GetLineLCPs_p(linesBuffer, lines.size(), zpoints, resln.mbits, LineLCPs);
-	vector<BigUnsigned>zpoints_vec;
-	CLFW::Download<BigUnsigned>(zpoints, points.size(), zpoints_vec);
-	writeToFile<BigUnsigned>(zpoints_vec, "TestData//simple//zpoints.bin");
-	vector<LCP> LineLCPs_vec;
-	CLFW::Download<LCP>(LineLCPs, lines.size(), LineLCPs_vec);
-	writeToFile(LineLCPs_vec, "TestData//simple//line_lcps.bin");
-  error |= InitializeFacetIndices_p(lines.size(), lineIndices);
-  check(error);
+					///* On another queue, compute line bounding cells and generate the unordered line indices. */
+					//CLFW::DefaultQueue = CLFW::Queues[1];
+					//error |= GetLineLCPs_p(linesBuffer, lines.size(), zpoints, resln.mbits, LineLCPs);
+					//vector<BigUnsigned>zpoints_vec;
+					//CLFW::Download<BigUnsigned>(zpoints, points.size(), zpoints_vec);
+					//writeToFile<BigUnsigned>(zpoints_vec, "TestData//simple//zpoints.bin");
+					//vector<LCP> LineLCPs_vec;
+					//CLFW::Download<LCP>(LineLCPs, lines.size(), LineLCPs_vec);
+					//writeToFile(LineLCPs_vec, "TestData//simple//line_lcps.bin");
+					//error |= InitializeFacetIndices_p(lines.size(), lineIndices);
+					//check(error);
 
-  CLFW::Queues[0].finish();
-  CLFW::Queues[1].finish();
+					//CLFW::Queues[0].finish();
+					//CLFW::Queues[1].finish();
 
-  /* For each bounding cell, look up it's surrounding octnode in the tree. */
-  error |= LookUpOctnodeFromLCP_p(LineLCPs, lines.size(), octreeBuffer, LCPToOctNode);
-  check(error);
+					///* For each bounding cell, look up it's surrounding octnode in the tree. */
+					//error |= LookUpOctnodeFromLCP_p(LineLCPs, lines.size(), octreeBuffer, LCPToOctNode);
+					//check(error);
 
-  /* Sort the node to line pairs by key. This gives us a node to facet mapping for conflict cell detection. */
-  error |= RadixSortPairsByKey(LCPToOctNode, lineIndices, lines.size());
-  check(error);
+					///* Sort the node to line pairs by key. This gives us a node to facet mapping for conflict cell detection. */
+					//error |= RadixSortPairsByKey(LCPToOctNode, lineIndices, lines.size());
+					//check(error);
 
-  /* For each octnode, determine the first and last bounding cell index to be used for conflict cell detection. */
-  error |= GetLCPBounds_p(LCPToOctNode, lines.size(), initialOctreeSize, LCPBounds);
-  check(error);
+					///* For each octnode, determine the first and last bounding cell index to be used for conflict cell detection. */
+					//error |= GetLCPBounds_p(LCPToOctNode, lines.size(), initialOctreeSize, LCPBounds);
+					//check(error);
 
-  /* Finally, resolve the ambiguous cells. */
-  error |= resolveAmbiguousCells(octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves, 
-		linesBuffer, lines.size(), qpoints, points.size(), lineIndices, LCPBounds);
-  check(error);
+					///* Finally, resolve the ambiguous cells. */
+					//error |= resolveAmbiguousCells(octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves, 
+					//	linesBuffer, lines.size(), qpoints, points.size(), lineIndices, LCPBounds);
+					//check(error);
 
-  /* Read back the octree. */
-  octree.resize(initialOctreeSize);
-  error |= CLFW::DefaultQueue.enqueueReadBuffer( octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*initialOctreeSize, octree.data());
-  check(error);
+					///* Read back the octree. */
+					//octree.resize(initialOctreeSize);
+					//error |= CLFW::DefaultQueue.enqueueReadBuffer( octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*initialOctreeSize, octree.data());
+					//check(error);
 
   /* Add the octnodes and conflict cells so they'll be rendered with OpenGL. */
   addOctreeNodes();
-  addConflictCells();
+  //addConflictCells();
 }
 
 inline floatn getMinFloat(const floatn a, const floatn b) {
@@ -560,6 +543,9 @@ void Quadtree::addOctreeNodes() {
   floatn center;
 
   if (initialOctreeSize == 0) return;
+
+	CLFW::Download<OctNode>(octreeBuffer, initialOctreeSize, octree);
+
   center = (bb.minimum + bb.maxwidth*.5);
   float3 color = { 0.75, 0.75, 0.75 };
   addOctreeNodes(0, center, bb.maxwidth, color);

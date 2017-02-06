@@ -10,26 +10,21 @@
 #define barrier(a)
 #endif
 
-void ComputeLocalSplits(__global cl_int* splits, __global BrtNode* node, const int gid) {
-  const int currentLenPerDim = node[gid].lcp.len / DIM;
-  const int left = node[gid].left;
-  const int right = left + 1;
-  if (!node[gid].left_leaf) {
-    splits[left] = node[left].lcp.len/ DIM - currentLenPerDim;
+void ComputeLocalSplits(__global cl_int* splits, __global BrtNode* node, bool colored, __global cl_int *colors, const int gid) {
+	const int currentLenPerDim = node[gid].lcp.len / DIM;
+	const int left = node[gid].left;
+	const int right = left + 1;
+	if (!node[gid].left_leaf) {
+		if (!colored || colors[left] == -2)
+			splits[left] = node[left].lcp.len / DIM - currentLenPerDim;
+		else
+			splits[left] = 0;
   }
   if (!node[gid].right_leaf) {
-    splits[right] = node[right].lcp.len/ DIM - currentLenPerDim;
-  }
-}
-
-// stores total times octree should be split from a parent to a child in BRT.
-// eg 2D child with lcplen 8 & parent lcpLen 4 =? child reps 2 octree splits.
-void ComputeLocalSplits_SerialKernel(__global cl_int* local_splits, __global BrtNode* node, const cl_int size) {
-  if (size > 0) {
-    local_splits[0] = 1 + node[0].lcp.len/ DIM;
-  }
-  for (int i = 0; i < size - 1; ++i) {
-    ComputeLocalSplits(local_splits, node, i);
+		if (!colored || colors[right] == -2)
+			splits[right] = node[right].lcp.len / DIM - currentLenPerDim;
+		else
+			splits[right] = 0;
   }
 }
 

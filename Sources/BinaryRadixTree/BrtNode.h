@@ -25,7 +25,7 @@ typedef struct BrtNode {
 } BrtNode;
 
 inline bool compareBrtNode(BrtNode* x, BrtNode* y) {
-  if (weakEqualsBU(x->lcp.bu, y->lcp.bu) != true) return false;
+	if (weakEqualsBU(x->lcp.bu, y->lcp.bu) != true) return false;
   if (x->lcp.len != y->lcp.len) return false;
   if (x->left != y->left) return false;
   if (x->left_leaf != y->left_leaf) return false;
