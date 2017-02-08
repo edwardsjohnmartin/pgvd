@@ -213,6 +213,8 @@ cl_int Quadtree::resolveAmbiguousCells(
 	error |= CLFW::Download<cl_int>(cAddr, numLeaves - 1, numConflicts);
 	error |= CompactConflicts_p(sparseConflicts, cPred, cAddr, numLeaves, conflicts);
 
+	if (numConflicts == 0) return error;
+
 	/* Use the conflicts to generate resolution points */
 	cl::Buffer conflictInfo, numPtsPerConflict, scannedNumPtsPerConflict, predPntToConflict, pntToConflict;
 	cl_int numResPts;
@@ -347,12 +349,6 @@ void Quadtree::build(const PolyLines *polyLines) {
 	/* On another queue, compute line bounding cells and generate the unordered line indices. */
 	CLFW::DefaultQueue = CLFW::Queues[1];
 	error |= GetLineLCPs_p(linesBuffer, lines.size(), zpoints, resln.mbits, LineLCPs);
-	vector<BigUnsigned>zpoints_vec;
-	CLFW::Download<BigUnsigned>(zpoints, points.size(), zpoints_vec);
-	writeToFile<BigUnsigned>(zpoints_vec, "TestData//simple//zpoints.bin");
-	vector<LCP> LineLCPs_vec;
-	CLFW::Download<LCP>(LineLCPs, lines.size(), LineLCPs_vec);
-	writeToFile(LineLCPs_vec, "TestData//simple//line_lcps.bin");
 	error |= InitializeFacetIndices_p(lines.size(), lineIndices);
 	check(error);
 

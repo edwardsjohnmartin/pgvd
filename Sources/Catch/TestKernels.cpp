@@ -822,7 +822,8 @@ Scenario("Build Colored Binary Radix Tree", "[selected][tree]") {
 		}
 	}
 }
-Scenario("Propagate Brt Colors", "[tree][selected]") {
+
+{
 	Given("a colored binary radix tree") {
 		cl_int totalPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
 		vector<BrtNode> brt = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints - 1);
