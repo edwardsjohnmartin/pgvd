@@ -3,6 +3,7 @@
 #include "catch.hpp"
 using namespace cl;
 using namespace Kernels;
+using namespace GLUtilities;
 
 static inline std::string BuToString(BigUnsigned bu) {
 		std::string representation = "";
@@ -17,6 +18,15 @@ static inline std::string BuToString(BigUnsigned bu) {
     }
   
 		return representation;
+}
+static void clearScreen() {
+	using namespace GLUtilities;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+static void refresh() {
+	using namespace GLUtilities;
+	Sketcher::instance()->draw();
+	glfwSwapBuffers(GLUtilities::window);
 }
 
 /* Reduction Kernels */
@@ -761,7 +771,7 @@ Scenario("Build Binary Radix Tree", "[selected][tree]") {
 		}
 	}
 }
-Scenario("Build Colored Binary Radix Tree", "[disabled][tree]") {
+Scenario("Build Colored Binary Radix Tree", "[selected][tree]") {
 	Given("A set of colored unique ordered zpoints") {
 		cl_int mbits = readFromFile<cl_int>("TestData//simple//mbits.bin");
 		cl_int totalPoints = readFromFile<cl_int>("TestData//simple//uniqueTotalPoints.bin");
@@ -771,6 +781,9 @@ Scenario("Build Colored Binary Radix Tree", "[disabled][tree]") {
 			vector<BrtNode> brt_s;
 			vector<cl_int> brtColors_s;
 			BuildColoredBinaryRadixTree_s(zpoints, leafColors, mbits, brt_s, brtColors_s);
+			clearScreen();
+			DrawBRT(brt_s, brtColors_s);
+			refresh();
 			Then("the resulting binary radix tree and cooresponding colors should be valid") {
 				vector<BrtNode> brt_f = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints - 1);
 				vector<cl_int> brtColors_f = readFromFile<cl_int>("TestData//simple//unpropagatedBrtColors.bin", totalPoints - 1);
@@ -778,6 +791,11 @@ Scenario("Build Colored Binary Radix Tree", "[disabled][tree]") {
 				for (int i = 0; i < brt_s.size(); ++i) {
 					success &= (brtColors_s[i] == brtColors_f[i]);
 					success &= (compareBrtNode(&brt_s[i], &brt_f[i]));
+
+					if (brt_s[i].parent != -1) {
+						BrtNode p = brt_s[brt_s[i].parent];
+						assert(p.left == i || p.left + 1 == i);
+					}
 				}
 				Require(success == true);
 			}
@@ -814,7 +832,9 @@ Scenario("Propagate Brt Colors", "[tree][selected]") {
 		When("we propagate the BRT colors up the tree in series") {
 			TODO("create brt leaf mapping");
 			PropagateBRTColors_s(brt, brtColors_s);
-
+			clearScreen();
+			DrawBRT(brt, brtColors_s);
+			refresh();
 			Then("the results should be valid") {
 				TODO("test this");
 			}

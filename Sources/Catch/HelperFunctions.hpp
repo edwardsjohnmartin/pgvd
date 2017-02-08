@@ -1,9 +1,8 @@
 #include "clfw.hpp"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
+#include "GLUtilities/Sketcher.h"
 #include <iostream>
 #include <fstream>
+using namespace GLUtilities;
 
 #define a_couple 2 
 #define a_few 30
@@ -119,4 +118,58 @@ inline T readFromFile(string filename) {
 		myfile.close();
 	}
 	return result;
+}
+
+inline void DrawBrtNode(vector<BrtNode> &brt, vector<cl_int> colors, int i, float maxLevel, float currentLevel, float shift) {
+	BrtNode me = brt[i];
+	float width = brt.size();
+
+	float4 color;
+	if (colors[i] == -1) {
+		color = { 0.0, 0.0, 0.0, 1.0 };
+	}
+	else if (colors[i] == -2) {
+		color = { 0.0, 1.0, 0.0, 1.0 };
+	}
+	else if (brt[i].parent != -1 && brt[brt[i].parent].left == i) {
+		color = { 1.0, 0.0, 0.0, 1.0 };
+	}
+	else if (brt[i].parent != -1 && colors[brt[brt[i].parent].left] == colors[i]) {
+		color = { 1.0, 0.0, 0.0, 1.0 };
+	}
+	else {
+		color = { 0.0, 0.0, 1.0, 1.0 };
+	}
+
+	/* render me */
+	Point p = {
+		{ shift, ((maxLevel - currentLevel) / maxLevel) * 1.5 - 0.75, 0.0, 1.0 },
+		color
+	};
+	Sketcher::instance()->add(p);
+
+	/* render my children */
+	if (!me.left_leaf) {
+		DrawBrtNode(brt, colors, me.left, maxLevel, currentLevel + 1, shift - (1.0 / (2 << (int)currentLevel)));
+	}
+	if (!me.right_leaf) {
+		DrawBrtNode(brt, colors, me.left + 1, maxLevel, currentLevel + 1, shift + (1.0 / (2 << (int)currentLevel)));
+	}
+}
+
+inline void DrawBRT(vector<BrtNode> &brt, vector<cl_int> colors) {
+	if (brt.size() < 2) return;
+	float width = brt.size() + 1;
+	float maxLevel = 0;
+	for (int i = 0; i < brt.size(); ++i) {
+		float temp = 0;
+		BrtNode n = brt[i];
+		while (n.parent != -1) {
+			temp++;
+			n = brt[n.parent];
+		}
+		maxLevel = std::fmaxf(temp, maxLevel);
+	}
+
+	DrawBrtNode(brt, colors, 0, maxLevel, 0.0, 0.0);
 }

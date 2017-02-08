@@ -122,6 +122,12 @@ namespace Kernels {
 			Kernels::buToString(node.lcp.bu) << " " << node.lcp.len << " " << node.parent;
 		return out;
 	}
+
+	inline std::ostream& operator<<(std::ostream& out, const OctNode& node) {
+		out << node.children[0] << " " << node.children[1] << " " << node.children[2] << " " << node.children[3] << " " <<
+			node.leaf << " " << node.level<< " " << node.parent << " " << node.quadrant << " ";
+		return out;
+	}
 #endif
 #pragma endregion
 
@@ -2239,7 +2245,7 @@ namespace Kernels {
 	}
 #else
 	inline cl_int BinaryRadixToOctree_p(
-		cl::Buffer &internalBRTNodes_i,
+		cl::Buffer &brt_i,
 		bool colored,
 		cl::Buffer colors_i,
 		cl_int totalBRTNode,
@@ -2266,7 +2272,9 @@ namespace Kernels {
 		error |= CLFW::get(scannedSplits, uniqueString + "scannedSplits", sizeof(cl_int) * globalSize);
 		error |= CLFW::get(flags, uniqueString + "flags", nextPow2(totalBRTNode) * sizeof(cl_int), isOld);
 		if (isOld) error |= CLFW::DefaultQueue.enqueueFillBuffer<cl_int>(flags, { 0 }, 0, sizeof(cl_int) * nextPow2(totalBRTNode));
-		error |= ComputeLocalSplits_p(internalBRTNodes_i, totalBRTNode, colored, colors_i, uniqueString, localSplits);
+		
+		error |= ComputeLocalSplits_p(brt_i, totalBRTNode, colored, colors_i, uniqueString, localSplits);
+		
 		error |= StreamScan_p(localSplits, globalSize, uniqueString + "octreeI", scannedSplits);
 		//Read in the required octree size
 		cl_int octreeSize;
@@ -2279,7 +2287,7 @@ namespace Kernels {
 
 		//use the scanned splits & brt to create octree.
 		error |= InitOctree(octree_o, octreeSize);
-		error |= kernel.setArg(0, internalBRTNodes_i);
+		error |= kernel.setArg(0, brt_i);
 		error |= kernel.setArg(1, totalBRTNode);
 		error |= kernel.setArg(2, octree_o);
 		error |= kernel.setArg(3, totalBRTNode);

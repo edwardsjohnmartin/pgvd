@@ -11,16 +11,17 @@
 #endif
 
 void ComputeLocalSplits(__global cl_int* splits, __global BrtNode* node, bool colored, __global cl_int *colors, const int gid) {
-	const int currentLenPerDim = node[gid].lcp.len / DIM;
+	BrtNode n = node[gid];
+	const int currentLenPerDim = n.lcp.len / DIM;
 	const int left = node[gid].left;
 	const int right = left + 1;
-	if (!node[gid].left_leaf) {
+	if (!n.left_leaf) {
 		if (!colored || colors[left] == -2)
 			splits[left] = node[left].lcp.len / DIM - currentLenPerDim;
 		else
 			splits[left] = 0;
   }
-  if (!node[gid].right_leaf) {
+  if (!n.right_leaf) {
 		if (!colored || colors[right] == -2)
 			splits[right] = node[right].lcp.len / DIM - currentLenPerDim;
 		else

@@ -151,6 +151,12 @@ namespace GLUtilities {
         void drawBoxes(const glm::mat4& mvMatrix) {
             //cout << "drawing boxes!" << endl;
         }
+				void draw() {
+					glm::mat4 mvMatrix(1.0);
+					drawPoints(mvMatrix);
+					drawLines(mvMatrix);
+					drawBoxes(mvMatrix);
+				}
         void draw(const glm::mat4& mvMatrix) {
             drawPoints(mvMatrix);
             drawLines(mvMatrix);

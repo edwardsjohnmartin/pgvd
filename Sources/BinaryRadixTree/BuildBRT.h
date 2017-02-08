@@ -87,7 +87,7 @@ inline void BuildBinaryRadixTree(__global BrtNode *I, __global cl_int *IColors, 
       }
     }
 
-    int split = gid + s * d + MIN(d, 0);
+    int split = gid + s * d + MIN(d, 0); //(y in the paper)
 
     // Output child pointers
     I[gid].left = split;
@@ -109,7 +109,6 @@ inline void BuildBinaryRadixTree(__global BrtNode *I, __global cl_int *IColors, 
     }
 
 		if (colored) {
-
 			// Take on the left color if it exists.
 			cl_int brtColor = (MIN(gid, j) == split) ? pointColors[split] : -1;
 			

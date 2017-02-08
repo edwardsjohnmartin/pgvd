@@ -96,7 +96,7 @@ private:
   void addOctreeNodes(int index, floatn offset, float scale, float3 color);
   void addLeaf(int internalIndex, int leafIndex, float3 color);
   void addConflictCells();
-  void drawResolutionPoints();
+  void drawResolutionPoints(cl::Buffer resPoints, cl_int totalPoints);
 };
 
 

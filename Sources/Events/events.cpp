@@ -53,6 +53,10 @@ static void R(bool down) {
     // mvMatrix = glm::mat4(1.0);
     mvMatrix = glm::mat4(0.8);
   }
+
+	Data::octree->build(Data::lines);
+
+
     // mvMatrix = glm::scale(mvMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
     // cout << "Toggling Zoom Mode!" << endl;
     // Options::zoomMode = down;
@@ -163,7 +167,7 @@ void refresh() {
     Data::octree->draw(mvMatrix);
     assert(glGetError() == GL_NO_ERROR);
   }
-  if (Options::showObjects) {
+  if (Options::showObjects || Options::showObjectVertices) {
     Data::lines->render(mvMatrix);
     assert(glGetError() == GL_NO_ERROR);
   }
