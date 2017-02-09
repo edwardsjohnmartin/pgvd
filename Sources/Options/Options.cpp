@@ -64,6 +64,7 @@ namespace Options {
   bool showObjects = true;
   bool showOctree = true;
   bool showSketcher = true;
+	bool showResolutionPoints = false;
 
   float conflict_color[3] = { 1.0, 0.0, 0.0 };
 
@@ -126,6 +127,10 @@ namespace Options {
       ymax = atof(argv[i]);
       ++i;
     }
+		else if $("--show-respts") {
+			++i;
+			showResolutionPoints = true;
+		}
     else if $("-f") {
       ++i;
       std::ifstream in(argv[i]);

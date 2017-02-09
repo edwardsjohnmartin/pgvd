@@ -35,6 +35,7 @@ namespace Options {
   extern bool showObjects;
   extern bool showOctree;
   extern bool showSketcher;
+	extern bool showResolutionPoints;
 
   extern float conflict_color[3];
 

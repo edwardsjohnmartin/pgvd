@@ -29,7 +29,7 @@ private:
   std::vector<Line> orderedLines;
   std::vector<Conflict> conflicts;
   std::vector<Leaf> leaves;
-  int initialOctreeSize;
+  int octreeSize;
   BoundingBox bb;
   Resln resln;
   int totalPoints;
@@ -54,10 +54,6 @@ private:
   cl::Buffer zpoints;
   cl::Buffer zpointsCopy;
   cl::Buffer linesBuffer;
-  cl::Buffer LineLCPs;
-  cl::Buffer lineIndices;
-  cl::Buffer LCPToOctNode;
-  cl::Buffer LCPBounds;
   cl::Buffer resQPoints;
   cl::Buffer leavesBuffer;
   cl::Buffer octreeBuffer;
@@ -90,7 +86,7 @@ private:
   cl_int placePointsOnCurve(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &qpoints_o, cl::Buffer &zpoints_o);
 	cl_int buildVertexOctree(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
 	cl_int buildPrunedOctree(cl::Buffer points_i, cl::Buffer pntColors_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
-  cl_int resolveAmbiguousCells(cl::Buffer octree_i, cl_int totalOctNodes, cl::Buffer leaves_i, cl_int totalLeaves, cl::Buffer lines_i, cl_int totalLines, cl::Buffer qPoints_i, cl_int totalPoints, cl::Buffer orderedLineIndices_i, cl::Buffer firstLastFacetPairs_i);
+  cl_int resolveAmbiguousCells(cl::Buffer &octree_i, cl_int &totalOctNodes, cl::Buffer leaves_i, cl_int totalLeaves, cl::Buffer lines_i, cl_int totalLines, cl::Buffer qpoints_i, cl::Buffer zpoints_i, cl::Buffer pntCols_i, cl_int totalPoints, cl_int iteration);
   /* Drawing Methods */
   void addOctreeNodes(cl::Buffer octree, cl_int totalOctNodes);
   void addOctreeNodes(vector<OctNode> &octree, int index, floatn offset, float scale, float3 color);
