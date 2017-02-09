@@ -2279,7 +2279,7 @@ namespace Kernels {
 		//Read in the required octree size
 		cl_int octreeSize;
 		error |= CLFW::DefaultQueue.enqueueReadBuffer(scannedSplits, CL_TRUE,
-			sizeof(cl_int)*(totalBRTNode - 2), sizeof(cl_int), &octreeSize);
+			sizeof(cl_int)*(totalBRTNode - 1), sizeof(cl_int), &octreeSize);
 		cl_int roundOctreeSize = nextPow2(octreeSize);
 
 		//Create an octree buffer.
@@ -3057,10 +3057,9 @@ namespace Kernels {
 		bool isOld;
 		cl::Buffer zeroBuffer;
 		error |= CLFW::get(zeroBuffer, "pPntToConfZero", sizeof(cl_int) * nextPow2(numResPts), isOld);
-		error |= CLFW::get(predication_o, "pPntToConfl", sizeof(cl_int) * nextPow2(numResPts), isOld);
-		if (isOld) error |= queue.enqueueFillBuffer<cl_int>(zeroBuffer, { 0 }, 0, sizeof(cl_int) * nextPow2(numResPts));
+		error |= CLFW::get(predication_o, "pPntToConfl", sizeof(cl_int) * nextPow2(numResPts));
+		if (!isOld) error |= queue.enqueueFillBuffer<cl_int>(zeroBuffer, { 0 }, 0, sizeof(cl_int) * nextPow2(numResPts));
 		error |= queue.enqueueCopyBuffer(zeroBuffer, predication_o, 0, 0, sizeof(cl_int) * nextPow2(numResPts));
-
 		error |= kernel.setArg(0, scannedNumPtsPerConflict_i);
 		error |= kernel.setArg(1, predication_o);
 		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numConflicts - 1), cl::NullRange);

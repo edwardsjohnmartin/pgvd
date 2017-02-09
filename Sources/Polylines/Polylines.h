@@ -48,6 +48,7 @@ class PolyLines {
   }
 
   void addPoint(const floatn& p) {
+		if (lasts.size() == 0) return;
     using namespace std;
     glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 

@@ -197,11 +197,6 @@ cl_int Quadtree::resolveAmbiguousCells(
 		LCPBounds_i, lines_i, totalLines, qpoints_i, resln.width, sparseConflicts);
 	check(error);
 
-	//vector<Conflict>conflicts_vec;
-	//CLFW::Download<Conflict>(sparseConflicts, numLeaves, conflicts_vec);
-	//writeToFile<Conflict>(conflicts_vec, "TestData//simple//sparseConflicts.bin");
-	//cout << endl;
-
 	/* Remove the non-conflict cells */
 	cl::Buffer cPred, cAddr, conflicts;
 	cl_int numConflicts;
@@ -209,9 +204,14 @@ cl_int Quadtree::resolveAmbiguousCells(
 	error |= CLFW::get(cPred, "cPred", sizeof(cl_int) * numLeaves);
 	error |= CLFW::get(cAddr, "cAddr", sizeof(cl_int) * numLeaves);
 	error |= PredicateConflicts_p(sparseConflicts, numLeaves, "", cPred);
+	check(error);
+
 	error |= StreamScan_p(cPred, numLeaves, "cnflctaddr",  cAddr);
+	check(error);
+
 	error |= CLFW::Download<cl_int>(cAddr, numLeaves - 1, numConflicts);
 	error |= CompactConflicts_p(sparseConflicts, cPred, cAddr, numLeaves, conflicts);
+	check(error);
 
 	if (numConflicts == 0) return error;
 
@@ -219,82 +219,27 @@ cl_int Quadtree::resolveAmbiguousCells(
 	cl::Buffer conflictInfo, numPtsPerConflict, scannedNumPtsPerConflict, predPntToConflict, pntToConflict;
 	cl_int numResPts;
 	error |= GetResolutionPointsInfo_p(conflicts, numConflicts, qpoints, conflictInfo, numPtsPerConflict);
-	error |= CLFW::get(scannedNumPtsPerConflict, "snptspercnflct", nextPow2(sizeof(cl_int) * numConflicts));
+	check(error);
+	
+	error |= CLFW::get(scannedNumPtsPerConflict, "snptspercnflct", sizeof(cl_int) * nextPow2(numConflicts));
 	error |= StreamScan_p(numPtsPerConflict, numConflicts, "conflictInfo", scannedNumPtsPerConflict);
+	check(error);
+
 	error |= CLFW::Download<cl_int>(scannedNumPtsPerConflict, numConflicts - 1, numResPts);
 	error |= PredicatePointToConflict_p(scannedNumPtsPerConflict, numConflicts, numResPts, predPntToConflict);
+	check(error);
+
 	error |= CLFW::get(pntToConflict, "pnt2Conflict", nextPow2(sizeof(cl_int) * numResPts));
 	error |= StreamScan_p(predPntToConflict, numResPts, "pnt2Conf",  pntToConflict);
+	check(error);
 
 	/* Determine the number of points needed to solve each conflict. */
 	cl::Buffer resPts;
 	error |= GetResolutionPoints_p(conflicts, conflictInfo, scannedNumPtsPerConflict, numResPts, pntToConflict, qpoints, resPts);
+	check(error);
 
 	drawResolutionPoints(resPts, numResPts);
 
-	//
-  //if (lines.size() > 1) {
-  //  //  do {
-  //  
-  //  CLFW::DefaultQueue = CLFW::Queues[0];
-  //  cl::Buffer resZPoints;
-
-  //  getResolutionPoints();
-  //  drawResolutionPoints();
-
-  //  /* */
-  //  //      getZOrderPoints(resQPoints, resZPoints, "rZPoints", totalResPoints);
-  //  ////      addResolutionPoints();
-  //  //      int otherOctreeSize;
-  //  //      cl::Buffer otherOctree;
-  //  //      getVertexOctree(resZPoints, totalResPoints, otherOctree, "otherOctree", otherOctreeSize);
-  //  //   
-  //  //    vector<OctNode> otherOctreevec1, otherOctreevec2;
-  //  //    cl_int error = Kernels::DownloadOctNodes(otherOctreevec1, otherOctree, otherOctreeSize);
-  //  //cl::Buffer octnodePredication, octnodeAddresses;
-  //  //    // Create duplicate predication
-  //  //PredicateDuplicateNodes_p(octreeBuffer, otherOctree, otherOctreeSize, octnodePredication);
-  //  //    error |= CLFW::DefaultQueue.finish();
-  //  //    error |= Kernels::DownloadOctNodes(otherOctreevec2, otherOctree, otherOctreeSize);
-  //  //vector<cl_int> addrs;
-
-  //  // Perform Octnode Compaction
-  //  /*CLFW::get(octnodeAddresses, "octaddrs", Kernels::nextPow2(otherOctreeSize) * sizeof(cl_int));
-  //  Kernels::StreamScan_p(octnodePredication, octnodeAddresses, Kernels::nextPow2(otherOctreeSize), "mergeScanI");
-  //  Kernels::Download<cl_int>(octnodeAddresses, addrs, otherOctreeSize);
-  //  cout << addrs[addrs.size() - 1] << endl;*/
-
-  //  //    cl::Buffer compactNodes;
-  //  //    CLFW::get(compactNodes, "compactNodes", Kernels::nextPow2(otherOctreeSize) * sizeof(OctNode));
-  //  //   // Kernels::OctnodeDoubleCompact(otherOctree, compactNodes, octnodePredication, octnodeAddresses, Kernels::nextPow2(otherOctreeSize));
-
-  //  //    // Merge octrees
-  //  //    cl::Buffer mergedOctree;
-  //  //    CLFW::get(mergedOctree, "mergedOctree", (octreeSize + addrs[addrs.size() - 1]) * sizeof(OctNode));
-  //  ////    // Repair indices
-
-  //  //    //cout << otherOctreeSize << endl;
-
-  //  //    //  //getZOrderPoints(); //TODO: only z-order the additional points here...
-
-  //  //    //  /*
-  //  //    //    On one queue, sort the lines for the ambiguous cell detection.
-  //  //    //    On the other, start building the karras octree.
-  //  //    //  */
-  //  //    //  
-  //  //    //  /* Identify the cells that contain more than one object. */
-  //  //    //  if (lines.size() == 0 || lines.size() == 1) break;
-  //  //    //  /* Resolve one iteration of conflicts. */
-  //  //    drawResolutionPoints();
-  //  //    //  break;
-  //  //    //  if (totalIterations == Options::maxConflictIterations) {
-  //  //    //    //LOG4CPLUS_WARN(logger, "*** Warning: breaking out of conflict "
-  //  //    //      //<< "detection loop early for debugging purposes.");
-  //  //    //    // exit(0);
-  //  //    break;
-  //  //    //  }
-  //  //  } while (previousSize != octreeSize && totalResPoints != 0);
-  //}
   return error;
 }
 
@@ -312,6 +257,8 @@ void Quadtree::clear() {
 }
 
 void Quadtree::build(const PolyLines *polyLines) {
+	bool resolveConflicts = false;
+
   using namespace Kernels;
   CLFW::DefaultQueue = CLFW::Queues[0];
   cl_int error = 0;
@@ -344,8 +291,8 @@ void Quadtree::build(const PolyLines *polyLines) {
   CLFW::DefaultQueue = CLFW::Queues[0];
 	//error |= buildVertexOctree(zpoints, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
 	error |= buildPrunedOctree(zpoints, pntColorsBuffer, points.size(), resln, bb, "initial", octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves);
-  check(error);
-  
+	check(error);
+
 	/* On another queue, compute line bounding cells and generate the unordered line indices. */
 	CLFW::DefaultQueue = CLFW::Queues[1];
 	error |= GetLineLCPs_p(linesBuffer, lines.size(), zpoints, resln.mbits, LineLCPs);
@@ -371,14 +318,9 @@ void Quadtree::build(const PolyLines *polyLines) {
 	error |= resolveAmbiguousCells(octreeBuffer, initialOctreeSize, leavesBuffer, totalLeaves, 
 		linesBuffer, lines.size(), qpoints, points.size(), lineIndices, LCPBounds);
 	check(error);
-
-	/* Read back the octree. */
-	octree.resize(initialOctreeSize);
-	error |= CLFW::DefaultQueue.enqueueReadBuffer( octreeBuffer, CL_TRUE, 0, sizeof(OctNode)*initialOctreeSize, octree.data());
-	check(error);
-
+  
   /* Add the octnodes and conflict cells so they'll be rendered with OpenGL. */
-  addOctreeNodes();
+  addOctreeNodes(octreeBuffer, initialOctreeSize);
   //addConflictCells();
 }
 
@@ -538,20 +480,20 @@ std::cout << "sort:" << elapsed.count() << " microseconds." << std::endl;
 //}
 
 /* Drawing Methods */
-void Quadtree::addOctreeNodes() {
+void Quadtree::addOctreeNodes(cl::Buffer octree, cl_int totalOctNodes) {
   floatn temp;
   floatn center;
 
-  if (initialOctreeSize == 0) return;
-
-	CLFW::Download<OctNode>(octreeBuffer, initialOctreeSize, octree);
+  if (totalOctNodes == 0) return;
+	vector<OctNode> octree_vec;
+	CLFW::Download<OctNode>(octreeBuffer, totalOctNodes, octree_vec);
 
   center = (bb.minimum + bb.maxwidth*.5);
   float3 color = { 0.75, 0.75, 0.75 };
-  addOctreeNodes(0, center, bb.maxwidth, color);
+  addOctreeNodes(octree_vec, 0, center, bb.maxwidth, color);
 }
 
-void Quadtree::addOctreeNodes(int index, floatn offset, float scale, float3 color)
+void Quadtree::addOctreeNodes(vector<OctNode> &octree, int index, floatn offset, float scale, float3 color)
 {
   Instance i = { offset.x, offset.y, 0.0, scale, color.x, color.y, color.z };
   gl_instances.push_back(i);
@@ -559,13 +501,13 @@ void Quadtree::addOctreeNodes(int index, floatn offset, float scale, float3 colo
     OctNode current = octree[index];
     scale /= 2.0;
     float shift = scale / 2.0;
-    addOctreeNodes(current.children[0], { offset.x - shift, offset.y - shift },
+    addOctreeNodes(octree, current.children[0], { offset.x - shift, offset.y - shift },
       scale, color);
-    addOctreeNodes(current.children[1], { offset.x + shift, offset.y - shift },
+    addOctreeNodes(octree, current.children[1], { offset.x + shift, offset.y - shift },
       scale, color);
-    addOctreeNodes(current.children[2], { offset.x - shift, offset.y + shift },
+    addOctreeNodes(octree, current.children[2], { offset.x - shift, offset.y + shift },
       scale, color);
-    addOctreeNodes(current.children[3], { offset.x + shift, offset.y + shift },
+    addOctreeNodes(octree, current.children[3], { offset.x + shift, offset.y + shift },
       scale, color);
   }
 }

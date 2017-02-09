@@ -147,6 +147,7 @@ inline void predPntToConflict(__global cl_int* scannedNumPtsPerConflict, __globa
 	/* Note that each conflict has at least one point, meaning each element in the scan is unique.
 		Therefore, we don't need to check the previous address to see if our element has been already
 		predicated. */
+
 	predication[address] = 1;
 }
 

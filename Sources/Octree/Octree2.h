@@ -92,8 +92,8 @@ private:
 	cl_int buildPrunedOctree(cl::Buffer points_i, cl::Buffer pntColors_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
   cl_int resolveAmbiguousCells(cl::Buffer octree_i, cl_int totalOctNodes, cl::Buffer leaves_i, cl_int totalLeaves, cl::Buffer lines_i, cl_int totalLines, cl::Buffer qPoints_i, cl_int totalPoints, cl::Buffer orderedLineIndices_i, cl::Buffer firstLastFacetPairs_i);
   /* Drawing Methods */
-  void addOctreeNodes();
-  void addOctreeNodes(int index, floatn offset, float scale, float3 color);
+  void addOctreeNodes(cl::Buffer octree, cl_int totalOctNodes);
+  void addOctreeNodes(vector<OctNode> &octree, int index, floatn offset, float scale, float3 color);
   void addLeaf(int internalIndex, int leafIndex, float3 color);
   void addConflictCells();
   void drawResolutionPoints(cl::Buffer resPoints, cl_int totalPoints);
