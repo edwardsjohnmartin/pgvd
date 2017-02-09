@@ -732,7 +732,7 @@ Scenario("Unique Sorted BigUnsigned color pairs", "[sort][unique]") {
 }
 
 /* Tree Building Kernels */
-Scenario("Build Binary Radix Tree", "[selected][tree]") {
+Scenario("Build Binary Radix Tree", "[tree]") {
 	Given("A set of unique ordered zpoints") {
 		int lotmbits = 48;
 		int fewmbits = 6;
@@ -771,7 +771,7 @@ Scenario("Build Binary Radix Tree", "[selected][tree]") {
 		}
 	}
 }
-Scenario("Build Colored Binary Radix Tree", "[selected][tree]") {
+Scenario("Build Colored Binary Radix Tree", "[tree]") {
 	Given("A set of colored unique ordered zpoints") {
 		cl_int mbits = readFromFile<cl_int>("TestData//simple//mbits.bin");
 		cl_int totalPoints = readFromFile<cl_int>("TestData//simple//uniqueTotalPoints.bin");
@@ -781,9 +781,6 @@ Scenario("Build Colored Binary Radix Tree", "[selected][tree]") {
 			vector<BrtNode> brt_s;
 			vector<cl_int> brtColors_s;
 			BuildColoredBinaryRadixTree_s(zpoints, leafColors, mbits, brt_s, brtColors_s);
-			clearScreen();
-			DrawBRT(brt_s, brtColors_s);
-			refresh();
 			Then("the resulting binary radix tree and cooresponding colors should be valid") {
 				vector<BrtNode> brt_f = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints - 1);
 				vector<cl_int> brtColors_f = readFromFile<cl_int>("TestData//simple//unpropagatedBrtColors.bin", totalPoints - 1);
@@ -830,13 +827,15 @@ Scenario("Propagate Brt Colors", "[tree][selected]") {
 		vector<cl_int> brtColors_f = readFromFile<cl_int>("TestData//simple//unpropagatedBrtColors.bin", totalPoints - 1);
 
 		When("we propagate the BRT colors up the tree in series") {
-			TODO("create brt leaf mapping");
 			PropagateBRTColors_s(brt, brtColors_s);
-			clearScreen();
-			DrawBRT(brt, brtColors_s);
-			refresh();
 			Then("the results should be valid") {
-				TODO("test this");
+				vector<cl_int> brtColors_f = readFromFile<cl_int>("TestData//simple//brtColors.bin", totalPoints - 1);
+
+				cl_int success = true;
+				for (cl_int i = 0; i < totalPoints - 1; i++) {
+					success &= brtColors_s[i] == brtColors_f[i];
+				}
+				Require(success == true);
 			}
 			Then("the series results should match the parallel results") {
 				cl_int error = 0;
