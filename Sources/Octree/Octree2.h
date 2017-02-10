@@ -40,10 +40,6 @@ private:
   std::vector<glm::vec3> colors;
   std::vector<float> scales;
 
-  /* GLuint drawVertices_vbo;
-   GLuint drawIndices_vbo;
-   GLuint vao;*/
-
   GLuint boxProgram_vao;
   GLuint positions_vbo;
   GLuint position_indices_vbo;
@@ -60,13 +56,6 @@ private:
 
 	void getPoints(const PolyLines *polyLines, vector<floatn> &points, vector <cl_int> &pointColors, std::vector<Line> &lines);
   void getBoundingBox(const vector<floatn> &points, const int totalPoints, BoundingBox &bb);
-  void getQuantizedPoints();
-  void getZOrderPoints(cl::Buffer qPoints, cl::Buffer &zpoints, string zPointsName, int totalPoints);
-  void getUnorderedBCellFacetPairs();
-  void getVertexOctree(cl::Buffer zpoints_i, cl_int numZPoints, cl::Buffer &octree_o, string octreeName, int &octreeSize_o);
-  void getConflictCells(cl::Buffer octree_i);
-	//void getResPoints(cl::Buffer conflicts_i, int numConflicts, );
-  void addResolutionPoints();
 
 public:
   Quadtree();
@@ -90,8 +79,8 @@ private:
   /* Drawing Methods */
   void addOctreeNodes(cl::Buffer octree, cl_int totalOctNodes);
   void addOctreeNodes(vector<OctNode> &octree, int index, floatn offset, float scale, float3 color);
-  void addLeaf(int internalIndex, int leafIndex, float3 color);
-  void addConflictCells();
+  void addLeaf(vector<OctNode> octree, int internalIndex, int leafIndex, float3 color);
+  void addConflictCells(cl::Buffer conflicts, cl::Buffer octree, cl_int totalOctnodes, cl::Buffer leaves, cl_int totalLeaves);
   void drawResolutionPoints(cl::Buffer resPoints, cl_int totalPoints);
 };
 

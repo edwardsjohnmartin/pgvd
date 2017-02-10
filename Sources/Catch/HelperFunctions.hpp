@@ -79,7 +79,7 @@ inline bool comparePairByKey(std::pair<cl_int, cl_int> &a, std::pair<cl_int, cl_
 template<typename T>
 inline void writeToFile(vector<T> input, string filename) {
 	ofstream myfile;
-	myfile.open(filename, ios::out | ios::app | ios::binary);
+	myfile.open(filename, ios::out | ios::binary);
 	if (myfile.is_open()) {
 		myfile.write((char*)input.data(), sizeof(T) * input.size());
 		myfile.close();
@@ -89,11 +89,20 @@ inline void writeToFile(vector<T> input, string filename) {
 template<typename T>
 inline void writeToFile(T input, string filename) {
   ofstream myfile;
-  myfile.open(filename, ios::out | ios::app | ios::binary);
+  myfile.open(filename, ios::out | ios::binary);
   if (myfile.is_open()) {
     myfile.write((char*)&input, sizeof(T));
     myfile.close();
   }
+}
+
+inline void logTextToFile(string input, string filename) {
+	ofstream myfile;
+	myfile.open(filename, ios::out | ios::app);
+	if (myfile.is_open()) {
+		myfile.write(input.c_str(), sizeof(char) * input.size());
+		myfile.close();
+	}
 }
 
 template<typename T>
@@ -110,7 +119,7 @@ inline vector<T> readFromFile(string filename, int totalElements) {
 
 template<typename T>
 inline T readFromFile(string filename) {
-	T result = -1;
+	T result = { -1 };
 	ifstream myfile;
 	myfile.open(filename, ios::in | ios::binary);
 	if (myfile.is_open()) {

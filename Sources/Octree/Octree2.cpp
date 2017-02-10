@@ -239,7 +239,8 @@ cl_int Quadtree::resolveAmbiguousCells(
 	check(error);
 
 	/* If there are no more conflicts to resolve, we're done. */
-	if (numConflicts == 0) return error;
+	if (numConflicts == 0) 
+		return error;
 
 	/* Use the conflicts to generate resolution points */
 	cl::Buffer conflictInfo, numPtsPerConflict, scannedNumPtsPerConflict, predPntToConflict, pntToConflict;
@@ -300,7 +301,10 @@ cl_int Quadtree::resolveAmbiguousCells(
 	check(error);
 
 	/* If the resolution points don't effect the octree, quit resolving. */
-	if (combinedOctSize == numOctNodes) return error;
+	if (combinedOctSize == numOctNodes) {
+		//addConflictCells(sparseConflicts, octree_i, numOctNodes, leaves_i, numLeaves);
+		return error;
+	}
 
 	/* resolve further conflicts */
 	if (iteration < Options::maxConflictIterations)
@@ -335,9 +339,7 @@ void Quadtree::build(const PolyLines *polyLines) {
 
   /* Extract points from objects, and calculate a bounding box. */
   getPoints(polyLines, points, pointColors, lines);
-
-  if (points.size() == 0) return;
-  getBoundingBox(points, points.size(), bb);
+	if (points.size() == 0) return;
 
   /* Upload the data to OpenCL buffers */
 	error |= CLFW::get(pointsBuffer, "pts", Kernels::nextPow2(points.size()) * sizeof(floatn));
@@ -422,107 +424,6 @@ void Quadtree::getBoundingBox(const vector<floatn> &points, const int totalPoint
   }
 }
 
-//void Quadtree::getQuantizedPoints() {
-//  check(Kernels::QuantizePoints_p(totalPoints, karrasPointsBuffer, quantizedPointsBuffer, bb.minimum, resln.width, bb.maxwidth));
-//}
-//
-//void Quadtree::getZOrderPoints(cl::Buffer qPoints, cl::Buffer &zpoints, string zPointsName, int totalPoints) {
-//  check(Kernels::PointsToMorton_p(qPoints, zpoints, zPointsName, totalPoints, resln.bits));
-//}
-//
-//void Quadtree::getUnorderedBCellFacetPairs() {
-//  check(Kernels::GetBCellLCP_p(linesBuffer, zpoints, BCells,
-//    unorderedLineIndices, lines.size(), resln.mbits));
-//}
-//
-//void Quadtree::getVertexOctree(cl::Buffer zpoints_i, cl_int numZPoints, cl::Buffer &octree_o, string octreeName, int &octreeSize_o) {
-//  check(Kernels::BuildOctree_p(
-//    zpoints_i, numZPoints, octree_o, octreeName, octreeSize_o, resln.bits, resln.mbits));
-//}
-
-
-/*
-Quick microsecond timer:
-
-start = std::chrono::steady_clock::now();
-end = std::chrono::steady_clock::now();
-elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-std::cout << "sort:" << elapsed.count() << " microseconds." << std::endl;
-*/
-//void Quadtree::getConflictCells(cl::Buffer octree_i) {
-//
-//}
-
-//void Quadtree::getResPoints(
-//	cl::Buffer conflicts_i, 
-//	int numConflicts, 
-//	cl::Buffer lines_i, 
-//	cl::Buffer qpoints_i) 
-//{
-//	using namespace Kernels;
-//	cl_int error = 0;
-////  if (lines.size() < 2) return;
-////  resolutionPoints.resize(0);
-////  totalResPoints = 0;
-////
-//
-////  check(CLFW::get(
-////    scannedCounts, "sResCnts",
-////    Kernels::nextPow2(totalLeaves) * sizeof(cl_int)));
-////
-////  check(Kernels::StreamScan_p(
-////    resolutionCounts, scannedCounts, Kernels::nextPow2(totalLeaves),
-////    "resolutionIntermediate"));
-////
-////  check(CLFW::DefaultQueue.enqueueReadBuffer(
-////    scannedCounts, CL_TRUE,
-////    (totalLeaves * sizeof(cl_int)) - sizeof(cl_int), sizeof(cl_int),
-////    &totalResPoints));
-////
-////  if (totalResPoints > 100000) {
-////    vector<cl_int> resolutionCountsVec;
-////    vector<cl_int> scannedCountsVec;
-////    Download<cl_int>(resolutionCounts, resolutionCountsVec, Kernels::nextPow2(totalLeaves));
-////    Download<cl_int>(scannedCounts, scannedCountsVec, Kernels::nextPow2(totalLeaves));
-////    cout << "Something likely went wrong. " << totalResPoints << " seems like a lot of resolution points.." << endl;
-////    totalResPoints = 0;
-////    return;
-////  }
-////
-////  if (totalResPoints < 0) {
-////    return;
-////  }
-////  check(Kernels::GetResolutionPoints_p(
-////    totalLeaves, totalResPoints, conflictsBuffer, linesBuffer,
-////    quantizedPointsBuffer, conflictInfoBuffer, scannedCounts,
-////    resolutionPredicates, resQPoints));
-//}
-//
-//void Quadtree::addResolutionPoints() {
-//  benchmark("addResolutionPoints");
-//  if (totalResPoints < 0) {
-//    cout << "Error computing resolution points." << endl;
-//    return;
-//  }
-//  if (totalResPoints != 0) {
-//    int original = totalPoints;
-//    int additional = totalResPoints;
-//    totalPoints += additional;
-//    cl_int error = 0;
-//
-//    //If the new resolution points wont fit inside the existing buffer.
-//    if (original + additional > nextPow2(original)) {
-//      cl::Buffer oldQPointsBuffer = quantizedPointsBuffer;
-//      CLFW::Buffers["qPoints"] = cl::Buffer(CLFW::Contexts[0], CL_MEM_READ_WRITE, nextPow2(original + additional) * sizeof(intn));
-//      quantizedPointsBuffer = CLFW::Buffers["qPoints"];
-//      error |= CLFW::DefaultQueue.enqueueCopyBuffer(oldQPointsBuffer, quantizedPointsBuffer, 0, 0, original * sizeof(intn));
-//    }
-//    error |= CLFW::DefaultQueue.enqueueCopyBuffer(resQPoints, quantizedPointsBuffer, 0, original * sizeof(intn), additional * sizeof(intn));
-//    assert_cl_error(error);
-//  }
-//  if (benchmarking) CLFW::DefaultQueue.finish();
-//}
-
 /* Drawing Methods */
 void Quadtree::addOctreeNodes(cl::Buffer octree, cl_int totalOctNodes) {
   floatn temp;
@@ -556,7 +457,7 @@ void Quadtree::addOctreeNodes(vector<OctNode> &octree, int index, floatn offset,
   }
 }
 
-void Quadtree::addLeaf(int internalIndex, int childIndex, float3 color) {
+void Quadtree::addLeaf(vector<OctNode> octree, int internalIndex, int childIndex, float3 color) {
   floatn center = BB_center(&bb);
   float octreeWidth = bb.maxwidth;
   OctNode node = octree[internalIndex];
@@ -590,15 +491,19 @@ void Quadtree::addLeaf(int internalIndex, int childIndex, float3 color) {
   gl_instances.push_back(i);
 }
 
-void Quadtree::addConflictCells() {
+void Quadtree::addConflictCells(cl::Buffer sparseConflicts, cl::Buffer octree, cl_int totalOctnodes, cl::Buffer leaves, cl_int totalLeaves) {
   // if (Options::debug) {
-  CLFW::Download<Conflict>(CLFW::Buffers["sparseConflicts"], totalLeaves, conflicts);
-  CLFW::Download<Leaf>(leavesBuffer, totalLeaves, leaves);
-  if (conflicts.size() == 0) return;
-  for (int i = 0; i < conflicts.size(); ++i) {
-    if (conflicts[i].color == -2)
+	vector<Leaf> leaves_v;
+	vector<Conflict> conflicts_v;
+	vector<OctNode> octree_v;
+  CLFW::Download<Conflict>(sparseConflicts, totalLeaves, conflicts_v);
+  CLFW::Download<Leaf>(leaves, totalLeaves, leaves_v);
+	CLFW::Download<OctNode>(octree, totalOctnodes, octree_v);
+  if (conflicts_v.size() == 0) return;
+  for (int i = 0; i < conflicts_v.size(); ++i) {
+    if (conflicts_v[i].color == -2)
     {
-      addLeaf(leaves[i].parent, leaves[i].quadrant,
+      addLeaf(octree_v, leaves_v[i].parent, leaves_v[i].quadrant,
       { Options::conflict_color[0],
         Options::conflict_color[1],
         Options::conflict_color[2] });

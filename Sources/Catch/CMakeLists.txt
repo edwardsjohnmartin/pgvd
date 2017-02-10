@@ -5,3 +5,11 @@ set (Catch_TEST
 	${CMAKE_CURRENT_SOURCE_DIR}/catchmain.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/TestKernels.cpp
 	PARENT_SCOPE)
+
+	set (Catch_BENCH 
+	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
+	${CMAKE_CURRENT_SOURCE_DIR}/catch.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/HelperFunctions.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/BenchmarkMain.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/BenchKernels.cpp
+	PARENT_SCOPE)

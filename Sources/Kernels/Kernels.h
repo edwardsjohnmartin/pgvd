@@ -1,3 +1,4 @@
+#pragma once
 /*
 * Nate VM
 * This file needs to be compiled by both OpenCL (SPIR-V or GPU compiler) and
@@ -2411,7 +2412,7 @@ namespace Kernels {
 		error |= kernel.setArg(2, leafPredicates_o);
 		error |= kernel.setArg(3, octreeSize);
 
-		error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(nextPow2(4 * octreeSize)), cl::NullRange);
+		error |= CLFW::DefaultQueue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(4 * octreeSize), cl::NullRange);
 		return error;
 	}
 	inline cl_int GenerateLeaves_s(
@@ -2421,6 +2422,8 @@ namespace Kernels {
 		vector<cl_int> &leafPredicates
 	)
 	{
+		leaves.resize(4 * octreeSize);
+		leafPredicates.resize(4 * octreeSize);
 		for (int i = 0; i < 4 * octreeSize; ++i )
 			ComputeLeaves(octree.data(), leaves.data(), leafPredicates.data(), octreeSize, i);
 		return CL_SUCCESS;

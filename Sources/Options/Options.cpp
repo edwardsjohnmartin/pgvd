@@ -68,7 +68,7 @@ namespace Options {
 
   float conflict_color[3] = { 1.0, 0.0, 0.0 };
 
-  int maxConflictIterations = -1;
+  int maxConflictIterations = 20;
 
   bool zoomMode;
 

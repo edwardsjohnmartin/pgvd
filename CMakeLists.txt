@@ -83,6 +83,11 @@ add_executable (Unit_Tests "${OCTREE_TEST}")
 set_target_properties (Unit_Tests PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
 target_link_libraries (Unit_Tests ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW)
 
+# BENCHMARK TARGET
+add_executable (Benchmarks "${OCTREE_BENCH}")
+set_target_properties (Benchmarks PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
+target_link_libraries (Benchmarks ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW)
+
 # QUADTREE TARGET
 add_executable (Quadtree "${OCTREE_SRC}")
 set_target_properties (Quadtree PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
@@ -110,6 +115,7 @@ copy_touched (
 
 add_dependencies(Unit_Tests CopyUnitTestDataToBinary)
 add_dependencies(Unit_Tests CopySourcesToBinary)
+add_dependencies(Benchmarks CopySourcesToBinary)
 add_dependencies(Quadtree CopySourcesToBinary)
 
 # Most platforms don't support SPIR-V yet. Eventually we'll switch to this though.

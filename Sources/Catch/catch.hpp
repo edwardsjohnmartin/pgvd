@@ -10435,7 +10435,7 @@ int main (int argc, char * const argv[]) {
 #define INFO( msg ) INTERNAL_CATCH_INFO( msg, "INFO" )
 #define Info( msg ) INTERNAL_CATCH_INFO( msg, "Info" )
 #define WARN( msg ) INTERNAL_CATCH_MSG( Catch::ResultWas::Warning, Catch::ResultDisposition::ContinueOnFailure, "WARN", msg )
-#define TODO( msg ) INTERNAL_CATCH_MSG( Catch::ResultWas::Warning, Catch::ResultDisposition::ContinueOnFailure, "WARN", msg )
+#define TODO( msg ) INTERNAL_CATCH_MSG( Catch::ResultWas::Warning, Catch::ResultDisposition::ContinueOnFailure, "INFO", msg )
 #define SCOPED_INFO( msg ) INTERNAL_CATCH_INFO( msg, "INFO" )
 #define CAPTURE( msg ) INTERNAL_CATCH_INFO( #msg " := " << msg, "CAPTURE" )
 #define SCOPED_CAPTURE( msg ) INTERNAL_CATCH_INFO( #msg " := " << msg, "CAPTURE" )
