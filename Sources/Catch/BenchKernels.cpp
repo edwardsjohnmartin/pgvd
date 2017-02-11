@@ -213,7 +213,7 @@ Benchmark("Build Colored Binary Radix Tree", "[tree][done]") {
 		END_BENCHMARK;
 	} END_ITERATIONS;
 }
-Benchmark("Propagate Brt Colors", "[tree][selected][done]") {
+Benchmark("Propagate Brt Colors", "[tree][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//unique_numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
@@ -313,28 +313,163 @@ Benchmark("Generate Pruned Leaves", "[tree][done]") {
 }
 
 /* Ambiguous cell detection kernels */
-Benchmark("Get LCPs From Lines", "[conflict]") {
-	TODO("Benchmark this");
+Benchmark("Get LCPs From Lines", "[conflict][done]") {
+	/* Load dependencies */
+	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
+	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//zpoints.bin", numPts);
+	vector<Line> lines = readFromFile<Line>("BenchmarkData//binaries//lines.bin", numLines);
+
+	/* Upload dependencies */
+	cl::Buffer b_lines, b_zpoints, b_LineLCPs;
+	CLFW::get(b_lines, "lines", numLines * sizeof(Line));
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(OctNode));
+	CLFW::Upload<Line>(lines, b_lines);
+	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Get LCPs From Lines") {
+		BEGIN_BENCHMARK
+		GetLineLCPs_p(b_lines, numLines, b_zpoints, resln.mbits, b_LineLCPs);
+		vector<LCP> temp;
+		CLFW::Download<LCP>(b_LineLCPs, numLines, temp);
+		writeToFile(temp, "BenchmarkData//binaries//lineLCPs.bin");
+		END_BENCHMARK
+	} END_ITERATIONS;
 }
-Benchmark("Look Up Octnode From LCP", "[conflict]") {
-	TODO("Benchmark this");
+Benchmark("Look Up Octnode From LCP", "[conflict][done]") {
+	/* Load dependencies */
+	cl_int numOctnodes = readFromFile<cl_int>("BenchmarkData//binaries//pruned_numOctnodes.bin");
+	vector<OctNode> octree = readFromFile<OctNode>("BenchmarkData//binaries//pruned_octree.bin", numOctnodes);
+	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
+	vector<LCP> lineLCPs = readFromFile<LCP>("BenchmarkData//binaries//lineLCPs.bin", numLines);
+	
+	/* Upload dependencies */
+	cl::Buffer b_lineLCPs, b_octree, b_LCPToOctNode;
+	CLFW::get(b_lineLCPs, "lineLCPs", numLines * sizeof(LCP));
+	CLFW::get(b_octree, "octree", numOctnodes * sizeof(OctNode));
+	CLFW::Upload<LCP>(lineLCPs, b_lineLCPs);
+	CLFW::Upload<OctNode>(octree, b_octree);
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Look Up Octnode From LCP") {
+		BEGIN_BENCHMARK
+		LookUpOctnodeFromLCP_p(b_lineLCPs, numLines, b_octree, b_LCPToOctNode);
+		END_BENCHMARK
+	} END_ITERATIONS;
 }
-Benchmark("Get Octnode LCP Bounds", "[conflict]") {
-	TODO("Benchmark this");
+Benchmark("Get Octnode LCP Bounds", "[conflict][done]") {
+	/* Load dependencies */
+	cl_int numOctnodes = readFromFile<cl_int>("BenchmarkData//binaries//numOctnodes.bin");
+	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
+	vector<cl_int> LCPToOctNode = readFromFile<cl_int>("BenchmarkData//binaries//LCPToOctNode.bin", numLines);
+
+	/* Upload dependencies */
+	cl::Buffer b_LCPToOctNode, b_LCPBounds;
+	CLFW::get(b_LCPToOctNode, "LCPToOctNode", numLines * sizeof(cl_int));
+	CLFW::Upload<cl_int>(LCPToOctNode, b_LCPToOctNode);
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Get Octnode LCP Bounds") {
+		BEGIN_BENCHMARK
+		GetLCPBounds_p(b_LCPToOctNode, numLines, numOctnodes, b_LCPBounds);
+		END_BENCHMARK
+	} END_ITERATIONS;
 }
-Benchmark("Find Conflict Cells", "[conflict]") {
-	TODO("Benchmark this");
+Benchmark("Find Conflict Cells", "[conflict][done]") {
+	/* Load dependencies */
+	cl_int numOctnodes = readFromFile<cl_int>("BenchmarkData//binaries//pruned_numOctnodes.bin");
+	cl_int numLeaves = readFromFile<cl_int>("BenchmarkData//binaries//pruned_numLeaves.bin");
+	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
+	vector<OctNode> octree = readFromFile<OctNode>("BenchmarkData//binaries//pruned_octree.bin", numOctnodes);
+	vector<Leaf> leaves = readFromFile<Leaf>("BenchmarkData//binaries//pruned_leaves.bin", numLeaves);
+	vector<cl_int> lineIndices = readFromFile<cl_int>("BenchmarkData//binaries//lineIndices.bin", numLines);
+	vector<Pair> LCPBounds = readFromFile<Pair>("BenchmarkData//binaries//LCPBounds.bin", numOctnodes);
+	vector<Line> lines = readFromFile<Line>("BenchmarkData//binaries//lines.bin", numLines);
+	vector<intn> qpoints = readFromFile<intn>("BenchmarkData//binaries//qpoints.bin", numPts);
+
+	/* Upload dependencies */
+	cl::Buffer b_octree, b_leaves, b_lineIndices, b_LCPBounds, b_lines, b_qpoints, b_sparseConflicts;
+	CLFW::get(b_octree, "octree", numOctnodes * sizeof(OctNode));
+	CLFW::get(b_leaves, "leaves", numLeaves * sizeof(Leaf));
+	CLFW::get(b_lineIndices, "lineIndices", numLines * sizeof(cl_int));
+	CLFW::get(b_LCPBounds, "LCPBounds", numOctnodes * sizeof(Pair));
+	CLFW::get(b_lines, "lines", numLines * sizeof(Line));
+	CLFW::get(b_qpoints, "qpoints", numPts * sizeof(intn));
+	CLFW::Upload<OctNode>(octree, b_octree);
+	CLFW::Upload<Leaf>(leaves, b_leaves);
+	CLFW::Upload<cl_int>(lineIndices, b_lineIndices);
+	CLFW::Upload<Pair>(LCPBounds, b_LCPBounds);
+	CLFW::Upload<Line>(lines, b_lines);
+	CLFW::Upload<intn>(qpoints, b_qpoints);
+		
+	/* Benchmark */
+	BEGIN_ITERATIONS("Find Conflict Cells") {
+		BEGIN_BENCHMARK
+		FindConflictCells_p(b_octree, b_leaves, numLeaves, b_lineIndices,
+			b_LCPBounds, b_lines, numLines, b_qpoints, resln.width, b_sparseConflicts);
+		END_BENCHMARK
+	} END_ITERATIONS;
 }
 
 /* Ambiguous cell resolution kernels */
-Benchmark("Sample required resolution points", "[resolution]") {
-	TODO("Benchmark this");
+Benchmark("Sample required resolution points", "[resolution][done]") {
+	/* Load dependencies */
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	cl_int numConflicts = readFromFile<cl_int>("BenchmarkData//binaries//numConflicts.bin");
+	vector<intn> qpoints = readFromFile<intn>("BenchmarkData//binaries//qpoints.bin", numPts);
+	vector<Conflict> conflicts = readFromFile<Conflict>("BenchmarkData//binaries//conflicts.bin", numConflicts);
+
+	/* Upload dependencies */
+	cl::Buffer b_conflicts, b_qpoints, b_conflictInfo, b_numPtsPerConflict;
+	CLFW::get(b_qpoints, "qpoints", numPts * sizeof(intn));
+	CLFW::Upload<intn>(qpoints, b_qpoints);
+	CLFW::get(b_conflicts, "conflicts", numConflicts * sizeof(Conflict));
+	CLFW::Upload<Conflict>(conflicts, b_conflicts);
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Sample required resolution points") {
+		BEGIN_BENCHMARK
+		GetResolutionPointsInfo_p(b_conflicts, numConflicts, b_qpoints, b_conflictInfo, b_numPtsPerConflict);
+		END_BENCHMARK
+	} END_ITERATIONS;
 }
 Benchmark("Predicate Conflict To Point", "[predication][resolution]") {
 	TODO("Benchmark this");
 }
-Benchmark("Get resolution points", "[resolution]") {
-	TODO("Benchmark this");
+Benchmark("Get resolution points", "[resolution][done][selected]") {
+	/* Load dependencies */
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	cl_int numResPts = readFromFile<cl_int>("BenchmarkData//binaries//numResPts.bin");
+	cl_int numConflicts = readFromFile<cl_int>("BenchmarkData//binaries//numConflicts.bin");
+	vector<intn> qpoints = readFromFile<intn>("BenchmarkData//binaries//qpoints.bin", numPts);
+	vector<Conflict> conflicts = readFromFile<Conflict>("BenchmarkData//binaries//conflicts.bin", numConflicts);
+	vector<cl_int> scannedNumPtsPerConflict = readFromFile<cl_int>("BenchmarkData//binaries//scannedNumPtsPerConflict.bin", numConflicts);
+	vector<cl_int> pntToConflict = readFromFile<cl_int>("BenchmarkData//binaries//pntToConflict.bin", numResPts);
+	vector<ConflictInfo> conflictInfo = readFromFile<ConflictInfo>("BenchmarkData//binaries//conflictInfo.bin", numConflicts);
+
+	/* Upload dependencies */
+	cl::Buffer b_conflicts, b_conflictInfo, b_qpoints, b_scannedNumPtsPerConflict, b_pntToConflict, b_resPts;
+	CLFW::get(b_qpoints, "qpoints", numPts * sizeof(intn));
+	CLFW::Upload<intn>(qpoints, b_qpoints);
+	CLFW::get(b_conflicts, "conflicts", numConflicts * sizeof(Conflict));
+	CLFW::Upload<Conflict>(conflicts, b_conflicts);
+	CLFW::get(b_scannedNumPtsPerConflict, "scannumpts", sizeof(cl_int) * numConflicts);
+	CLFW::Upload<cl_int>(scannedNumPtsPerConflict, b_scannedNumPtsPerConflict);
+	CLFW::get(b_pntToConflict, "pntToConflict", sizeof(cl_int) * numResPts);
+	CLFW::Upload<cl_int>(pntToConflict, b_pntToConflict);
+	CLFW::get(b_conflictInfo, "conflictInfo", sizeof(ConflictInfo) * numConflicts);
+	CLFW::Upload<ConflictInfo>(conflictInfo, b_conflictInfo);
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Get resolution points") {
+		BEGIN_BENCHMARK
+		GetResolutionPoints_p(b_conflicts, b_conflictInfo, b_scannedNumPtsPerConflict, numResPts, b_pntToConflict, b_qpoints, b_resPts);
+		END_BENCHMARK
+	} END_ITERATIONS;
 }
 
 /* Quadtree */

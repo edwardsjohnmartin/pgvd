@@ -255,7 +255,6 @@ static cl_int FindConflictCells(
 	error |= CLFW::get(conflicts_o, "conflicts", sizeof(Conflict) * nextPow2(numLeaves));
 	error |= CompactConflicts_p(sparseConflicts, cPred, cAddr, numLeaves, conflicts_o);
 	check(error);
-
 	return error;
 }
 
