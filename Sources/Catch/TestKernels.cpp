@@ -1,39 +1,15 @@
+#include "catch.hpp"
 #include "Kernels/Kernels.h"
 #include "HelperFunctions.hpp"
-#include "catch.hpp"
 using namespace cl;
 using namespace Kernels;
 using namespace GLUtilities;
-
-static inline std::string BuToString(BigUnsigned bu) {
-		std::string representation = "";
-		if (bu.len == 0)
-    {
-      representation += "[0]";
-    }
-    else {
-      for (int i = bu.len; i > 0; --i) {
-        representation += "[" + std::to_string(bu.blk[i - 1]) + "]";
-      }
-    }
-  
-		return representation;
-}
-static void clearScreen() {
-	using namespace GLUtilities;
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-static void refresh() {
-	using namespace GLUtilities;
-	Sketcher::instance()->draw();
-	glfwSwapBuffers(GLUtilities::window);
-}
 
 /* Reduction Kernels */
 Scenario("Additive Reduction", "[reduction]") {
 	Given("N random integers") {
 		vector<cl_int>small_input = generateDeterministicRandomIntegers(a_few);
-    vector<cl_int>large_input(a_lot, 1);// = generateDeterministicRandomIntegers(a_lot, );
+    vector<cl_int>large_input(a_lot, 1);
 		When("we reduce these numbers in series") {
 			int small_output_s, large_output_s;
 			Reduce_s(small_input, small_output_s);

@@ -2,11 +2,70 @@
 #include "GLUtilities/Sketcher.h"
 #include <iostream>
 #include <fstream>
-using namespace GLUtilities;
+#include <chrono>
 
 #define a_couple 2 
 #define a_few 30
 #define a_lot 1000000 
+#define totalIterations 10
+
+using namespace cl;
+using namespace Kernels;
+using namespace GLUtilities;
+using namespace std::chrono;
+
+#define Benchmark( ... )  TEST_CASE("Benchmarking: " __VA_ARGS__)
+
+#define BEGIN_ITERATIONS(_text) \
+string TEXT = _text;\
+long long AVERAGE = 0; \
+vector<long long> TIMES(totalIterations);\
+for (int i = 0; i < totalIterations; i++)
+
+#define BEGIN_BENCHMARK auto start = startBench();
+#define END_BENCHMARK \
+TIMES[i] = stopBench(start);\
+AVERAGE += TIMES[i];
+
+#define END_ITERATIONS \
+AVERAGE /= totalIterations;\
+WARN(TEXT + " average time: " + std::to_string(AVERAGE) + " microseconds");\
+logTextToFile(TEXT + " average time: " + std::to_string(AVERAGE) + " microseconds\n", "BenchmarkData//binaries//log.txt");
+
+static inline std::string BuToString(BigUnsigned bu) {
+	std::string representation = "";
+	if (bu.len == 0)
+	{
+		representation += "[0]";
+	}
+	else {
+		for (int i = bu.len; i > 0; --i) {
+			representation += "[" + std::to_string(bu.blk[i - 1]) + "]";
+		}
+	}
+
+	return representation;
+}
+static void clearScreen() {
+	using namespace GLUtilities;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+static void refresh() {
+	using namespace GLUtilities;
+	Sketcher::instance()->draw();
+	glfwSwapBuffers(GLUtilities::window);
+}
+
+static time_point<steady_clock> startBench() {
+	CLFW::DefaultQueue.finish();
+	return std::chrono::high_resolution_clock::now();
+}
+static long long stopBench(time_point<steady_clock> start) {
+	CLFW::DefaultQueue.finish();
+	auto elapsed = high_resolution_clock::now() - start;
+	return std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+}
+
 
 inline vector<cl_int> generateDeterministicRandomIntegers(int totalElements, int seed = 0, int minimum = -1024, int maximum = 1024) {
   /* To give deterministic results. */
