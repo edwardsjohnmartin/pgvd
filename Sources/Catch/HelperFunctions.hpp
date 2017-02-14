@@ -211,7 +211,7 @@ inline void DrawBrtNode(vector<BrtNode> &brt, vector<cl_int> colors, int i, floa
 
 	/* render me */
 	Point p = {
-		{ shift, ((maxLevel - currentLevel) / maxLevel) * 1.5 - 0.75, 0.0, 1.0 },
+		{ shift, ((maxLevel - currentLevel) / maxLevel) * 1.5f - 0.75f, 0.0f, 1.0f },
 		color
 	};
 	Sketcher::instance()->add(p);
