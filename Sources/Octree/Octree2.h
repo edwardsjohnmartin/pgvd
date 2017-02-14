@@ -59,7 +59,8 @@ private:
 
 public:
   Quadtree();
-  void build(const PolyLines* lines);
+	void build(const PolyLines* lines);
+	void build(vector<floatn> &points, vector<cl_int> &pointColors, vector<Line> &lines, BoundingBox bb);
   typedef struct {
     float offset[3];
     float scale;
@@ -71,6 +72,8 @@ public:
   void draw(const glm::mat4& mvMatrix);
 
 private:
+	void build_internal();
+
   void clear();
   cl_int placePointsOnCurve(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &qpoints_o, cl::Buffer &zpoints_o);
 	cl_int buildVertexOctree(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);

@@ -13,6 +13,13 @@ void BitPredicate(__global cl_int *inputBuffer, __global cl_int *predicateBuffer
   predicateBuffer[gid] = x;
 }
 
+void BitPredicateULL(__global unsigned long long *inputBuffer, __global cl_int *predicateBuffer, cl_int index, cl_int comparedWith, cl_int gid)
+{
+	unsigned long long self = inputBuffer[gid];
+	cl_int x = (((self & (1 << index)) >> index) == comparedWith);
+	predicateBuffer[gid] = x;
+}
+
 void BUBitPredicate(__global BigUnsigned *inputBuffer, __global cl_int *predicateBuffer, cl_int index, cl_int comparedWith, cl_int gid)
 {
   BigUnsigned self = inputBuffer[gid];
@@ -125,6 +132,24 @@ void Compact(__global cl_int *inputBuffer, __global cl_int *resultBuffer, __glob
   barrier(CLK_GLOBAL_MEM_FENCE);
 #endif
   resultBuffer[d] = inputBuffer[gid];
+}
+
+void CompactULL(__global unsigned long long *inputBuffer, __global unsigned long long *resultBuffer, __global cl_int *predicationBuffer,
+	__global cl_int *addressBuffer, cl_int size, const cl_int gid)
+{
+	cl_int a = addressBuffer[gid];
+	cl_int b = addressBuffer[size - 2];
+	cl_int c = predicationBuffer[gid];
+	cl_int e = predicationBuffer[size - 1];
+
+	//Check out http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html figure 39-14
+	cl_int t = gid - a + (e + b);
+	cl_int d = (!c) ? t : a - 1;
+
+#ifdef OpenCL
+	barrier(CLK_GLOBAL_MEM_FENCE);
+#endif
+	resultBuffer[d] = inputBuffer[gid];
 }
 
 //result buffer MUST be initialized as 0!!!

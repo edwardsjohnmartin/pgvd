@@ -534,6 +534,22 @@ namespace Kernels {
 	}
 #endif
 
+	// Min Reduce Floatn
+#ifdef OpenCL
+#else
+	inline void MinReduceFloatn(vector<floatn> &input, floatn& min) {
+		//TODO: implement
+	}
+#endif
+
+	// Max Reduce Floatn
+#ifdef OpenCL
+#else
+	inline void MaxReduceFloatn(vector<floatn> &input, floatn& max) {
+		//TODO: implement
+	}
+#endif
+
 #pragma endregion
 
 	/* Predication Kernels */
@@ -571,6 +587,43 @@ namespace Kernels {
 		predication_o.resize(numbers_i.size());
 		for (int i = 0; i < numbers_i.size(); ++i)
 			BitPredicate(numbers_i.data(), predication_o.data(), index, compared, i);
+		stopBenchmark();
+		return CL_SUCCESS;
+	}
+#endif
+
+	// Predicate Bit
+#ifdef OpenCL
+	__kernel void PredicateULLBitKernel(
+		__global unsigned long long *inputBuffer,
+		__global cl_int *predicateBuffer,
+		cl_int index,
+		cl_int comparedWith)
+	{
+		BitPredicateULL(inputBuffer, predicateBuffer, index, comparedWith, get_global_id(0));
+	}
+#else
+	inline cl_int PredicateULLByBit_p(cl::Buffer &input, cl_int index, cl_int compared, cl_int totalElements, string uniqueString, cl::Buffer &predicate) {
+		startBenchmark();
+		cl_int roundSize = nextPow2(totalElements);
+		cl::CommandQueue *queue = &CLFW::DefaultQueue;
+		cl::Kernel *kernel = &CLFW::Kernels["PredicateULLBitKernel"];
+
+		cl_int error = CLFW::get(predicate, uniqueString + "predicateBit", sizeof(cl_int)* roundSize);
+
+		error |= kernel->setArg(0, input);
+		error |= kernel->setArg(1, predicate);
+		error |= kernel->setArg(2, index);
+		error |= kernel->setArg(3, compared);
+		error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(totalElements), cl::NullRange);
+		stopBenchmark();
+		return error;
+	}
+	inline cl_int PredicateULLByBit_s(vector<unsigned long long> numbers_i, cl_int index, cl_int compared, vector<cl_int> &predication_o) {
+		startBenchmark();
+		predication_o.resize(numbers_i.size());
+		for (int i = 0; i < numbers_i.size(); ++i)
+			BitPredicateULL(numbers_i.data(), predication_o.data(), index, compared, i);
 		stopBenchmark();
 		return CL_SUCCESS;
 	}
@@ -829,11 +882,11 @@ namespace Kernels {
 		cl::Kernel *kernel = &CLFW::Kernels["CompactKernel"];
 		cl::Buffer zeroBUBuffer;
 
-		error |= CLFW::get(zeroBUBuffer, "zeroBuffer", sizeof(cl_int)*nextPow2(totalElements), isOld);
-		if (!isOld) {
-			error |= queue->enqueueFillBuffer<cl_int>(zeroBUBuffer, { 0 }, 0, nextPow2(totalElements) * sizeof(cl_int));
-		}
-		error |= queue->enqueueCopyBuffer(zeroBUBuffer, result_i, 0, 0, sizeof(cl_int) * totalElements);
+		//error |= CLFW::get(zeroBUBuffer, "zeroBuffer", sizeof(cl_int)*nextPow2(totalElements), isOld);
+		//if (!isOld) {
+		//	error |= queue->enqueueFillBuffer<cl_int>(zeroBUBuffer, { 0 }, 0, nextPow2(totalElements) * sizeof(cl_int));
+		//}
+		//error |= queue->enqueueCopyBuffer(zeroBUBuffer, result_i, 0, 0, sizeof(cl_int) * totalElements);
 
 		error |= kernel->setArg(0, input_i);
 		error |= kernel->setArg(1, result_i);
@@ -849,6 +902,51 @@ namespace Kernels {
 		result_o.resize(size);
 		for (int i = 0; i < size; ++i) {
 			Compact(numbers_i.data(), result_o.data(), predication.data(), addresses.data(), size, i);
+		}
+		return CL_SUCCESS;
+	}
+#endif
+
+#ifdef OpenCL
+	__kernel void CompactULLKernel(
+		__global unsigned long long *inputBuffer,
+		__global unsigned long long *resultBuffer,
+		__global cl_int *lPredicateBuffer,
+		__global cl_int *leftBuffer,
+		cl_int size)
+	{
+		printf("Size of ull:%d\n", sizeof(unsigned long long));
+		//CompactULL(inputBuffer, resultBuffer, lPredicateBuffer, leftBuffer, size, get_global_id(0));
+	}
+#else
+	inline cl_int CompactULL_p(cl::Buffer &input_i, cl::Buffer &predicate_i, cl::Buffer &address_i, cl_int totalElements, cl::Buffer &result_i) {
+		startBenchmark();
+		cl_int error = 0;
+		bool isOld;
+		cl::CommandQueue *queue = &CLFW::DefaultQueue;
+		cl::Kernel *kernel = &CLFW::Kernels["CompactULLKernel"];
+		//cl::Buffer zeroULLBuffer;
+
+		//error |= CLFW::get(zeroULLBuffer, "zeroULLBuffer", sizeof(unsigned long long)*nextPow2(totalElements), isOld);
+		//if (!isOld) {
+		//	error |= queue->enqueueFillBuffer<unsigned long long>(zeroULLBuffer, { 0 }, 0, nextPow2(totalElements) * sizeof(unsigned long long));
+		//}
+		//error |= queue->enqueueCopyBuffer(zeroULLBuffer, result_i, 0, 0, sizeof(unsigned long long) * totalElements);
+
+		error |= kernel->setArg(0, input_i);
+		error |= kernel->setArg(1, result_i);
+		error |= kernel->setArg(2, predicate_i);
+		error |= kernel->setArg(3, address_i);
+		error |= kernel->setArg(4, totalElements);
+		error |= queue->enqueueNDRangeKernel(*kernel, cl::NullRange, cl::NDRange(totalElements), cl::NullRange);
+		stopBenchmark();
+		return error;
+	};
+	inline cl_int CompactULL_s(vector<unsigned long long> &numbers_i, vector<cl_int> &predication, vector<cl_int> &addresses, vector<unsigned long long> &result_o) {
+		cl_int size = numbers_i.size();
+		result_o.resize(size);
+		for (int i = 0; i < size; ++i) {
+			CompactULL(numbers_i.data(), result_o.data(), predication.data(), addresses.data(), size, i);
 		}
 		return CL_SUCCESS;
 	}
@@ -902,14 +1000,14 @@ namespace Kernels {
 		cl::Kernel *kernel = &CLFW::Kernels["LeafDoubleCompactKernel"];
 		cl::Buffer zeroLeafBuffer;
 
-		error |= CLFW::get(zeroLeafBuffer, "zeroLeafBuffer", sizeof(Leaf)*globalSize, isOld);
-		if (!isOld) {
-			Leaf zeroLeaf;
-			zeroLeaf.parent = -42;
-			zeroLeaf.quadrant = -42;
-			error |= queue->enqueueFillBuffer<Leaf>(zeroLeafBuffer, zeroLeaf, 0, globalSize * sizeof(Leaf));
-		}
-		error |= queue->enqueueCopyBuffer(zeroLeafBuffer, result_i, 0, 0, sizeof(Leaf) * globalSize);
+		//error |= CLFW::get(zeroLeafBuffer, "zeroLeafBuffer", sizeof(Leaf)*globalSize, isOld);
+		//if (!isOld) {
+		//	Leaf zeroLeaf;
+		//	zeroLeaf.parent = -42;
+		//	zeroLeaf.quadrant = -42;
+		//	error |= queue->enqueueFillBuffer<Leaf>(zeroLeafBuffer, zeroLeaf, 0, globalSize * sizeof(Leaf));
+		//}
+		//error |= queue->enqueueCopyBuffer(zeroLeafBuffer, result_i, 0, 0, sizeof(Leaf) * globalSize);
 
 		error |= kernel->setArg(0, input_i);
 		error |= kernel->setArg(1, result_i);
@@ -953,13 +1051,13 @@ namespace Kernels {
 		cl::Kernel *kernel = &CLFW::Kernels["BUCompactKernel"];
 		cl::Buffer zeroBUBuffer;
 
-		error |= CLFW::get(zeroBUBuffer, "zeroBUBuffer", sizeof(BigUnsigned)*globalSize, isOld);
-		if (!isOld) {
-			BigUnsigned zero;
-			initBlkBU(&zero, 0);
-			error |= queue->enqueueFillBuffer<BigUnsigned>(zeroBUBuffer, { zero }, 0, globalSize * sizeof(BigUnsigned));
-		}
-		error |= queue->enqueueCopyBuffer(zeroBUBuffer, result, 0, 0, sizeof(BigUnsigned) * totalElements);
+		//error |= CLFW::get(zeroBUBuffer, "zeroBUBuffer", sizeof(BigUnsigned)*globalSize, isOld);
+		//if (!isOld) {
+		//	BigUnsigned zero;
+		//	initBlkBU(&zero, 0);
+		//	error |= queue->enqueueFillBuffer<BigUnsigned>(zeroBUBuffer, { zero }, 0, globalSize * sizeof(BigUnsigned));
+		//}
+		//error |= queue->enqueueCopyBuffer(zeroBUBuffer, result, 0, 0, sizeof(BigUnsigned) * totalElements);
 
 		int numIterations = (globalSize > 128) ? 4 : 1;
 		int localSize = min(32, globalSize / numIterations);
@@ -1019,15 +1117,15 @@ namespace Kernels {
 		error |= CLFW::get(zeroIndexBuffer, "zeroIndexBuffer", sizeof(cl_int)*roundSize, isOld);
 
 
-		if (!isOld) {
-			LCP zero;
-			initBlkBU(&zero.bu, 0);
-			zero.len = -1;
-			error |= queue->enqueueFillBuffer<LCP>(zeroLCPBuffer, { zero }, 0, roundSize * sizeof(LCP));
-			error |= queue->enqueueFillBuffer<cl_int>(zeroIndexBuffer, { 0 }, 0, roundSize * sizeof(cl_int));
-		}
-		error |= queue->enqueueCopyBuffer(zeroLCPBuffer, resultLCPs_i, 0, 0, sizeof(LCP) * globalSize);
-		error |= queue->enqueueCopyBuffer(zeroIndexBuffer, resultIndices_i, 0, 0, sizeof(cl_int) * globalSize);
+		//if (!isOld) {
+		//	LCP zero;
+		//	initBlkBU(&zero.bu, 0);
+		//	zero.len = -1;
+		//	error |= queue->enqueueFillBuffer<LCP>(zeroLCPBuffer, { zero }, 0, roundSize * sizeof(LCP));
+		//	error |= queue->enqueueFillBuffer<cl_int>(zeroIndexBuffer, { 0 }, 0, roundSize * sizeof(cl_int));
+		//}
+		//error |= queue->enqueueCopyBuffer(zeroLCPBuffer, resultLCPs_i, 0, 0, sizeof(LCP) * globalSize);
+		//error |= queue->enqueueCopyBuffer(zeroIndexBuffer, resultIndices_i, 0, 0, sizeof(cl_int) * globalSize);
 
 
 		error |= kernel->setArg(0, inputLCPs_i);
@@ -1061,7 +1159,7 @@ namespace Kernels {
 		bool isOld;
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["CompactConflictsKernel"];
-		cl::Buffer zeroBUBuffer;
+		//cl::Buffer zeroBUBuffer;
 
 		error |= kernel->setArg(0, input_i);
 		error |= kernel->setArg(1, result_io);
@@ -1094,7 +1192,7 @@ namespace Kernels {
 		cl::Kernel *kernel = &CLFW::Kernels["OctnodeCompactKernel"];
 		cl::Buffer zeroOctnodeBuffer;
 
-		error |= CLFW::get(zeroOctnodeBuffer, "zeroOctnodeBuffer", sizeof(OctNode)*globalSize, isOld);
+		/*error |= CLFW::get(zeroOctnodeBuffer, "zeroOctnodeBuffer", sizeof(OctNode)*globalSize, isOld);
 		if (!isOld) {
 			OctNode zero;
 			zero.children[0] = zero.children[1] = zero.children[2] = zero.children[3] = -1;
@@ -1104,7 +1202,7 @@ namespace Kernels {
 			zero.quadrant = -1;
 			error |= queue->enqueueFillBuffer<OctNode>(zeroOctnodeBuffer, { zero }, 0, globalSize * sizeof(OctNode));
 		}
-		error |= queue->enqueueCopyBuffer(zeroOctnodeBuffer, result_i, 0, 0, sizeof(OctNode) * globalSize);
+		error |= queue->enqueueCopyBuffer(zeroOctnodeBuffer, result_i, 0, 0, sizeof(OctNode) * globalSize);*/
 
 		int numIterations = 4;
 		error |= kernel->setArg(0, input_i);
@@ -1476,6 +1574,46 @@ namespace Kernels {
 
 	/* Sort Routines */
 #pragma region Sort Routines
+	// Radix Sort
+#ifndef OpenCL
+	// NOTE: does not take into account negative numbers
+	inline cl_int RadixSort_p(
+		cl::Buffer &numbers_io,
+		cl_int totalPoints,
+		cl_int mbits)
+	{
+		startBenchmark();
+		cl_int error = 0;
+		const cl_int globalSize = nextPow2(totalPoints);
+
+		cl::Buffer predicate, address, temp, tempValues, swap;
+		error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
+		error |= CLFW::get(temp, "tempRadix", sizeof(unsigned long long)*globalSize);
+
+		if (error != CL_SUCCESS)
+			return error;
+
+		//For each bit
+		for (cl_int index = 0; index < mbits; index++) {
+			//Predicate the 0's and 1's
+			error |= PredicateULLByBit_p(numbers_io, index, 0, totalPoints, "RS", predicate);
+
+			//Scan the predication buffers.
+			error |= StreamScan_p(predicate, globalSize, "RS", address);
+
+			//Compacting
+			error |= CompactULL_p(numbers_io, predicate, address, totalPoints, temp);
+
+			//Swap result with input.
+			swap = temp;
+			temp = numbers_io;
+			numbers_io = swap;
+		}
+
+		stopBenchmark();
+		return error;
+	}
+#endif
 
 	// Radix Sort BigUnsigned
 #ifndef OpenCL
@@ -1576,7 +1714,6 @@ namespace Kernels {
 		return error;
 	}
 #endif
-#pragma endregion
 
 	// Radix Sort BU/Int pairs by Key
 #ifndef OpenCL
@@ -1633,6 +1770,8 @@ namespace Kernels {
 		return error;
 	}
 #endif
+#pragma endregion
+
 #pragma endregion
 
 	/* Z-Order Kernels*/

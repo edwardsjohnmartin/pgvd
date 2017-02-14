@@ -36,6 +36,27 @@ Benchmark("Inclusive Summation Scan", "[scan]") {
 }
 
 /* Sort Routines */
+Benchmark("Parallel Radix Sort", "[sort][integration][done]") {
+	/* Load dependencies */
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
+	vector<unsigned long long> zpoints(numPts);
+	for (int i = 0; i < numPts; ++i) zpoints[i] = i;
+
+	/* Upload dependencies */
+	cl::Buffer b_zpoints, b_zpoints_copy;
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(unsigned long long));
+	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(unsigned long long));
+	CLFW::Upload<unsigned long long>(zpoints, b_zpoints);
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Parallel Radix Sort") {
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(unsigned long long));
+		BEGIN_BENCHMARK
+			RadixSort_p(b_zpoints_copy, numPts, resln.mbits);
+		END_BENCHMARK
+	} END_ITERATIONS;
+}
 Benchmark("Parallel Radix Sort (Pairs by Key)", "[sort][integration][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
@@ -53,12 +74,12 @@ Benchmark("Parallel Radix Sort (Pairs by Key)", "[sort][integration][done]") {
 	CLFW::Upload<cl_int>(pointColors, b_pntCols);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Radix Sort (Pairs by Key)"){
-			CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
-			CLFW::DefaultQueue.enqueueCopyBuffer(b_pntCols, b_pntCols_copy, 0, 0, numPts * sizeof(cl_int));
-			BEGIN_BENCHMARK
+	BEGIN_ITERATIONS("Radix Sort (BU Pairs by Key)") {
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_pntCols, b_pntCols_copy, 0, 0, numPts * sizeof(cl_int));
+		BEGIN_BENCHMARK
 			RadixSortBUIntPairsByKey(b_zpoints_copy, b_pntCols_copy, resln.mbits, numPts);
-			END_BENCHMARK
+		END_BENCHMARK
 	} END_ITERATIONS;
 }
 Benchmark("Parallel Radix Sort (Big Unsigneds)", "[sort][integration][done]") {
@@ -74,11 +95,11 @@ Benchmark("Parallel Radix Sort (Big Unsigneds)", "[sort][integration][done]") {
 	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Parallel Radix Sort (Big Unsigneds)"){
-			CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
-			BEGIN_BENCHMARK
+	BEGIN_ITERATIONS("Parallel Radix Sort (Big Unsigneds)") {
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
+		BEGIN_BENCHMARK
 			RadixSortBigUnsigned_p(b_zpoints_copy, numPts, resln.mbits, to_string(i));
-			END_BENCHMARK
+		END_BENCHMARK
 	} END_ITERATIONS;
 }
 Benchmark("Parallel Radix Sort (BU-Int Pairs by Key)", "[sort][integration]") {
@@ -99,9 +120,9 @@ Benchmark("Quantize Points", "[zorder][done]") {
 	CLFW::Upload<floatn>(points, b_points);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Quantize Points"){
+	BEGIN_ITERATIONS("Quantize Points") {
 		BEGIN_BENCHMARK
-		QuantizePoints_p(b_points, numPts, bb, resln.width, to_string(i), b_qpoints);
+			QuantizePoints_p(b_points, numPts, bb, resln.width, to_string(i), b_qpoints);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -117,9 +138,9 @@ Benchmark("QPoints to ZPoints", "[zorder][done]") {
 	CLFW::Upload<intn>(qpoints, b_qpoints);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("QPoints to ZPoints"){
+	BEGIN_ITERATIONS("QPoints to ZPoints") {
 		BEGIN_BENCHMARK
-		QPointsToZPoints_p(b_qpoints, numPts, resln.bits, to_string(i), b_zpoints);
+			QPointsToZPoints_p(b_qpoints, numPts, resln.bits, to_string(i), b_zpoints);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -138,11 +159,11 @@ Benchmark("Unique Sorted BigUnsigned", "[sort][unique][done]") {
 	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Unique Sorted BigUnsigned"){
+	BEGIN_ITERATIONS("Unique Sorted BigUnsigned") {
 		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
 		cl_int uniqueNumPts;
 		BEGIN_BENCHMARK
-		UniqueSorted(b_zpoints_copy, numPts, to_string(i), uniqueNumPts);
+			UniqueSorted(b_zpoints_copy, numPts, to_string(i), uniqueNumPts);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -163,12 +184,12 @@ Benchmark("Unique Sorted BigUnsigned color pairs", "[sort][unique][done]") {
 	CLFW::Upload<cl_int>(pntColors, b_pntCols);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Unique Sorted BigUnsigned color pairs"){
+	BEGIN_ITERATIONS("Unique Sorted BigUnsigned color pairs") {
 		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
 		CLFW::DefaultQueue.enqueueCopyBuffer(b_pntCols, b_pntCols_copy, 0, 0, numPts * sizeof(cl_int));
 		cl_int uniqueNumPts;
 		BEGIN_BENCHMARK
-		UniqueSortedBUIntPair(b_zpoints_copy, b_pntCols_copy, numPts, to_string(i), uniqueNumPts);
+			UniqueSortedBUIntPair(b_zpoints_copy, b_pntCols_copy, numPts, to_string(i), uniqueNumPts);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -186,9 +207,9 @@ Benchmark("Build Binary Radix Tree", "[tree][done]") {
 	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Build Binary Radix Tree"){
+	BEGIN_ITERATIONS("Build Binary Radix Tree") {
 		BEGIN_BENCHMARK
-		BuildBinaryRadixTree_p(b_zpoints, numPts, resln.mbits, to_string(i), b_brt);
+			BuildBinaryRadixTree_p(b_zpoints, numPts, resln.mbits, to_string(i), b_brt);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -207,7 +228,7 @@ Benchmark("Build Colored Binary Radix Tree", "[tree][done]") {
 	CLFW::Upload<cl_int>(pntCols, b_pntCols);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Build Colored Binary Radix Tree"){
+	BEGIN_ITERATIONS("Build Colored Binary Radix Tree") {
 		BEGIN_BENCHMARK;
 		BuildColoredBinaryRadixTree_p(b_zpoints, b_pntCols, numPts, resln.mbits, to_string(i), b_brt, b_brtCols);
 		END_BENCHMARK;
@@ -228,13 +249,13 @@ Benchmark("Propagate Brt Colors", "[tree][done]") {
 	CLFW::Upload<cl_int>(brtCols, b_brtCols);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Propagate Brt Colors"){
+	BEGIN_ITERATIONS("Propagate Brt Colors") {
 		BEGIN_BENCHMARK;
 		PropagateBRTColors_p(b_brt, b_brtCols, numPts - 1, to_string(i));
 		END_BENCHMARK;
 	} END_ITERATIONS;
 }
-Benchmark("Build Quadtree", "[tree][done]") {
+Benchmark("Build Quadtree from BRT", "[tree][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//unique_numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
@@ -246,14 +267,14 @@ Benchmark("Build Quadtree", "[tree][done]") {
 	CLFW::Upload<BrtNode>(brt, b_brt);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Build Quadtree"){
+	BEGIN_ITERATIONS("Build Quadtree from BRT") {
 		BEGIN_BENCHMARK
-		cl_int numOctnodes;
+			cl_int numOctnodes;
 		BinaryRadixToOctree_p(b_brt, false, nullBuffer, numPts, to_string(i), b_octree, numOctnodes);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
-Benchmark("Build Pruned Quadtree", "[tree][done]") {
+Benchmark("Build Pruned Quadtree from BRT", "[tree][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//unique_numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
@@ -268,9 +289,9 @@ Benchmark("Build Pruned Quadtree", "[tree][done]") {
 	CLFW::Upload<cl_int>(brtCols, b_brtCols);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Build Pruned Quadtree"){
+	BEGIN_ITERATIONS("Build Pruned Quadtree from BRT") {
 		BEGIN_BENCHMARK
-		cl_int numOctnodes;
+			cl_int numOctnodes;
 		BinaryRadixToOctree_p(b_brt, true, b_brtCols, numPts, to_string(i), b_octree, numOctnodes);
 		END_BENCHMARK
 	} END_ITERATIONS;
@@ -286,9 +307,9 @@ Benchmark("Generate Leaves", "[tree][done]") {
 	CLFW::Upload<OctNode>(octree, b_octree);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Generate Leaves"){
+	BEGIN_ITERATIONS("Generate Leaves") {
 		BEGIN_BENCHMARK
-		cl_int numLeaves;
+			cl_int numLeaves;
 		GetLeaves_p(b_octree, numOctnodes, b_leaves, numLeaves);
 		END_BENCHMARK
 	} END_ITERATIONS;
@@ -304,9 +325,9 @@ Benchmark("Generate Pruned Leaves", "[tree][done]") {
 	CLFW::Upload<OctNode>(octree, b_octree);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Generate Pruned Leaves"){
+	BEGIN_ITERATIONS("Generate Pruned Leaves") {
 		BEGIN_BENCHMARK
-		cl_int numLeaves;
+			cl_int numLeaves;
 		GetLeaves_p(b_octree, numOctnodes, b_leaves, numLeaves);
 		END_BENCHMARK
 	} END_ITERATIONS;
@@ -331,10 +352,7 @@ Benchmark("Get LCPs From Lines", "[conflict][done]") {
 	/* Benchmark */
 	BEGIN_ITERATIONS("Get LCPs From Lines") {
 		BEGIN_BENCHMARK
-		GetLineLCPs_p(b_lines, numLines, b_zpoints, resln.mbits, b_LineLCPs);
-		vector<LCP> temp;
-		CLFW::Download<LCP>(b_LineLCPs, numLines, temp);
-		writeToFile(temp, "BenchmarkData//binaries//lineLCPs.bin");
+			GetLineLCPs_p(b_lines, numLines, b_zpoints, resln.mbits, b_LineLCPs);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -344,7 +362,7 @@ Benchmark("Look Up Octnode From LCP", "[conflict][done]") {
 	vector<OctNode> octree = readFromFile<OctNode>("BenchmarkData//binaries//pruned_octree.bin", numOctnodes);
 	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
 	vector<LCP> lineLCPs = readFromFile<LCP>("BenchmarkData//binaries//lineLCPs.bin", numLines);
-	
+
 	/* Upload dependencies */
 	cl::Buffer b_lineLCPs, b_octree, b_LCPToOctNode;
 	CLFW::get(b_lineLCPs, "lineLCPs", numLines * sizeof(LCP));
@@ -355,7 +373,7 @@ Benchmark("Look Up Octnode From LCP", "[conflict][done]") {
 	/* Benchmark */
 	BEGIN_ITERATIONS("Look Up Octnode From LCP") {
 		BEGIN_BENCHMARK
-		LookUpOctnodeFromLCP_p(b_lineLCPs, numLines, b_octree, b_LCPToOctNode);
+			LookUpOctnodeFromLCP_p(b_lineLCPs, numLines, b_octree, b_LCPToOctNode);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -373,7 +391,7 @@ Benchmark("Get Octnode LCP Bounds", "[conflict][done]") {
 	/* Benchmark */
 	BEGIN_ITERATIONS("Get Octnode LCP Bounds") {
 		BEGIN_BENCHMARK
-		GetLCPBounds_p(b_LCPToOctNode, numLines, numOctnodes, b_LCPBounds);
+			GetLCPBounds_p(b_LCPToOctNode, numLines, numOctnodes, b_LCPBounds);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -405,12 +423,12 @@ Benchmark("Find Conflict Cells", "[conflict][done]") {
 	CLFW::Upload<Pair>(LCPBounds, b_LCPBounds);
 	CLFW::Upload<Line>(lines, b_lines);
 	CLFW::Upload<intn>(qpoints, b_qpoints);
-		
+
 	/* Benchmark */
 	BEGIN_ITERATIONS("Find Conflict Cells") {
 		BEGIN_BENCHMARK
-		FindConflictCells_p(b_octree, b_leaves, numLeaves, b_lineIndices,
-			b_LCPBounds, b_lines, numLines, b_qpoints, resln.width, b_sparseConflicts);
+			FindConflictCells_p(b_octree, b_leaves, numLeaves, b_lineIndices,
+				b_LCPBounds, b_lines, numLines, b_qpoints, resln.width, b_sparseConflicts);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -433,14 +451,14 @@ Benchmark("Sample required resolution points", "[resolution][done]") {
 	/* Benchmark */
 	BEGIN_ITERATIONS("Sample required resolution points") {
 		BEGIN_BENCHMARK
-		GetResolutionPointsInfo_p(b_conflicts, numConflicts, b_qpoints, b_conflictInfo, b_numPtsPerConflict);
+			GetResolutionPointsInfo_p(b_conflicts, numConflicts, b_qpoints, b_conflictInfo, b_numPtsPerConflict);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
 Benchmark("Predicate Conflict To Point", "[predication][resolution]") {
 	TODO("Benchmark this");
 }
-Benchmark("Get resolution points", "[resolution][done][selected]") {
+Benchmark("Get resolution points", "[resolution][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
 	cl_int numResPts = readFromFile<cl_int>("BenchmarkData//binaries//numResPts.bin");
@@ -467,9 +485,51 @@ Benchmark("Get resolution points", "[resolution][done][selected]") {
 	/* Benchmark */
 	BEGIN_ITERATIONS("Get resolution points") {
 		BEGIN_BENCHMARK
-		GetResolutionPoints_p(b_conflicts, b_conflictInfo, b_scannedNumPtsPerConflict, numResPts, b_pntToConflict, b_qpoints, b_resPts);
+			GetResolutionPoints_p(b_conflicts, b_conflictInfo, b_scannedNumPtsPerConflict, numResPts, b_pntToConflict, b_qpoints, b_resPts);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
 
 /* Quadtree */
+Benchmark("Build Unpruned Quadtree", "[tree][selected][done]") {
+	/* Load dependencies */
+	Options::max_level = 24;
+	Options::pruneOctree = false;
+	Quadtree q;
+	glm::mat4 I;
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	vector<floatn> points = readFromFile<floatn>("BenchmarkData//binaries//points.bin", numPts);
+	vector<cl_int> pointCols = readFromFile<cl_int>("BenchmarkData//binaries//pointColors.bin", numPts);
+	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
+	vector<Line> lines = readFromFile<Line>("BenchmarkData//binaries//lines.bin", numLines);
+	BoundingBox bb = readFromFile<BoundingBox>("BenchmarkData//binaries//bb.bin");
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Build Quadtree") {
+		BEGIN_BENCHMARK
+			q.build(points, pointCols, lines, bb);
+		END_BENCHMARK
+	} END_ITERATIONS;
+}
+
+/* Quadtree */
+Benchmark("Build Pruned Quadtree", "[tree][selected][done]") {
+	/* Load dependencies */
+	Options::max_level = 24;
+	Options::pruneOctree = true;
+	Quadtree q;
+	glm::mat4 I;
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	vector<floatn> points = readFromFile<floatn>("BenchmarkData//binaries//points.bin", numPts);
+	vector<cl_int> pointCols = readFromFile<cl_int>("BenchmarkData//binaries//pointColors.bin", numPts);
+	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
+	vector<Line> lines = readFromFile<Line>("BenchmarkData//binaries//lines.bin", numLines);
+	BoundingBox bb = readFromFile<BoundingBox>("BenchmarkData//binaries//bb.bin");
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Build Pruned Quadtree") {
+		BEGIN_BENCHMARK
+			q.build(points, pointCols, lines, bb);
+		END_BENCHMARK
+	} END_ITERATIONS;
+}

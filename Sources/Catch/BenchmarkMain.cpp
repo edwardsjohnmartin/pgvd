@@ -48,13 +48,13 @@ int main( int argc, char* const argv[] )
 {
   /* global setup... */
   CLFW::Initialize(true, true, 2);
-	//InitializeGLFW();
-	//Shaders::create();
+	InitializeGLFW();
+	Shaders::create();
 	writeToFile("", "BenchmarkData//binaries//log.txt");
 
   int result = Catch::Session().run( argc, argv );
   
-	//glfwTerminate();
+	glfwTerminate();
   /* global clean-up... */
   system("pause");
   return result;

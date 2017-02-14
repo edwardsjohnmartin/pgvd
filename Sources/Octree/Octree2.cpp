@@ -376,9 +376,12 @@ cl_int Quadtree::resolveAmbiguousCells(
 	/* Build an octree from the combined points */
 	cl::Buffer combinedOctree, combinedLeaves;
 	cl_int combinedOctSize, combinedLeafSize;
-	error |= buildPrunedOctree(combinedZPts, combinedCols, numPts + numResPts, resln, bb, 
-		"res" + iteration, combinedOctree, combinedOctSize, combinedLeaves, combinedLeafSize);
-
+	if (Options::pruneOctree)
+		error |= buildPrunedOctree(combinedZPts, combinedCols, numPts + numResPts, resln, bb, 
+			"res" + iteration, combinedOctree, combinedOctSize, combinedLeaves, combinedLeafSize);
+	else 
+		error |= buildVertexOctree(combinedZPts, numPts + numResPts, resln, bb,
+			"res" + iteration, combinedOctree, combinedOctSize, combinedLeaves, combinedLeafSize);
 	octree_i = combinedOctree;
 	numOctNodes = combinedOctSize;
 	check(error);
@@ -397,8 +400,6 @@ cl_int Quadtree::resolveAmbiguousCells(
 }
 
 void Quadtree::clear() {
-  using namespace GLUtilities;
-  Sketcher::instance()->clear();
   octreeSize = 0;
   totalResPoints = 0;
 
@@ -409,49 +410,63 @@ void Quadtree::clear() {
   resolutionPoints.clear();
 }
 
+void Quadtree::build_internal() {
+	using namespace Kernels;
+	CLFW::DefaultQueue = CLFW::Queues[0];
+	cl_int error = 0;
+
+	if (points.size() == 0) return;
+
+	/* Upload the data to OpenCL buffers */
+	error |= CLFW::get(pointsBuffer, "pts", Kernels::nextPow2(points.size()) * sizeof(floatn));
+	error |= CLFW::get(pntColorsBuffer, "ptcolr", Kernels::nextPow2(points.size()) * sizeof(cl_int));
+	error |= CLFW::get(linesBuffer, "lines", Kernels::nextPow2(lines.size())*sizeof(Line));
+	check(error);
+
+	error |= CLFW::Upload<floatn>(points, pointsBuffer);
+	error |= CLFW::Upload<cl_int>(pointColors, pntColorsBuffer);
+	error |= CLFW::Upload<Line>(lines, linesBuffer);
+	check(error);
+
+	/* Place the points on a Z-Order curve */
+	error |= placePointsOnCurve(pointsBuffer, points.size(), resln, bb, "initial", qpoints, zpoints);
+	check(error);
+
+	/* Build the initial octree */
+	CLFW::DefaultQueue = CLFW::Queues[0];
+	if (Options::pruneOctree)
+		error |= buildPrunedOctree(zpoints, pntColorsBuffer, points.size(), resln, bb, "initial", octreeBuffer, octreeSize, leavesBuffer, totalLeaves);
+	else 
+		error |= buildVertexOctree(zpoints, points.size(), resln, bb, "initial", octreeBuffer, octreeSize, leavesBuffer, totalLeaves);
+	check(error);
+
+	/* Finally, resolve the ambiguous cells. */
+	error |= resolveAmbiguousCells(octreeBuffer, octreeSize, leavesBuffer, totalLeaves,
+		linesBuffer, lines.size(), qpoints, zpoints, pntColorsBuffer, points.size(), 0);
+	check(error);
+}
+
+void Quadtree::build(vector<floatn> &points, vector<cl_int> &pointColors, vector<Line> &lines, BoundingBox bb) {
+	/* Clear the old quadtree */
+	clear();
+
+	this->points = points;
+	this->pointColors = pointColors;
+	this->lines = lines;
+	this->bb = bb;
+	build_internal();
+}
+
 void Quadtree::build(const PolyLines *polyLines) {
-	bool resolveConflicts = false;
-
-  using namespace Kernels;
-  CLFW::DefaultQueue = CLFW::Queues[0];
-  cl_int error = 0;
-
   /* Clear the old quadtree */
   clear();  
 
   /* Extract points from objects, and calculate a bounding box. */
   getPoints(polyLines, points, pointColors, lines);
-	if (points.size() == 0) return;
-
-  /* Upload the data to OpenCL buffers */
-	error |= CLFW::get(pointsBuffer, "pts", Kernels::nextPow2(points.size()) * sizeof(floatn));
-	error |= CLFW::get(pntColorsBuffer, "ptcolr", Kernels::nextPow2(points.size()) * sizeof(cl_int));
-  error |= CLFW::get(linesBuffer, "lines", Kernels::nextPow2(lines.size())*sizeof(Line));
-	check(error);
-  
-	error |= CLFW::Upload<floatn>(points, pointsBuffer);
-	error |= CLFW::Upload<cl_int>(pointColors, pntColorsBuffer);
-  error |= CLFW::Upload<Line>(lines, linesBuffer);
-  check(error);
 
 	getBoundingBox(points, points.size(), bb);
 
-	/* Place the points on a Z-Order curve */
-  error |= placePointsOnCurve(pointsBuffer, points.size(), resln, bb, "initial", qpoints, zpoints);
-  check(error);
-
-  /* Build the initial octree */
-  CLFW::DefaultQueue = CLFW::Queues[0];
-	error |= buildPrunedOctree(zpoints, pntColorsBuffer, points.size(), resln, bb, "initial", octreeBuffer, octreeSize, leavesBuffer, totalLeaves);
-	check(error);
-
-		/* Finally, resolve the ambiguous cells. */
-	error |= resolveAmbiguousCells(octreeBuffer, octreeSize, leavesBuffer, totalLeaves, 
-		linesBuffer, lines.size(), qpoints, zpoints, pntColorsBuffer, points.size(), 0);
-	check(error);
-  
-  /* Add the octnodes and conflict cells so they'll be rendered with OpenGL. */
-  addOctreeNodes(octreeBuffer, octreeSize);
+	build_internal();
 }
 
 inline floatn getMinFloat(const floatn a, const floatn b) {
@@ -610,6 +625,12 @@ void Quadtree::drawResolutionPoints(cl::Buffer resPoints, cl_int totalPoints) {
 }
 
 void Quadtree::draw(const glm::mat4& mvMatrix) {
+	using namespace GLUtilities;
+	Sketcher::instance()->clear();
+
+	/* Add the octnodes and conflict cells so they'll be rendered with OpenGL. */
+	addOctreeNodes(octreeBuffer, octreeSize);
+
   Shaders::boxProgram->use();
   print_gl_error();
   glBindVertexArray(boxProgram_vao);

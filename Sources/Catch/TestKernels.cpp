@@ -83,6 +83,46 @@ Scenario("Predicate by bit", "[predication]") {
 		}
 	}
 }
+Scenario("Predicate unsigned long long by bit", "[predication]") {
+	Given("N random unsigned long longs") {
+		vector<unsigned long long>small_input(a_few);
+		for (int i = 0; i < a_few; ++i) small_input[i] = i;
+		vector<unsigned long long>large_input(a_lot);
+		for (int i = 0; i < a_lot; ++i) large_input[i] = i;
+		When("we predicate these integers in series") {
+			vector<cl_int>small_output_s(a_few), large_output_s(a_lot);
+			PredicateULLByBit_s(small_input, 2, 1, small_output_s);
+			PredicateULLByBit_s(large_input, 3, 0, large_output_s);
+			Then("the predication for each number will be 1 only if the i'th bit matches \"compared\"") {
+				int success = true;
+				for (int i = 0; i < a_few; ++i)
+					success &= ((small_input[i] & (1 << 2)) >> 2 == 1) == small_output_s[i];
+				for (int i = 0; i < a_lot; ++i)
+					success &= ((large_input[i] & (1 << 3)) >> 3 == 0) == large_output_s[i];
+				Require(success == true);
+			}
+			Then("the series results match the parallel results") {
+				vector<cl_int>small_output_p(a_few);
+				vector<cl_int>large_output_p(a_lot);
+				Buffer b_small_input, b_large_input, b_small_output, b_large_output;
+				cl_int error = 0;
+				error |= CLFW::get(b_small_input, "small", a_few * sizeof(unsigned long long));
+				error |= CLFW::get(b_large_input, "large", a_lot * sizeof(unsigned long long));
+				error |= CLFW::Upload<unsigned long long>(small_input, b_small_input);
+				error |= CLFW::Upload<unsigned long long>(large_input, b_large_input);
+				error |= PredicateULLByBit_p(b_small_input, 2, 1, a_few, "a", b_small_output);
+				error |= PredicateULLByBit_p(b_large_input, 3, 0, a_lot, "b", b_large_output);
+				error |= CLFW::Download<cl_int>(b_small_output, a_few, small_output_p);
+				error |= CLFW::Download<cl_int>(b_large_output, a_lot, large_output_p);
+				Require(error == CL_SUCCESS);
+				int success = true;
+				for (int i = 0; i < a_few; ++i) success &= small_output_p[i] == small_output_s[i];
+				for (int i = 0; i < a_lot; ++i) success &= large_output_p[i] == large_output_s[i];
+				Require(success == true);
+			}
+		}
+	}
+}
 Scenario("Predicate BigUnsigned by bit", "[predication]") {
 	Given("N random BigUnsigneds") {
 		vector<BigUnsigned>small_input = generateDeterministicRandomBigUnsigneds(a_few);
@@ -209,6 +249,67 @@ Scenario("Integer Compaction", "[compaction]") {
 				error |= Compact_p(b_large_input, b_large_pred, b_large_addr, a_lot, b_large_output);
 				error |= CLFW::Download<cl_int>(b_small_output, a_few, small_output_p);
 				error |= CLFW::Download<cl_int>(b_large_output, a_lot, large_output_p);
+				Require(error == CL_SUCCESS);
+				int success = true;
+				for (int i = 0; i < a_few; ++i) success &= (small_output_p[i] == small_output_s[i]);
+				for (int i = 0; i < a_lot; ++i) success &= (large_output_p[i] == large_output_s[i]);
+				Require(success == true);
+			}
+		}
+	}
+}
+Scenario("Unsigned Long Long Compaction", "[compaction][selected]") {
+	Given("N random unsigned long longs, an arbitrary predication, and an inclusive prefix sum of that predication") {
+		vector<unsigned long long>small_input(a_few);
+		for (int i = 0; i < a_few; ++i) small_input[i] = i;
+		vector<unsigned long long>large_input(a_lot);
+		for (int i = 0; i < a_lot; ++i) large_input[i] = i;
+		vector<cl_int> small_pred(a_few), small_addr(a_few);
+		vector<unsigned long long> small_output_s(a_few), large_output_s(a_lot);;
+		vector<cl_int> large_pred(a_lot), large_addr(a_lot); 
+		 
+		/* In this example, odd indexes are compacted to the left. */
+		for (int i = 0; i < a_few; ++i) { small_pred[i] = i % 2; small_addr[i] = (i + 1) / 2; }
+		for (int i = 0; i < a_lot; ++i) { large_pred[i] = i % 2; large_addr[i] = (i + 1) / 2; }
+		When("these integers are compacted in series") {
+			CompactULL_s(small_input, small_pred, small_addr, small_output_s);
+			CompactULL_s(large_input, large_pred, large_addr, large_output_s);
+			Then("elements predicated true are moved to their cooresponding addresses.") {
+				int success = true;
+				for (int i = 0; i < a_few / 2; ++i) success &= (small_output_s[i] == small_input[(i * 2) + 1]);
+				for (int i = 0; i < a_lot / 2; ++i) success &= (large_output_s[i] == large_input[(i * 2) + 1]);
+				Require(success == true);
+			}
+			Then("elements predicated false are placed after the last truely predicated element and in their original order.") {
+				int success = true;
+				for (int i = a_few / 2; i < a_few; ++i) success &= (small_output_s[i] == small_input[(i - (a_few / 2)) * 2]);
+				for (int i = a_lot / 2; i < a_lot; ++i) success &= (large_output_s[i] == large_input[(i - (a_lot / 2)) * 2]);
+				Require(success == true);
+			}
+			Then("the series results match the parallel results") {
+				cl_int error = 0;
+				vector<unsigned long long> small_output_p(a_few);
+				vector<unsigned long long> large_output_p(a_lot);
+				Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
+				Buffer b_large_input, b_large_pred, b_large_addr, b_large_output;
+				error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(unsigned long long));
+				error |= CLFW::get(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
+				error |= CLFW::get(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
+				error |= CLFW::get(b_small_output, "b_small_output", a_few * sizeof(unsigned long long));
+				error |= CLFW::get(b_large_input, "b_large_input", a_lot * sizeof(unsigned long long));
+				error |= CLFW::get(b_large_pred, "b_large_pred", a_lot * sizeof(cl_int));
+				error |= CLFW::get(b_large_addr, "b_large_addr", a_lot * sizeof(cl_int));
+				error |= CLFW::get(b_large_output, "b_large_output", a_lot * sizeof(unsigned long long));
+				error |= CLFW::Upload<unsigned long long>(small_input, b_small_input);
+				error |= CLFW::Upload<cl_int>(small_pred, b_small_pred);
+				error |= CLFW::Upload<cl_int>(small_addr, b_small_addr);
+				error |= CLFW::Upload<unsigned long long>(large_input, b_large_input);
+				error |= CLFW::Upload<cl_int>(large_pred, b_large_pred);
+				error |= CLFW::Upload<cl_int>(large_addr, b_large_addr);
+				error |= CompactULL_p(b_small_input, b_small_pred, b_small_addr, a_few, b_small_output);
+				error |= CompactULL_p(b_large_input, b_large_pred, b_large_addr, a_lot, b_large_output);
+				error |= CLFW::Download<unsigned long long>(b_small_output, a_few, small_output_p);
+				error |= CLFW::Download<unsigned long long>(b_large_output, a_lot, large_output_p);
 				Require(error == CL_SUCCESS);
 				int success = true;
 				for (int i = 0; i < a_few; ++i) success &= (small_output_p[i] == small_output_s[i]);
@@ -383,6 +484,43 @@ Scenario("Inclusive Summation Scan", "[scan]") {
 }
 
 /* Sort Routines */
+Scenario("Parallel Radix Sort", "[sort][integration][selected]") {
+	Given("An arbitrary set of numbers") {
+		vector<unsigned long long> small_input(a_few);
+		vector<unsigned long long> large_input(a_lot);
+
+		for (unsigned long long i = 0; i < a_few; ++i) small_input[i] = a_few - i;
+		for (unsigned long long i = 0; i < a_lot; ++i) large_input[i] = a_lot - i;
+
+		When("these numbers are sorted in parallel") {
+			cl_int error = 0;
+			cl::Buffer b_small_input, b_large_input;
+			error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(unsigned long long));
+			error |= CLFW::get(b_large_input, "b_large_input", a_lot * sizeof(unsigned long long));
+			error |= CLFW::Upload<unsigned long long>(small_input, b_small_input);
+			error |= CLFW::Upload<unsigned long long>(large_input, b_large_input);
+			error |= RadixSort_p(b_small_input, a_few, 20);
+			error |= RadixSort_p(b_large_input, a_lot, 20);
+			Require(error == CL_SUCCESS);
+			Then("the numbers are ordered assending") {
+				vector<unsigned long long> small_output_p(a_few), large_output_p(a_lot);
+				error |= CLFW::Download<unsigned long long>(b_small_input, a_few, small_output_p);
+				error |= CLFW::Download<unsigned long long>(b_large_input, a_lot, large_output_p);
+				int success = true;
+				for (unsigned long long i = 0; i < a_few; ++i) {
+					BigUnsigned temp;
+					initLongLongBU(&temp, i + 1);
+					success &= (small_output_p[i] == i + 1);
+				}
+				Require(success == true);
+				for (unsigned long long i = 0; i < a_lot; ++i) {
+					success &= (large_output_p[i] == i + 1);
+				}
+				Require(success == true);
+			}
+		}
+	}
+}
 Scenario("Parallel Radix Sort (Pairs by Key)", "[sort][integration]") {
 	Given("An arbitrary set of unsigned key and integer value pairs") {
 		vector<cl_int> small_keys_in(a_few);
@@ -795,7 +933,7 @@ Scenario("Build Colored Binary Radix Tree", "[tree]") {
 		}
 	}
 }
-Scenario("Propagate Brt Colors", "[tree][selected]") {
+Scenario("Propagate Brt Colors", "[tree]") {
 	Given("a colored binary radix tree") {
 		cl_int totalPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
 		vector<BrtNode> brt = readFromFile<BrtNode>("TestData//simple//brt.bin", totalPoints - 1);

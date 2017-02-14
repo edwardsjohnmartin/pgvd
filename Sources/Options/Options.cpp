@@ -65,6 +65,7 @@ namespace Options {
   bool showOctree = true;
   bool showSketcher = true;
 	bool showResolutionPoints = false;
+	bool pruneOctree = true;
 
   float conflict_color[3] = { 1.0, 0.0, 0.0 };
 
