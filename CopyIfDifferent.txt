@@ -6,9 +6,11 @@ MESSAGE(${SRC_FILES})
 
 #for each file
 foreach(file ${SRC_FILES})
-	string(REGEX REPLACE ${from} "" filename ${file})
-	set(copy_command ${copy_command} cmake -E copy_if_different "${from}${filename}" "${to}${filename}" \n)
+        string(REGEX REPLACE ${from} "" filename ${file})
+#        set(copy_command ${copy_command} cmake -E copy_if_different "${from}${filename}" "${to}${filename}" \n)
+        set(copy_command ${copy_command} COMMAND cmake -E copy_if_different "${from}${filename}" "${to}${filename}" \n)
 endforeach()
 
-add_custom_target(${target_name} COMMAND ${copy_command})
+#add_custom_target(${target_name} COMMAND ${copy_command})
+add_custom_target(${target_name} ${copy_command})
 ENDMACRO()
