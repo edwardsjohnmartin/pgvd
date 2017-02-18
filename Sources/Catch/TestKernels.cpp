@@ -43,6 +43,51 @@ Scenario("Additive Reduction", "[reduction]") {
 		}
 	}
 }
+Scenario("Check Order", "[4way][sort][reduction]") {
+	Given("a list containing 2^n ordered big") {
+		TODO("run this check on n' elements, and then on 1 + n - n' elements");
+		vector<big> small_input(Kernels::nextPow2(a_few));
+		vector<big> large_input(Kernels::nextPow2(a_lot));
+		for (int i = 0; i < small_input.size(); ++i)
+			small_input[i] = makeBig(small_input.size() - i);
+		for (int i = 0; i < large_input.size(); ++i)
+			large_input[i] = makeBig(large_input.size() - i);
+		When("we check to see if these numbers are in order in parallel") {
+			cl_int error = 0;
+			cl_int smallResult, largeResult;
+			cl::Buffer b_small_input, b_large_input;
+			error |= CLFW::get(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
+			error |= CLFW::get(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
+			error |= CLFW::Upload<big>(small_input, b_small_input);
+			error |= CLFW::Upload<big>(large_input, b_large_input);
+			error |= CheckBigOrder_p(b_small_input, Kernels::nextPow2(a_few), smallResult);
+			error |= CheckBigOrder_p(b_large_input, Kernels::nextPow2(a_lot), largeResult);
+			Then("we should get back true") {
+				Require(smallResult == 0);
+				Require(largeResult == 0);
+			}
+		}
+		And_when("we modify the list so it isn't in order") {
+			small_input[10] = makeBig(999);
+			large_input[600] = makeBig(13);
+			When("we check to see if these numbers are in order in parallel") {
+				cl_int error = 0;
+				cl_int smallResult, largeResult;
+				cl::Buffer b_small_input, b_large_input;
+				error |= CLFW::get(b_small_input, "small_input", a_few * sizeof(big));
+				error |= CLFW::get(b_large_input, "large_input", a_lot * sizeof(big));
+				error |= CLFW::Upload<big>(small_input, b_small_input);
+				error |= CLFW::Upload<big>(large_input, b_large_input);
+				error |= CheckBigOrder_p(b_small_input, a_few, smallResult);
+				error |= CheckBigOrder_p(b_large_input, a_lot, largeResult);
+				Then("we should get back the total number of out of order numbers") {
+					Require(smallResult == 1);
+					Require(largeResult == 1);
+				}
+			}
+		}
+	}
+}
 
 /* Predication Kernels */
 Scenario("Predicate by bit", "[predication]") {
@@ -258,7 +303,7 @@ Scenario("Integer Compaction", "[compaction]") {
 		}
 	}
 }
-Scenario("Unsigned Long Long Compaction", "[compaction][selected]") {
+Scenario("Unsigned Long Long Compaction", "[compaction]") {
 	Given("N random unsigned long longs, an arbitrary predication, and an inclusive prefix sum of that predication") {
 		vector<unsigned long long>small_input(a_few);
 		for (int i = 0; i < a_few; ++i) small_input[i] = i;
@@ -437,7 +482,7 @@ Scenario("Conflict Compaction", "[conflict][compaction]") {
 }
 
 /* Scan Kernels */
-Scenario("Inclusive Summation Scan", "[scan]") {
+Scenario("Inclusive Summation Scan", "[selected][scan]") {
 	Given("N random integers") {
 		vector<cl_int>small_input = generateDeterministicRandomIntegers(a_few);
 		vector<cl_int>large_input = generateDeterministicRandomIntegers(a_lot);
@@ -484,7 +529,7 @@ Scenario("Inclusive Summation Scan", "[scan]") {
 }
 
 /* Sort Routines */
-Scenario("Parallel Radix Sort", "[sort][integration][selected]") {
+Scenario("Parallel Radix Sort", "[sort][integration]") {
 	Given("An arbitrary set of numbers") {
 		vector<unsigned long long> small_input(a_few);
 		vector<unsigned long long> large_input(a_lot);
@@ -656,6 +701,137 @@ Scenario("Parallel Radix Sort (BU-Int Pairs by Key)", "[sort][integration]") {
 					BigUnsigned temp;
 					initLongLongBU(&temp, i + 1);
 					success &= (compareBU(&large_keys_out_p[i], &temp)==0);
+				}
+				Require(success == true);
+			}
+		}
+	}
+}
+
+Scenario("4 way frequency count (bigs)", "[sort][4way]") {
+	Given("a block size and a set of big numbers evenly divisable by that block size ") {
+		cl_int blockSize = 4;
+		vector<big> in(20);
+		in[0].blk[0] = 1; in[1].blk[0] = 2; in[2].blk[0] = 0; in[3].blk[0] = 3;
+		in[4].blk[0] = 0; in[5].blk[0] = 1; in[6].blk[0] = 1; in[7].blk[0] = 0;
+		in[8].blk[0] = 3; in[9].blk[0] = 3; in[10].blk[0] = 3; in[11].blk[0] = 2;
+		in[12].blk[0] = 1; in[13].blk[0] = 2; in[14].blk[0] = 2; in[15].blk[0] = 0;
+		in[16].blk[0] = 2; in[17].blk[0] = 0; in[18].blk[0] = 0; in[19].blk[0] = 2;
+
+		writeToFile<big>(in, "TestData//4waysort//original.bin");
+		When("we compute the 4 way frequency count in series") {
+			vector<big> s_shuffle, result;
+			vector<cl_int> localPrefix, s_blockSum, localShuffleAddr;
+			FourWayPrefixSumWithShuffle_s(in, blockSize, 0, 0, s_shuffle, s_blockSum);
+			Then("the results should be valid") {
+				vector<big> f_shuffle = readFromFile<big>("TestData//4waysort//shuffle.bin", 20);
+				vector<cl_int> f_blockSum = readFromFile<cl_int>("TestData//4waysort//blockSum.bin", 20);
+				
+				cl_int success = true;
+				for (int i = 0; i < 20; ++i) {
+					success &= (0 == compareBig(&f_shuffle[i], &s_shuffle[i]));
+					success &= (f_blockSum[i] == s_blockSum[i]);
+				}
+
+				And_then("the series results should match the parallel results") {
+					cl_int error = 0;
+					vector<big> p_shuffle;
+					vector<cl_int> p_blockSum;
+					cl::Buffer b_in, b_blkSum, b_shuffle;
+					error |= CLFW::get(b_in, "in", 20 * sizeof(big));
+					error |= CLFW::Upload<big>(in, b_in);
+					error |= FourWayPrefixSumWithShuffle_p(b_in, 20, blockSize, 0, 0, b_blkSum, b_shuffle);
+					error |= CLFW::Download<big>(b_shuffle, 20, p_shuffle);
+					error |= CLFW::Download<cl_int>(b_blkSum, 20, p_blockSum);
+					Require(error == CL_SUCCESS);
+
+					success = true;
+					for (cl_int i = 0; i < 20; ++i) {
+						success &= (compareBig(&p_shuffle[i], &s_shuffle[i]) == 0);
+						success &= (p_blockSum[i] == s_blockSum[i]);
+					}
+					Require(success == true);
+				}
+			}
+		}
+	}
+}
+
+Scenario("Move 4 way shuffled elements", "[sort][4way]")
+{
+	Given("the shuffled elements, block sums, and prefix block sums produced by the 4 way frequency count") {
+		vector<big> f_shuffle = readFromFile<big>("TestData//4waysort//shuffle.bin", 20);
+		vector<cl_int> f_blockSum = readFromFile<cl_int>("TestData//4waysort//blockSum.bin", 20);
+		vector<cl_int> f_prefixBlockSum = readFromFile<cl_int>("TestData//4waysort//prefixBlockSum.bin", 20);
+		When("we use the block sum and prefix block sum to move these shuffled elements in series") {
+			vector<big> s_result;
+			MoveElements_s(f_shuffle, f_blockSum, f_prefixBlockSum, 4, 0, 0, s_result);
+			Then("the results should be valid") {
+				vector<big> f_result = readFromFile<big>("TestData//4waysort//result.bin", 20);
+				cl_int success = true;
+				for (cl_int i = 0; i < 20; ++i) {
+					success &= (compareBig(&s_result[i], &f_result[i]));
+				}
+				And_then("the series results should match the parallel results") {
+					cl_int error = 0;
+					vector<big> p_result;
+					vector<cl_int> p_blockSum;
+					cl::Buffer b_shuffle, b_blkSum, b_prefixBlkSum, b_result;
+					error |= CLFW::get(b_shuffle, "shuffle", 20 * sizeof(big));
+					error |= CLFW::get(b_blkSum, "blkSum", 20 * sizeof(cl_int));
+					error |= CLFW::get(b_prefixBlkSum, "prefixBlkSum", 20 * sizeof(cl_int));
+					error |= CLFW::Upload<big>(f_shuffle, b_shuffle);
+					error |= CLFW::Upload<cl_int>(f_blockSum, b_blkSum);
+					error |= CLFW::Upload<cl_int>(f_prefixBlockSum, b_prefixBlkSum);
+					error |= MoveElements_p(b_shuffle, 20, b_blkSum, b_prefixBlkSum, 4, 0, 0, b_result);
+					error |= CLFW::Download<big>(b_result, 20, p_result);
+					Require(error == CL_SUCCESS);
+
+					success = true;
+					for (cl_int i = 0; i < 20; ++i) {
+						success &= (compareBig(&p_result[i], &s_result[i]) == 0);
+					}
+					Require(success == true);
+				}
+			}
+		}
+	}
+}
+
+Scenario("4 way radix sort", "[sort][4way]") {
+	Given("an unsorted set of big") {
+		cl_int numElements = 128;
+		vector<big> input(numElements);// = readFromFile<big>("TestData//4waysort//original.bin", 20);
+		for (int i = 0; i < numElements; ++i) {
+			input[i] = { (cl_ulong)(numElements - i), 0};
+		}
+
+		vector<BigUnsigned> other(numElements);// = readFromFile<big>("TestData//4waysort//original.bin", 20);
+		for (int i = 0; i < numElements; ++i) {
+			initLongLongBU(&other[i], numElements - i);
+		}
+		When("we sort that data using the parallel 4 way radix sorter") {
+			vector<big> result;
+			vector<BigUnsigned> result2;
+			cl_int error = 0;
+			cl::Buffer b_input, b_other;
+			error |= CLFW::get(b_input, "input", numElements * sizeof(big));
+			error |= CLFW::Upload<big>(input, b_input);
+			error |= FourWayRadixSort_p(b_input, numElements, 48);
+			error |= CLFW::Download<big>(b_input, numElements, result);
+
+			error |= CLFW::get(b_other, "other", numElements * sizeof(BigUnsigned));
+			error |= CLFW::Upload<BigUnsigned>(other, b_other);
+			error |= RadixSortBigUnsigned_p(b_other, numElements, 48, "");
+			error |= CLFW::Download<BigUnsigned>(b_other, numElements, result2);
+
+			Require(error == CL_SUCCESS);
+
+			Then("the results should be valid") {
+				vector<big> f_result = readFromFile<big>("TestData//4waysort//result.bin", 20);
+				cl_int success = true;
+				for (int i = 0; i < 20; ++i) {
+					success &= (compareBig(&result[i], &f_result[i]) == 0);
 				}
 				Require(success == true);
 			}
@@ -1284,7 +1460,7 @@ Scenario("Find Conflict Cells", "[conflict]") {
 }
 
 /* Ambiguous cell resolution kernels */
-Scenario("Sample required resolution points", "[resolution]") {
+Scenario("Sample required resolution points", "[1][resolution]") {
 	Given("a set of conflicts and the quantized points used to build the original octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
 		cl_int numPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
@@ -1340,7 +1516,7 @@ Scenario("Sample required resolution points", "[resolution]") {
 		}
 	}
 }
-Scenario("Predicate Conflict To Point", "[predication][resolution]") {
+Scenario("Predicate Conflict To Point", "[2][predication][resolution]") {
 	Given("the scanned number of resolution points to create per conflict") {
 		cl_int numConflicts = readFromFile<cl_int>("./TestData/simple/numConflicts.bin");
 		cl_int numResPts = readFromFile<cl_int>("TestData//simple//numResPts.bin");
@@ -1375,7 +1551,7 @@ Scenario("Predicate Conflict To Point", "[predication][resolution]") {
 		}
 	}
 }
-Scenario("Get resolution points", "[resolution]") {
+Scenario("Get resolution points", "[3][resolution]") {
 	Given("a set of conflicts and cooresponding conflict infos, a resolution point to conflict mapping, "
 		+ "and the original quantized points used to build the octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");

@@ -113,8 +113,8 @@ copy_touched (
  CopyUnitTestDataToBinary
 )
 
-add_dependencies(Unit_Tests CopyUnitTestDataToBinary)
-add_dependencies(Unit_Tests CopySourcesToBinary)
+#add_dependencies(Unit_Tests CopyUnitTestDataToBinary)
+#add_dependencies(Unit_Tests CopySourcesToBinary)
 add_dependencies(Benchmarks CopySourcesToBinary)
 add_dependencies(Quadtree CopySourcesToBinary)
 

@@ -40,6 +40,7 @@ using namespace std;
 #include "Octree/OctNode.h"  
 #include "Quantize/Quantize.h"
 #include "ZOrder/z_order.h"
+#include "BigUnsigned/BigNum.h"
 
 #ifndef OpenCL
 extern "C" {
@@ -435,51 +436,37 @@ namespace Kernels {
 
 	// Specifically calibrated to the gtx 1070, which recommends 1024 threads per block.
 	// I'm getting about .250ms on 2^22 numbers, which is about 60GB/s
-	inline cl_int NvidiaReduce() {
+	inline cl_int NvidiaReduce(cl::Buffer inputBuffer, cl_int totalNumbers, string uniqueString, cl::Buffer &outputBuffer) {
 		if (CLFW::SelectedVendor != Vendor::Nvidia) return CL_INVALID_PLATFORM;
 
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl_int error = 0;
 
-		// Intel platforms can't take advantage of Nvidia SIMD warp unrolling optimizations.
-		// As a result, we default to the less efficient reduction number 3.
 		cl::Kernel &kernel6 = CLFW::Kernels["reduce6"];
 		cl::Kernel &kernel5 = CLFW::Kernels["reduce5"];
 
-		int size = 1 << 22; //will be a parameter
 		int maxBlocks = 64;
 		int maxThreads = min((int)kernel6.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), 1024);
 
-		cl::Buffer inputBuffer, outputBuffer;
-		vector<cl_int> input(size);
-		vector<cl_int> output(size);
-		for (int i = 0; i < size; ++i) {
-			input[i] = 1;
-		}
-
-		error |= CLFW::get(inputBuffer, "testnumbers", nextPow2(size) * sizeof(cl_int));
-		error |= CLFW::get(outputBuffer, "resulttestnumbers", nextPow2(size) * sizeof(cl_int));
-		error |= CLFW::Upload<cl_int>(input, inputBuffer);
-
-		if (true || benchmarking) queue.finish();
+		error |= CLFW::get(outputBuffer, "resulttestnumbers", nextPow2(totalNumbers) * sizeof(cl_int));
 
 		int whichKernel = 6;
 		int numBlocks = 0, finalNumBlocks = 0;
 		int numThreads = 0, finalNumThreads = 0;
-		int n = size;
-		getReductionNumBlocksAndThreads(whichKernel, size, maxBlocks, maxThreads, numBlocks, numThreads);
+		int n = totalNumbers;
+		getReductionNumBlocksAndThreads(whichKernel, totalNumbers, maxBlocks, maxThreads, numBlocks, numThreads);
 		int s = numBlocks;
 
 		//Initial reduction (per block reduction)
-		kernel6.setArg(0, inputBuffer);
-		kernel6.setArg(1, outputBuffer);
-		kernel6.setArg(2, n);
-		kernel6.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+		error |= kernel6.setArg(0, inputBuffer);
+		error |= kernel6.setArg(1, outputBuffer);
+		error |= kernel6.setArg(2, n);
+		error |= kernel6.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
 
 		int globalWorkSize = numBlocks * numThreads;
 		int localWorkSize = numThreads;
 
-		queue.enqueueNDRangeKernel(kernel6, cl::NullRange,
+		error |= queue.enqueueNDRangeKernel(kernel6, cl::NullRange,
 			cl::NDRange(globalWorkSize), cl::NDRange(localWorkSize));
 
 		whichKernel = 5;
@@ -488,49 +475,90 @@ namespace Kernels {
 			getReductionNumBlocksAndThreads(whichKernel, s, maxBlocks, maxThreads, finalNumBlocks, finalNumThreads);
 			globalWorkSize = finalNumBlocks * finalNumThreads;
 			localWorkSize = finalNumThreads;
-			kernel5.setArg(0, outputBuffer);
-			kernel5.setArg(1, outputBuffer);
-			kernel5.setArg(2, n);
-			kernel5.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+			error |= kernel5.setArg(0, outputBuffer);
+			error |= kernel5.setArg(1, outputBuffer);
+			error |= kernel5.setArg(2, n);
+			error |= kernel5.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
 			s = (s + (finalNumThreads * 2 - 1)) / (finalNumThreads * 2);
-			queue.enqueueNDRangeKernel(kernel5, cl::NullRange,
+			error |= queue.enqueueNDRangeKernel(kernel5, cl::NullRange,
 				cl::NDRange(globalWorkSize), cl::NDRange(localWorkSize));
 		}
-
-		if (true || benchmarking) {
-			auto start = std::chrono::steady_clock::now();
-			queue.finish();
-			auto end = std::chrono::steady_clock::now();
-			auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-			std::cout << "Nvidia reduction time:" << elapsed.count() << " microseconds." << std::endl;
-		}
-
-		vector<cl_int> total(1);
-		CLFW::Download<cl_int>(outputBuffer, 1, total);
-
-		int cpusum = 0;
-		for (int i = 0; i < size; ++i) {
-			cpusum += input[i];
-		}
-		assert(cpusum == total[0]);
-
 		return error;
 	}
 
 	inline cl_int Reduce_p(cl::Buffer numbers_i, cl_int totalNumbers, string uniqueString, cl::Buffer &result_o) {
-		return GeneralReduce(numbers_i, totalNumbers, uniqueString, result_o);
-		//if (CLFW::SelectedVendor == Vendor::Nvidia)
-		//NvidiaReduce(numbers_i, totalNumbers, result_o);
-		//else
-	}
-
-	inline cl_int ReduceTest() {
-		/*if (CLFW::SelectedVendor != Vendor::Nvidia) {
-			return GeneralReduce();
-		}
+		if (CLFW::SelectedVendor != Vendor::Nvidia || totalNumbers < 64)
+			return GeneralReduce(numbers_i, totalNumbers, uniqueString, result_o);
 		else
-			return NvidiaReduce();*/
-		return CL_SUCCESS;
+			return NvidiaReduce(numbers_i, totalNumbers, uniqueString, result_o);
+	}
+#endif
+
+	// Check Order
+#ifdef OpenCL
+	__kernel void PredicateAndReduceAscKernel(
+			__global big *numbers,
+			cl_int numElems,
+			__local big *scratch,
+			__local cl_int* localpred,
+			__global cl_int* globalPred)
+	{
+		/* See http://www.sci.utah.edu/~csilva/papers/cgf.pdf Algorithm 3*/
+		cl_int gid = get_global_id(0);
+		cl_int lid = get_local_id(0);
+		cl_int ws = get_local_size(0);
+
+		/* Reading one value per thread to the shared memory */
+		scratch[lid] = numbers[gid];
+		if (lid == (ws - 1) && gid != numElems - 1) 
+			scratch[lid + 1] = numbers[gid + 1];
+
+		/* Wait for all threads to finish reading */
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		/* Perform order checking */
+		big first = scratch[lid];
+		big second = (gid == numElems - 1) ? makeMaxBig() : scratch[lid + 1];
+		localpred[lid] = (compareBig(&first, &second) == 1);
+		
+		/* Perform optimized reduction on shared array */
+		// Note, opencl 1.2 lacks optimized reduction. This will have to suffice.
+		barrier(CLK_LOCAL_MEM_FENCE);
+		for (unsigned int s = ws / 2; s > 0; s >>= 1) {
+			if (lid < s)
+				localpred[lid] += localpred[lid + s];
+			barrier(CLK_LOCAL_MEM_FENCE);
+		}
+
+		/* Write out reduction result to global array */
+		if (lid == 0) { globalPred[get_group_id(0)] = localpred[0]; }
+	}
+#else
+	inline cl_int CheckBigOrder_p(cl::Buffer &bigNumbers_i, cl_int numElems, cl_int &result) {
+		if (numElems != nextPow2(numElems)) return CL_INVALID_WORK_GROUP_SIZE;
+		cl_int error = 0;
+		cl::CommandQueue &queue = CLFW::DefaultQueue;
+		cl::Kernel &predicateAscKernel = CLFW::Kernels["PredicateAndReduceAscKernel"];
+		int globalSize = numElems;
+		int localSize = std::min((int)predicateAscKernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), globalSize);
+		if (CLFW::SelectedVendor == Vendor::Intel)
+			localSize = std::min(localSize, 1024);
+
+		cl::Buffer predication, resultBuf;
+		error |= CLFW::get(predication, "ascPred", (numElems/localSize) * sizeof(cl_int));
+		error |= predicateAscKernel.setArg(0, bigNumbers_i);
+		error |= predicateAscKernel.setArg(1, numElems);
+		error |= predicateAscKernel.setArg(2, cl::__local((localSize + 1) * sizeof(big)));
+		error |= predicateAscKernel.setArg(3, cl::__local((localSize) * sizeof(cl_int)));
+		error |= predicateAscKernel.setArg(4, predication);
+		error |= queue.enqueueNDRangeKernel(predicateAscKernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
+
+		if (globalSize != localSize) {
+			error |= Reduce_p(predication, numElems / localSize, "CBO", resultBuf);
+			error |= CLFW::Download<cl_int>(resultBuf, 0, result);
+		} else
+			error |= CLFW::Download<cl_int>(predication, 0, result);
+		return error;
 	}
 #endif
 
@@ -1576,6 +1604,8 @@ namespace Kernels {
 #pragma region Sort Routines
 	// Radix Sort
 #ifndef OpenCL
+	using namespace std::chrono;
+
 	// NOTE: does not take into account negative numbers
 	inline cl_int RadixSort_p(
 		cl::Buffer &numbers_io,
@@ -1592,7 +1622,7 @@ namespace Kernels {
 
 		if (error != CL_SUCCESS)
 			return error;
-
+		
 		//For each bit
 		for (cl_int index = 0; index < mbits; index++) {
 			//Predicate the 0's and 1's
@@ -1635,6 +1665,9 @@ namespace Kernels {
 		if (error != CL_SUCCESS)
 			return error;
 
+		CLFW::DefaultQueue.finish();
+		auto start = std::chrono::high_resolution_clock::now();
+
 		//For each bit
 		for (cl_int index = 0; index < mbits; index++) { //each loop 450micro->700micro
 			//Predicate the 0's and 1's
@@ -1654,6 +1687,11 @@ namespace Kernels {
 			//Closely spaced zpoints tend to use most significant bits, so we can't break out early.
 		}
 		//Total loop time around 7 to 10 milli...
+
+		CLFW::DefaultQueue.finish();
+		auto elapsed = high_resolution_clock::now() - start;
+		cout << "original " << std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() << endl;
+
 
 		stopBenchmark();
 		return error;
@@ -1770,7 +1808,325 @@ namespace Kernels {
 		return error;
 	}
 #endif
-#pragma endregion
+
+	// Compute 4 Way Local frequency 
+#ifdef OpenCL
+	__kernel void FourWayPrefixSumWithShuffleKernel (
+		__global big* data_i, cl_int bitIndx, cl_int blkIndx,
+		//__global big* shuffle, __global cl_int shuffleAddr,
+		//__global cl_int *prefixSum, 
+		__local cl_int *cnt, __local big *s_data,
+		__global cl_int *blkSum_o, __global big *shuffle_o
+		) {
+		cl_int gid = get_global_id(0);
+		cl_int lid = get_local_id(0);
+		cl_int blkSize = get_local_size(0);
+		big num = data_i[gid];
+		cl_int extracted = (num.blk[blkIndx] >> bitIndx) & 3;
+		__local cl_int offsets[4];
+
+		/* Compute masks */
+		#pragma unroll
+		for (int b = 0; b < 4; ++b) { 
+			cnt[b * blkSize + lid] = (extracted == b); 
+		}
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		/* Init BlkSums */
+		if (lid == 0) {
+			#pragma unroll
+			for (int b = 0; b < 4; ++b) {
+				offsets[b] = cnt[b * blkSize + blkSize - 1];
+			}
+		}
+		
+		/* Build 4 ways sum tree */
+		barrier(CLK_LOCAL_MEM_FENCE);
+		for (int s = 1; s <= blkSize; s <<= 1) {
+			int i = (2 * s * (lid + 1)) - 1;
+			if (i < blkSize) {
+				#pragma unroll
+				for (int b = 0; b < 4; ++b) {
+					cnt[blkSize * b + i] += cnt[blkSize * b + i - s];
+				}
+			}
+			barrier(CLK_LOCAL_MEM_FENCE);
+		}
+
+		/* Down-Sweep 4 ways */
+		if (lid == 0)
+			#pragma unroll
+			for (int b = 0; b < 4; ++b)
+				cnt[b * blkSize + blkSize - 1] = 0;
+		barrier(CLK_LOCAL_MEM_FENCE);
+		for (int s = blkSize / 2; s > 0; s >>= 1) {
+			int i = (2 * s * (lid + 1)) - 1;
+			int temp[4];
+			if (i < blkSize)
+				#pragma unroll
+				for (int b = 0; b < 4; ++b)
+					temp[b] = cnt[b * blkSize + i - s];
+			barrier(CLK_LOCAL_MEM_FENCE);
+			if (i < blkSize) {
+				#pragma unroll
+				for (int b = 0; b < 4; ++b) {
+					cnt[b * blkSize + i - s] = cnt[b * blkSize + i];
+					cnt[b * blkSize + i] += temp[b];
+				}
+			}
+		}
+		barrier(CLK_LOCAL_MEM_FENCE);
+		/* Get BlkSums */
+		if (lid == 0) {
+			#pragma unroll
+			for (int b = 0; b < 4; ++b) {
+				offsets[b] += cnt[b * blkSize + blkSize - 1];
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+		int offset = 0;
+		for (int i = 0; i < extracted; ++i)
+			offset += offsets[i];
+		int addr = cnt[extracted * blkSize + lid] + offset;
+		s_data[addr] = num;
+		if (lid < 4) {
+			blkSum_o[lid * get_num_groups(0) + get_group_id(0)] = offsets[lid];
+		}
+		barrier(CLK_LOCAL_MEM_FENCE);
+		shuffle_o[gid] = s_data[lid];
+	}
+#else
+	inline cl_int FourWayPrefixSumWithShuffle_p(
+		cl::Buffer &data_i,
+		cl_int numElems,
+		cl_int blkSize,
+		cl_int bitIndx,
+		cl_int blkIndx,
+		cl::Buffer &blkSum_o,
+		cl::Buffer &shuffle_o
+		) {
+		if (numElems % blkSize != 0) return CL_INVALID_WORK_GROUP_SIZE;
+
+		cl_int error = 0;
+		cl::CommandQueue &queue = CLFW::DefaultQueue;
+		cl::Kernel &kernel = CLFW::Kernels["FourWayPrefixSumWithShuffleKernel"];
+
+		error |= CLFW::get(blkSum_o, "blkSum", Kernels::nextPow2(4 * numElems/blkSize) * sizeof(cl_int));
+		error |= CLFW::get(shuffle_o, "shuffle", Kernels::nextPow2(numElems) * sizeof(big));
+		
+		error |= kernel.setArg(0, data_i);
+		error |= kernel.setArg(1, bitIndx);
+		error |= kernel.setArg(2, blkIndx);
+		error |= kernel.setArg(3, cl::__local(4 * blkSize * sizeof(cl_int)));
+		error |= kernel.setArg(4, cl::__local(blkSize * sizeof(big)));
+		error |= kernel.setArg(5, blkSum_o);
+		error |= kernel.setArg(6, shuffle_o);
+
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numElems), cl::NDRange(blkSize));
+		return error;
+	}
+
+	inline cl_int FourWayPrefixSumWithShuffle_s(
+		vector<big> data_i, 
+		cl_int blockSize, 
+		cl_int bitIndx,
+		cl_int blkIndx,
+		vector<big> &shuffle_o,  
+		vector<cl_int> &blockSum_o) 
+	{
+		if (data_i.size() % blockSize != 0) return CL_INVALID_WORK_GROUP_SIZE;
+		cl_int totalBlocks = data_i.size() / blockSize;
+		blockSum_o.resize(4 * totalBlocks);
+		shuffle_o.resize(data_i.size());
+		
+		for (cl_int wid = 0; wid < totalBlocks; ++wid) {
+			/* shared */
+			vector<cl_int> cnt(4 * blockSize);
+			vector<cl_int> scratch(blockSize);
+			vector<cl_int> sCnt(blockSize);
+			vector<big> s_data(blockSize);
+			cl_int offsets[4];
+
+			/* Compute masks */
+			for (cl_int lid = 0; lid < blockSize; ++lid) {
+				big temp = data_i[wid * blockSize + lid];
+				cl_int extracted = (temp.blk[blkIndx] >> bitIndx) & 3;
+				for (int b = 0; b < 4; ++b) 
+					cnt[b * blockSize + lid] = (extracted == b);
+			}
+			/* Exclusive prefix sum */
+			for (int b = 0; b < 4; ++b) {
+				scratch[0] = 0;
+				for (int i = 1; i < blockSize; ++i) {
+					scratch[i] = scratch[i - 1] + cnt[b * blockSize + (i - 1)];
+				}
+				offsets[b] = scratch[blockSize - 1] + cnt[b * blockSize + (blockSize - 1)];
+				for (int lid = 0; lid < blockSize; ++lid) {
+					big temp = data_i[wid * blockSize + lid];
+					cl_int extracted = (temp.blk[blkIndx] >> bitIndx) & 3;
+					if (extracted == b)
+						sCnt[lid] = scratch[lid];
+				}
+			}
+
+			/* Perform local shuffle */
+			for (int lid = 0; lid < blockSize; ++lid) {
+				/* Don't reload this on the GPU */
+				big temp = data_i[wid * blockSize + lid];
+				cl_int extracted = (temp.blk[blkIndx] >> bitIndx) & 3;
+				cl_int offset = 0;
+				for (int i = 0; i < extracted; ++i) offset += offsets[i];
+				cl_int address = sCnt[lid] + offset;
+				s_data[address] = temp;
+			}
+
+			/* Write local shuffle and block sum to global */
+			for (int lid = 0; lid < blockSize; ++lid) {
+				shuffle_o[wid * blockSize + lid] = s_data[lid];
+				if (lid < 4) blockSum_o[lid * totalBlocks + wid] = offsets[lid];
+			}
+		}
+
+	}
+#endif
+	// Move 4 Way shuffled elements
+#ifdef OpenCL
+	__kernel void MoveElementsKernel (
+		__global big *shuffle,
+		__local big *s_data,
+		__global cl_int *blkSum,
+		__global cl_int *prefixBlkSum,
+		__global big *result,
+		cl_int blkIndx,
+		cl_int bitIndx
+		) 
+	{
+		cl_int gid = get_global_id(0);
+		cl_int lid = get_local_id(0);
+
+		__local cl_int offsets[4];
+		__local cl_int counts[4];
+		__local cl_int prefixSums[4];
+
+		if (lid == 0) {
+			for (cl_int b = 0; b < 4; ++b) {
+				counts[b] = blkSum[get_num_groups(0) * b + get_group_id(0)];
+				prefixSums[b] = (get_group_id(0) == 0 && b == 0) ? 0 : prefixBlkSum[get_num_groups(0) * b + get_group_id(0) - 1];
+				offsets[b] = (b == 0) ? 0 : offsets[b - 1] + counts[b - 1];
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		big temp = shuffle[gid];
+		cl_int extracted = (temp.blk[blkIndx] >> bitIndx) & 3;
+		cl_int Pdn = prefixSums[extracted];
+		cl_int m = lid - offsets[extracted];
+		cl_int a = Pdn + m;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+		result[a] = temp;
+	}
+#else
+	inline cl_int MoveElements_p(
+		cl::Buffer &shuffle_i,
+		cl_int numElems, 
+		cl::Buffer &blkSum_i, 
+		cl::Buffer &prefixBlkSum_i, 
+		cl_int blkSize, 
+		cl_int blkIndx, 
+		cl_int bitIndx, 
+		cl::Buffer &result_o) 
+	{
+		if (numElems % blkSize != 0) return CL_INVALID_WORK_GROUP_SIZE;
+
+		cl_int error = 0;
+		cl::CommandQueue &queue = CLFW::DefaultQueue;
+		cl::Kernel &kernel = CLFW::Kernels["MoveElementsKernel"];
+
+		CLFW::get(result_o, "4wayresult", nextPow2(numElems) * sizeof(big));
+
+		kernel.setArg(0, shuffle_i);
+		kernel.setArg(1, cl::__local(4*blkSize));
+		kernel.setArg(2, blkSum_i);
+		kernel.setArg(3, prefixBlkSum_i);
+		kernel.setArg(4, result_o);
+		kernel.setArg(5, blkIndx);
+		kernel.setArg(6, bitIndx);
+
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numElems), cl::NDRange(blkSize));
+		return error;
+	}
+
+	inline cl_int MoveElements_s(
+		vector<big> &shuffle_i,
+		vector<cl_int> &blockSum_i, 
+		vector<cl_int> &scannedBlockSum_i, 
+		cl_int blkSize,
+		cl_int bitIndx,
+		cl_int blkIndx,
+		vector<big> &result_o) 
+	{
+		result_o.resize(shuffle_i.size());
+		cl_int totalBlocks = shuffle_i.size() / blkSize;
+
+		for (cl_int wid = 0; wid < totalBlocks; ++wid) {
+			cl_int offsets[4];
+			cl_int counts[4];
+			cl_int prefixSums[4];
+			vector<big> s_data(blkSize);
+
+			for (cl_int b = 0; b < 4; ++b) {
+				counts[b] = blockSum_i[totalBlocks * b + wid];
+				prefixSums[b] = (wid == 0 && b == 0) ? 0 : scannedBlockSum_i[totalBlocks * b + wid - 1];
+				offsets[b] = (b == 0) ? 0 : offsets[b - 1] + counts[b - 1];
+			}
+
+			for (cl_int lid = 0; lid < blkSize; ++lid) {
+				big temp = shuffle_i[wid * blkSize + lid];
+				cl_int extracted = (temp.blk[blkIndx] >> bitIndx) & 3;
+				cl_int Pdn = prefixSums[extracted];
+				cl_int m = lid - offsets[extracted];
+				cl_int a = Pdn + m;
+				result_o[a] = temp;
+			}
+		}
+		return CL_SUCCESS;
+	}
+#endif
+
+#ifndef OpenCL
+	inline cl_int FourWayRadixSort_p(cl::Buffer &numbers_i, cl_int numElems, cl_int numBits) 
+	{
+		cl_int error = 0;
+		cl_int blkSize = 4;
+		cl_int numBlks = numElems / blkSize;
+		vector<big> before;
+		error |= CLFW::Download<big>(numbers_i, numElems, before);
+
+		cl::Buffer shuffle, blkSum, prefixBlkSum;
+		error |= CLFW::get(prefixBlkSum, "prefixBlkSum", Kernels::nextPow2(4 * numElems / blkSize) * sizeof(cl_int));
+		CLFW::DefaultQueue.finish();
+		auto start = std::chrono::high_resolution_clock::now();
+
+		for (int i = 0; i < numBits; i += 2) {
+			cl_int bitIndx = i % (8 * sizeof(cl_long));
+			cl_int blkIndx = i / (8 * sizeof(cl_long));
+			error |= FourWayPrefixSumWithShuffle_p(numbers_i, numElems, blkSize, bitIndx, blkIndx, blkSum, shuffle);
+			error |= StreamScan_p(blkSum, 4 * numBlks, "", prefixBlkSum);
+			error |= MoveElements_p(shuffle, numElems, blkSum, prefixBlkSum, blkSize, blkIndx, bitIndx, numbers_i);
+		}
+		CLFW::DefaultQueue.finish();
+		auto elapsed = high_resolution_clock::now() - start;
+		cout << "new " << std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() << endl;
+
+		vector<big> after;
+		error |= CLFW::Download<big>(numbers_i, numElems, after);
+
+		return error;
+	}
+#endif
 
 #pragma endregion
 
@@ -1953,96 +2309,6 @@ namespace Kernels {
 		values_io = result_vals;
 
 		error |= CLFW::DefaultQueue.enqueueReadBuffer(address, CL_TRUE, (sizeof(cl_int)*originalSize - (sizeof(cl_int))), sizeof(cl_int), &newSize);
-		stopBenchmark();
-		return error;
-	}
-#endif
-
-	// Check Order
-#ifdef OpenCL
-	__kernel
-		void CheckOrder(
-			__global int *numbers,
-			__local cl_int* scratch,
-			__const int numZPoints,
-			__const int nextPowerOfTwo,
-			__global cl_int* result)
-	{
-		//Init
-		int global_index = get_global_id(0);
-		int local_index = get_local_id(0);
-		cl_int accumulator = 0;
-
-		// Loop sequentially over chunks of the BU vector, comparing along the way
-		while (global_index < nextPowerOfTwo) {
-			if (global_index < numZPoints - 1)
-			{
-				int mine = numbers[global_index];
-				int other = numbers[global_index + 1];
-				accumulator += max(mine > other, 0);
-			}
-			global_index += get_global_size(0);
-			//Enforce coherency
-			barrier(CLK_LOCAL_MEM_FENCE);
-		}
-
-		// Perform parallel reduction
-		scratch[local_index] = accumulator;
-		barrier(CLK_LOCAL_MEM_FENCE);
-		for (int offset = get_local_size(0) / 2; offset > 0; offset = offset / 2) {
-			if (local_index < offset)
-				scratch[local_index] = scratch[local_index] + scratch[local_index + offset];
-			barrier(CLK_LOCAL_MEM_FENCE);
-		}
-		if (local_index == 0) {
-			result[get_group_id(0)] = scratch[0];
-		}
-	}
-#else
-	inline cl_int CheckOrder(cl::Buffer &numbers, cl_uint& gpuSum, cl_int size) {
-		startBenchmark();
-		if (size < 0) return CL_INVALID_ARG_SIZE;
-		else if (size < 2) {
-			gpuSum = 0;
-			return CL_SUCCESS;
-		}
-		cl_int nextPowerOfTwo = pow(2, ceil(log(size) / log(2)));
-		cl::Kernel &kernel = CLFW::Kernels["CheckOrder"];
-		cl::CommandQueue &queue = CLFW::DefaultQueue;
-
-		//Each thread processes 2 items in the reduce.
-		int globalSize = nextPowerOfTwo / 2;
-
-		//Brent's theorem
-		/* int itemsPerThread = pow(2, ceil(log(log(globalSize)) / log(2)));
-		if ((itemsPerThread < globalSize) && itemsPerThread != 0) {
-		globalSize /= itemsPerThread;
-		}*/
-
-		int suggestedLocal = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice);
-		int localSize = std::min(globalSize, suggestedLocal);
-
-		cl::Buffer reduceResult;
-		cl_int resultSize = nextPow2(nextPowerOfTwo / localSize);
-		cl_int error = CLFW::get(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
-
-		error |= kernel.setArg(0, numbers);
-		error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
-		error |= kernel.setArg(2, size);
-		error |= kernel.setArg(3, nextPowerOfTwo);
-		error |= kernel.setArg(4, reduceResult);
-		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
-
-		//If multiple workgroups ran, we need to do a second level reduction.
-		if (suggestedLocal <= globalSize) {
-			cl::Kernel &kernel = CLFW::Kernels["reduce"];
-			error |= kernel.setArg(0, reduceResult);
-			error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
-			error |= kernel.setArg(2, resultSize);
-			error |= kernel.setArg(3, reduceResult);
-			error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(localSize / 2), cl::NDRange(localSize / 2));
-		}
-		error |= queue.enqueueReadBuffer(reduceResult, CL_TRUE, 0, sizeof(cl_uint), &gpuSum);
 		stopBenchmark();
 		return error;
 	}

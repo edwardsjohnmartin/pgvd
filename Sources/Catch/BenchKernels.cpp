@@ -7,6 +7,30 @@
 Benchmark("Additive Reduction", "[reduction]") {
 	TODO("Benchmark this");
 }
+Benchmark("Check Order", "[selected][4way][sort][reduction]") {
+	/* Load dependencies */
+	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
+	vector<big> zpoints(numPts);
+	for (int i = 0; i < numPts; ++i)
+		zpoints[i] = makeBig(i);
+
+	/* Upload dependencies */
+	cl::Buffer b_zpoints;
+	CLFW::get(b_zpoints, "zpoints", Kernels::nextPow2(numPts) * sizeof(big));
+	CLFW::Upload<big>(zpoints, b_zpoints);
+	big maxbig = makeMaxBig();
+	CLFW::DefaultQueue.enqueueFillBuffer<big>(b_zpoints, { maxbig }, numPts * sizeof(big), 
+		(Kernels::nextPow2(numPts) - numPts) * sizeof(big));
+
+	/* Benchmark */
+	BEGIN_ITERATIONS("Check Order") {
+		BEGIN_BENCHMARK
+		cl_int result;
+		CheckBigOrder_p(b_zpoints, Kernels::nextPow2(numPts), result);
+		END_BENCHMARK
+	} END_ITERATIONS;
+}
+
 
 /* Predication Kernels */
 Benchmark("Predicate by bit", "[predication]") {
@@ -491,7 +515,7 @@ Benchmark("Get resolution points", "[resolution][done]") {
 }
 
 /* Quadtree */
-Benchmark("Build Unpruned Quadtree", "[tree][selected][done]") {
+Benchmark("Build Unpruned Quadtree", "[tree][done]") {
 	/* Load dependencies */
 	Options::max_level = 24;
 	Options::pruneOctree = false;
@@ -513,7 +537,7 @@ Benchmark("Build Unpruned Quadtree", "[tree][selected][done]") {
 }
 
 /* Quadtree */
-Benchmark("Build Pruned Quadtree", "[tree][selected][done]") {
+Benchmark("Build Pruned Quadtree", "[tree][done]") {
 	/* Load dependencies */
 	Options::max_level = 24;
 	Options::pruneOctree = true;

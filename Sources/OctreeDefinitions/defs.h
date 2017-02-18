@@ -93,6 +93,7 @@ typedef int cl_int;
 typedef float cl_float;
 // typedef double cl_double;
 typedef unsigned cl_uint;
+typedef unsigned long cl_ulong;
 #endif
 
 //------------------------------------------------------------

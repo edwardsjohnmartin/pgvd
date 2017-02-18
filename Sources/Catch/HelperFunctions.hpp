@@ -7,7 +7,7 @@
 #define a_couple 2 
 #define a_few 30
 #define a_lot 1000000 
-#define totalIterations 10
+#define totalIterations 30
 
 using namespace cl;
 using namespace Kernels;
