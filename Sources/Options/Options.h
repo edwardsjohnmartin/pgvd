@@ -34,7 +34,7 @@ namespace Options {
   extern bool showObjectVertices;
   extern bool showObjects;
   extern bool showOctree;
-  extern bool showSketcher;
+  extern bool showOctreeConflicts;
 	extern bool showResolutionPoints;
 	extern bool pruneOctree;
 

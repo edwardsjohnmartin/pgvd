@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 int getQuadrantFromBrt(BrtNode* brt_node, const int i);
-int getQuadrantFromLCP(BigUnsigned lcp, cl_int lcpLen, cl_int i);
+int getQuadrantFromLCP(big lcp, cl_int lcpLen, cl_int i);
 void ComputeLocalSplits(__global cl_int* local_splits, __global BrtNode* I, bool colored, __global cl_int *colors, const int gid );
 
 void brt2octree_init( __global OctNode* octree, const int gid);

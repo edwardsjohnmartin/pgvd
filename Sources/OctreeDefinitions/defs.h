@@ -48,9 +48,9 @@ typedef unsigned char uchar;
 inline int convert_int(const float f) {
   return (int)(f+0.5);
 }
-inline bool any(const bool b) {
-  return b;
-}
+//inline bool any(const bool b) {
+//  return b;
+//}
 
 #define NAMESPACE_OCT_BEGIN namespace oct {
 #define NAMESPACE_OCT_END }

@@ -28,13 +28,13 @@ class PolyLines {
 
  public:
   PolyLines() : capacity(1024), size(0), points(new floatn[capacity]) {
-    glGenBuffers(1, &pointsVboId);
-    glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
-    glBufferData(GL_ARRAY_BUFFER, capacity*sizeof(floatn), points, GL_STATIC_DRAW);
-    glGenVertexArrays(1, &pointsVaoId);
-    glBindVertexArray(pointsVaoId);
-    glEnableVertexAttribArray(Shaders::lineProgram->position_id);
-    assert(glGetError() == GL_NO_ERROR);
+    //glGenBuffers(1, &pointsVboId);
+    //glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
+    //glBufferData(GL_ARRAY_BUFFER, capacity*sizeof(floatn), points, GL_STATIC_DRAW);
+    //glGenVertexArrays(1, &pointsVaoId);
+    //glBindVertexArray(pointsVaoId);
+    //glEnableVertexAttribArray(Shaders::lineProgram->position_id);
+    //assert(glGetError() == GL_NO_ERROR);
     srand(time(NULL));
   }
 
@@ -122,57 +122,57 @@ class PolyLines {
     return lines;
   }
 
-  void render(const glm::mat4& mvMatrix) {
-    using namespace std;
-    using namespace GLUtilities;
-    Shaders::lineProgram->use();
-    glUniform1f(Shaders::lineProgram->pointSize_id, 5.0);
+  //void render(const glm::mat4& mvMatrix) {
+  //  using namespace std;
+  //  using namespace GLUtilities;
+  //  Shaders::lineProgram->use();
+  //  glUniform1f(Shaders::lineProgram->pointSize_id, 5.0);
 
-    print_gl_error();
+  //  print_gl_error();
 
-    glBindVertexArray(pointsVaoId);
-    glBindBuffer(GL_ARRAY_BUFFER, pointsVboId); //Think this isn't required after vao setup.
-    print_gl_error();
-    glVertexAttribPointer( Shaders::lineProgram->position_id, sizeof(floatn)/sizeof(cl_float), GL_FLOAT, GL_FALSE, 0, NULL);
-    print_gl_error();
-    glEnableVertexAttribArray(Shaders::lineProgram->position_id);
-    print_gl_error();
+  //  glBindVertexArray(pointsVaoId);
+  //  glBindBuffer(GL_ARRAY_BUFFER, pointsVboId); //Think this isn't required after vao setup.
+  //  print_gl_error();
+  //  glVertexAttribPointer( Shaders::lineProgram->position_id, sizeof(floatn)/sizeof(cl_float), GL_FLOAT, GL_FALSE, 0, NULL);
+  //  print_gl_error();
+  //  glEnableVertexAttribArray(Shaders::lineProgram->position_id);
+  //  print_gl_error();
 
-    glUniformMatrix4fv(
-        Shaders::lineProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
+  //  glUniformMatrix4fv(
+  //      Shaders::lineProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
 
-    glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-    glEnable(GL_LINE_SMOOTH);
-    glLineWidth(1.0);
-    GLenum error = glGetError();
-    // if (error != GL_NO_ERROR) {
-    //   if (error == GL_INVALID_VALUE) {
-    //     // Line widths of >1 not supported on Mac OS X. No big deal.
-    //   } else {
-    //     print_gl_error(error, "Polylines0.4");
-    //   }
-    // }
+  //  glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+  //  glEnable(GL_LINE_SMOOTH);
+  //  glLineWidth(1.0);
+  //  GLenum error = glGetError();
+  //  // if (error != GL_NO_ERROR) {
+  //  //   if (error == GL_INVALID_VALUE) {
+  //  //     // Line widths of >1 not supported on Mac OS X. No big deal.
+  //  //   } else {
+  //  //     print_gl_error(error, "Polylines0.4");
+  //  //   }
+  //  // }
 
-    int first = 0;
-    for (int i = 0; i < lasts.size(); ++i) {
-      const int len = lasts[i]-first;
+  //  int first = 0;
+  //  for (int i = 0; i < lasts.size(); ++i) {
+  //    const int len = lasts[i]-first;
 
-      float3 color = colors[i];
-      glUniform3fv(Shaders::lineProgram->color_uniform_id, 1, color.s);
-      glLineWidth(2.0);
-      if (Options::showObjectVertices) {
-        glDrawArrays(GL_POINTS, first, len);
-        print_gl_error();
-      }
-      if (Options::showObjects) {
-        glDrawArrays(GL_LINE_STRIP, first, len);
-        // print_gl_error();
-        ignore_gl_error();
-      }
-      first = lasts[i];
-    }
-    print_gl_error();
-  }
+  //    float3 color = colors[i];
+  //    glUniform3fv(Shaders::lineProgram->color_uniform_id, 1, color.s);
+  //    glLineWidth(2.0);
+  //    if (Options::showObjectVertices) {
+  //      glDrawArrays(GL_POINTS, first, len);
+  //      print_gl_error();
+  //    }
+  //    if (Options::showObjects) {
+  //      glDrawArrays(GL_LINE_STRIP, first, len);
+  //      // print_gl_error();
+  //      ignore_gl_error();
+  //    }
+  //    first = lasts[i];
+  //  }
+  //  print_gl_error();
+  //}
 };
 
 #endif

@@ -14,6 +14,7 @@ void InitializeGLFWEventCallbacks() {
   glfwSetCursorPosCallback(window, mouse_move_cb);
   glfwSetWindowSizeCallback(window, resize_cb);
   glfwSetWindowFocusCallback(window, focus_cb);
+	glfwSetScrollCallback(window, scroll_cb);
 }
 
 void fixResolution(int& width, int& height) {
@@ -112,13 +113,13 @@ int main(int argc, char** argv) {
   InitializeGLFW();
   Shaders::create();
   Data::lines = new PolyLines();
-  Data::octree = new Quadtree();
+  Data::quadtree = new Quadtree();
 
   for (int i = 0; i < Options::filenames.size(); ++i) {
     readMesh(Options::filenames[i]);
   }
   if (!Options::filenames.empty()) {
-    Data::octree->build(Data::lines);
+    Data::quadtree->build(Data::lines);
     refresh();
   }
 

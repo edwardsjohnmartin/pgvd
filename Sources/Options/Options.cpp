@@ -13,15 +13,9 @@
 // *******************************************************/
 //
 #include <cstdlib>
-//#include <algorithm>
-//#include <cstring>
 #include <fstream>
-//#include <sstream>
-//#if defined (WIN32)
-//	#include <functional>
-//#endif
-//
 #include "./Options.h"
+
 //------------------------------------------------------------------------------
 // Options
 //------------------------------------------------------------------------------
@@ -29,43 +23,21 @@ namespace Options {
   int device = -1;
   std::vector<std::string> filenames;
   unsigned char max_level = 6;
-  bool series = false;
+  bool series = false; //Not implemented
 
   float xmin = -1;
   float ymin = -1;
   float xmax = -1;
   float ymax = -1;
-  //int tri_threshold;
-  //bool simple_dist;
-  //bool timings;
-  //int ambiguous_max_level;
-  //bool simple_q;
-  //bool full_subdivide;
-  //bool make_buffer;
-  //bool report_statistics;
-  //bool gpu;
-  //bool opencl_log;
-  //int cell_of_interest;
-  //int level_of_interest;
-  //float bb_scale;
-  //std::set<int> cells_of_interest;
-  //int center;
-  //bool restricted_surface;
-  //int verts_alloc_factor;
-  //int karras_iterations;
-  //int test;
-  //int test_num;
-  //int test_axis;
-  //bool help;
-  //std::map<std::string, std::string> key2value;
-
+  
 // Render settings
   bool showObjectVertices = false;
   bool showObjects = true;
   bool showOctree = true;
-  bool showSketcher = true;
-	bool showResolutionPoints = false;
-	bool pruneOctree = true;
+  bool showOctreeConflicts = true;
+	bool showResolutionPoints = true;
+
+	bool pruneOctree = false;
 
   float conflict_color[3] = { 1.0, 0.0, 0.0 };
 
@@ -75,7 +47,7 @@ namespace Options {
 
   bool debug = false;
   bool benchmarking = false;
-  std::string cl_options = "-cl-std=CL1.2 -I ./Sources -D OpenCL";//"-x spir -cl-std=CL2.0";
+  std::string cl_options = "-g -cl-std=CL2.0 -I ./Sources -D OpenCL";//"-x spir -cl-std=CL2.0";
 
 #define $(flag) (strcmp(argv[i], flag) == 0)
   bool processArg(int& i, char** argv) {

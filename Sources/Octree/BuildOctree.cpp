@@ -41,26 +41,21 @@ int getQuadrantFromBrt(BrtNode* brt_node, const int i) {
   const int mask = (DIM == 2) ? 3 : 7;
   const int rem = brt_node->lcp.len% DIM;
   int rshift = i * DIM + rem;
-  BigUnsigned temp;
-  BigUnsigned tempb;
-  BigUnsigned buMask;
-  initBlkBU(&buMask, mask);
-  shiftBURight(&temp, &brt_node->lcp.bu, rshift);
-  andBU(&tempb, &temp, &buMask);
-  return getBUBlock(&tempb, 0);
+  big buMask = makeBig(mask);
+	big temp = shiftBigRight(&brt_node->lcp.bu, rshift);
+	temp = andBig(&temp, &buMask);
+	return temp.blk[0];
 }
 
-int getQuadrantFromLCP(BigUnsigned lcp, cl_int lcpLen, cl_int i) {
+int getQuadrantFromLCP(big lcp, cl_int lcpLen, cl_int i) {
   const int mask = (DIM == 2) ? 3 : 7;
   const int rem = lcpLen % DIM;
   int rshift = i * DIM + rem;
-  BigUnsigned temp;
-  BigUnsigned tempb;
-  BigUnsigned buMask;
-  initBlkBU(&buMask, mask);
-  shiftBURight(&temp, &lcp, rshift);
-  andBU(&tempb, &temp, &buMask);
-  return getBUBlock(&tempb, 0);
+  big temp;
+  big buMask = makeBig(mask);
+  temp = shiftBigRight(&lcp, rshift);
+  temp = andBig(&temp, &buMask);
+	return temp.blk[0];
 }
 
 /*
@@ -162,15 +157,14 @@ void LeafDoubleCompact(__global Leaf *inputBuffer, __global Leaf *resultBuffer, 
   resultBuffer[d] = inputBuffer[gid];
 }
 
-inline void getOctNodeLCP(BigUnsigned* lcp, cl_int *lcpLen, __global OctNode *octree, int gid) {
+inline void getOctNodeLCP(big* lcp, cl_int *lcpLen, __global OctNode *octree, int gid) {
   OctNode octnode = octree[gid];
-  initBlkBU(lcp, 0);
+	*lcp = makeBig(0);
   cl_int level = 0;
   while (octnode.parent != -1) {
-    BigUnsigned temp;
-    initBlkBU(&temp, octnode.quadrant);
-    shiftBULeft(&temp, &temp, DIM * level);
-    orBU(lcp, lcp, &temp);
+    big temp = makeBig(octnode.quadrant);
+		temp = shiftBigLeft(&temp, DIM * level);
+    *lcp = orBig(lcp, &temp);
     level++;
     octnode = octree[octnode.parent];
   }
@@ -179,7 +173,7 @@ inline void getOctNodeLCP(BigUnsigned* lcp, cl_int *lcpLen, __global OctNode *oc
 
 //Note, assumes root exists AKA octreeSize > 0
 //LCP does not include leaf.
-inline int searchForOctNode(BigUnsigned lcp, int lcpLength, __global OctNode *octree) {
+inline int searchForOctNode(big lcp, int lcpLength, __global OctNode *octree) {
   if (lcpLength == 0) return 0;
   OctNode current = octree[0];
   int index = -1;
@@ -198,7 +192,7 @@ inline int searchForOctNode(BigUnsigned lcp, int lcpLength, __global OctNode *oc
 void PredicateDuplicateNodes(__global OctNode *origOT, __global OctNode *newOT, __global cl_int *predicates, int newOTSize, int gid) {
   cl_int index;
   {
-    BigUnsigned LCP;
+    big LCP;
     cl_int lcpLen = 0;
     getOctNodeLCP(&LCP, &lcpLen, newOT, gid);
     index = searchForOctNode(LCP, lcpLen, origOT);

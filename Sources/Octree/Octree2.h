@@ -1,5 +1,4 @@
-#ifndef __OCTREE_2_H__
-#define __OCTREE_2_H__
+#pragma once
 
 #include "clfw.hpp"
 #include "Shaders/Shaders.hpp"
@@ -17,21 +16,23 @@ extern "C" {
 #include "Octree/OctNode.h"
 #include "Quantize/Quantize.h"
 #include "GLUtilities/Sketcher.h"
+#include "CellResolution/ConflictCellDetection.h"
 
 class Quadtree {
+public:
+  std::vector<OctNode> nodes;
+  std::vector<Conflict> conflicts;
+  BoundingBox bb;
+  Resln resln;
 private:
-  std::vector<OctNode> octree;
   std::vector<floatn> points;
 	std::vector<cl_int> pointColors;
   std::vector<intn> quantized_points;
   std::vector<intn> resolutionPoints;
   std::vector<Line> lines;
   std::vector<Line> orderedLines;
-  std::vector<Conflict> conflicts;
   std::vector<Leaf> leaves;
   int octreeSize;
-  BoundingBox bb;
-  Resln resln;
   int totalPoints;
   int totalLeaves;
   int totalResPoints;
@@ -86,6 +87,3 @@ private:
   void addConflictCells(cl::Buffer conflicts, cl::Buffer octree, cl_int totalOctnodes, cl::Buffer leaves, cl_int totalLeaves);
   void drawResolutionPoints(cl::Buffer resPoints, cl_int totalPoints);
 };
-
-
-#endif

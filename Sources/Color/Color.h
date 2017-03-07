@@ -17,10 +17,10 @@ namespace Color {
         make_float3(3.0 / 255.0, 91.0 / 255.0, 31.0 / 255.0),
 
     };
-    static int currentColor = -1;
+		extern int currentColor;
     inline float3 randomColor()
     {
-        currentColor += 1;
+        currentColor = (currentColor + 1);
         if (currentColor > 10) {
             currentColor = 0;
         }

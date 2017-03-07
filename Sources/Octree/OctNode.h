@@ -3,7 +3,13 @@
 // is a general term that refers to both internal nodes and leaves.
 #include "OctreeDefinitions/defs.h"
 #include "Dimension/dim.h"
-#include "BigUnsigned/BigUnsigned.h"
+#ifndef OpenCL
+extern "C" {
+#endif
+#include "BigUnsigned/BigNum.h"
+#ifndef OpenCL
+}
+#endif
 #include "Vector/vec.h"
 
 
@@ -87,9 +93,9 @@ inline bool compareLeaf(Leaf* first, Leaf* second) {
 }
 
 //Optimize this
-inline int getOctNode(BigUnsigned lcp, int lcpLength, __global OctNode *octree, __local OctNode *root) {
-  BigUnsigned mask;
-  BigUnsigned result;
+inline int getOctNode(big lcp, int lcpLength, __global OctNode *octree, __local OctNode *root) {
+  big mask;
+  big result;
   int numLevels = lcpLength / DIM;
   int shift = lcpLength % DIM;
   int currentIndex = 0;
@@ -98,16 +104,12 @@ inline int getOctNode(BigUnsigned lcp, int lcpLength, __global OctNode *octree, 
   OctNode node = *root;
   for (int i = 0; i < numLevels; ++i) {
     //Get child index
-    if (lcp.len != 0) {
-      int shiftAmount = (numLevels - i - 1) * DIM + shift;
-      BigUnsigned mask;
-      BigUnsigned result;
-      initBlkBU(&mask, ((DIM == 2) ? 3 : 7));
-      shiftBULeft(&mask, &mask, shiftAmount);
-      andBU(&result, &mask, &lcp);
-      shiftBURight(&result, &result, shiftAmount);
-      childIndex = result.blk[0];
-    }
+    int shiftAmount = (numLevels - i - 1) * DIM + shift;
+    big mask = makeBig((DIM == 2) ? 3 : 7);
+    mask = shiftBigLeft(&mask, shiftAmount);
+    big result = andBig(&mask, &lcp);
+    result = shiftBigRight(&result, shiftAmount);
+    childIndex = result.blk[0];
 
     currentIndex = node.children[childIndex];
     if (currentIndex == -1) {

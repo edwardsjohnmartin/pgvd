@@ -16,46 +16,24 @@ void BitPredicate(__global cl_int *inputBuffer, __global cl_int *predicateBuffer
 void BitPredicateULL(__global unsigned long long *inputBuffer, __global cl_int *predicateBuffer, cl_int index, cl_int comparedWith, cl_int gid)
 {
 	unsigned long long self = inputBuffer[gid];
-	cl_int x = (((self & (1 << index)) >> index) == comparedWith);
+	cl_int x = (((self & (1UL << index)) >> index) == comparedWith);
 	predicateBuffer[gid] = x;
 }
 
-void BUBitPredicate(__global BigUnsigned *inputBuffer, __global cl_int *predicateBuffer, cl_int index, cl_int comparedWith, cl_int gid)
+void BigBitPredicate(__global big *inputBuffer, __global cl_int *predicateBuffer, cl_int index, cl_int comparedWith, cl_int gid)
 {
-  BigUnsigned self = inputBuffer[gid];
-  cl_int x = (getBUBit(&self, index) == comparedWith);
+  big self = inputBuffer[gid];
+	cl_int bit = index % NumBitsPerBlock;
+	cl_int blk = index / NumBitsPerBlock;
+  cl_int x = (getBigBit(&self, blk, bit) == comparedWith);
   predicateBuffer[gid] = x;
-}
-
-void GetTwoBitMask(
-  __local BigUnsigned *inputBuffer,
-  __local cl_int *masks,
-  const cl_int index,
-  const char comparedWith,
-  const cl_int lid)
-{
-  BigUnsigned self;
-  unsigned char x = 0;
-  cl_int offset = lid * 4;
-
-  masks[offset] = masks[offset + 1] = masks[offset + 2] = masks[offset + 3] = 0;
-  self = inputBuffer[lid];
-  cl_int numberBUBits = self.len * sizeof(Blk) * 8;
-  if (numberBUBits > index)
-    x = (getBUBit(&self, index) == comparedWith);
-  if (numberBUBits > index + 1)
-    x |= (getBUBit(&self, index + 1) == comparedWith) << 1;
-
-#ifdef OpenCL
-  barrier(CLK_LOCAL_MEM_FENCE);
-#endif
-  masks[offset + x] = 1;
 }
 
 //Unique Predication
 //Requires input be sorted.
-void BUUniquePredicate(
-  __global BigUnsigned *inputBuffer,
+//TODO: CHANGE TO USE SHARED MEMORY
+void BigUniquePredicate(
+  __global big *inputBuffer,
   __global cl_int *predicateBuffer,
   const cl_int gid)
 {
@@ -63,9 +41,9 @@ void BUUniquePredicate(
     predicateBuffer[gid] = 1;
   }
   else {
-    BigUnsigned self = inputBuffer[gid];
-    BigUnsigned previous = inputBuffer[gid - 1];
-    predicateBuffer[gid] = (compareBU(&self, &previous) != 0);
+    big self = inputBuffer[gid];
+    big previous = inputBuffer[gid - 1];
+    predicateBuffer[gid] = (compareBig(&self, &previous) != 0);
   }
 }
 
@@ -82,7 +60,9 @@ void LCPPredicate(
   int actualIndex = index - (mbits - lcpLength);
   int shift = lcpLength % DIM;
   if (actualIndex - shift >= 0) {
-    bool myBit = getBUBit(&bCell.bu, actualIndex);
+		cl_int bit = actualIndex % NumBitsPerBlock;
+		cl_int blk = actualIndex / NumBitsPerBlock;
+    bool myBit = getBigBit(&bCell.bu, blk, bit);
     predicateBuffer[gid] = myBit == 0;
   }
   else {
@@ -99,7 +79,7 @@ void LevelPredicate(__global LCP *inputBuffer, __global cl_int *predicateBuffer,
 }
 
 //result buffer MUST be initialized as 0!!!
-void BUCompact(__global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global cl_int *lPredicateBuffer,
+void BigCompact(__global big *inputBuffer, __global big *resultBuffer, __global cl_int *lPredicateBuffer,
   __global cl_int *leftBuffer, cl_int size, const cl_int id)
 {
 	cl_int a = leftBuffer[id];
@@ -181,12 +161,12 @@ void LCPFacetCompact(
 }
 
 
-void BUSingleCompact(__global BigUnsigned *inputBuffer, __global BigUnsigned *resultBuffer, __global cl_int *predicateBuffer, __global cl_int *addressBuffer, const cl_int gid)
+void BigSingleCompact(__global big *inputBuffer, __global big *resultBuffer, __global cl_int *predicateBuffer, __global cl_int *addressBuffer, const cl_int gid)
 {
   cl_int index;
   if (predicateBuffer[gid] == 1) {
     index = addressBuffer[gid];
-    BigUnsigned temp = inputBuffer[gid];
+    big temp = inputBuffer[gid];
     resultBuffer[index - 1] = temp;
   }
 }

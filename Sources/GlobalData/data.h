@@ -4,5 +4,5 @@
 
 namespace Data {
   extern PolyLines *lines;
-  extern Quadtree *octree;
+  extern Quadtree *quadtree;
 };

@@ -32,20 +32,6 @@ AVERAGE /= totalIterations;\
 WARN(TEXT + " average time: " + std::to_string(AVERAGE) + " microseconds");\
 logTextToFile(TEXT + " average time: " + std::to_string(AVERAGE) + " microseconds\n", "BenchmarkData//binaries//log.txt");
 
-static inline std::string BuToString(BigUnsigned bu) {
-	std::string representation = "";
-	if (bu.len == 0)
-	{
-		representation += "[0]";
-	}
-	else {
-		for (int i = bu.len; i > 0; --i) {
-			representation += "[" + std::to_string(bu.blk[i - 1]) + "]";
-		}
-	}
-
-	return representation;
-}
 static void clearScreen() {
 	using namespace GLUtilities;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -109,12 +95,12 @@ inline vector<float2> generateDeterministicRandomFloat2s(int totalElements, int 
   return points;
 }
 
-inline vector<BigUnsigned> generateDeterministicRandomBigUnsigneds(int totalElements, int seed = 0, unsigned minimum = 0, unsigned maximum = 1 << 18) {
+inline vector<big> generateDeterministicRandomBigs(int totalElements, int seed = 0, unsigned minimum = 0, unsigned maximum = 1 << 18) {
   /* To give deterministic results. */
   srand(seed);
-  vector<BigUnsigned> numbers(totalElements);
+  vector<big> numbers(totalElements);
   for (int i = 0; i < totalElements; ++i) {
-    initBlkBU(&numbers[i], (rand() % (maximum - minimum)) + minimum);
+		numbers[i] = makeBig((rand() % (maximum - minimum)) + minimum);
   }
   return numbers;
 }

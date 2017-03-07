@@ -31,12 +31,11 @@ Benchmark("Check Order", "[selected][4way][sort][reduction]") {
 	} END_ITERATIONS;
 }
 
-
 /* Predication Kernels */
 Benchmark("Predicate by bit", "[predication]") {
 	TODO("Benchmark this");
 }
-Benchmark("Predicate BigUnsigned by bit", "[predication]") {
+Benchmark("Predicate big by bit", "[predication]") {
 	TODO("Benchmark this");
 }
 Benchmark("Predicate Conflict", "[conflict][predication]") {
@@ -77,32 +76,33 @@ Benchmark("Parallel Radix Sort", "[sort][integration][done]") {
 	BEGIN_ITERATIONS("Parallel Radix Sort") {
 		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(unsigned long long));
 		BEGIN_BENCHMARK
-			RadixSort_p(b_zpoints_copy, numPts, resln.mbits);
+			OldRadixSort_p(b_zpoints_copy, numPts, resln.mbits);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
-Benchmark("Parallel Radix Sort (Pairs by Key)", "[sort][integration][done]") {
+Benchmark("Parallel Radix Sort (Pairs by Key)", "[sort][integration][done][selected]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
-	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//zpoints.bin", numPts);
+	vector<big> zpoints = readFromFile<big>("BenchmarkData//binaries//zpoints.bin", numPts);
 	vector<cl_int> pointColors = readFromFile<cl_int>("BenchmarkData//binaries//pointColors.bin", numPts);
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy, b_pntCols, b_pntCols_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(BigUnsigned));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(BigUnsigned));
-	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::Upload<big>(zpoints, b_zpoints);
 	CLFW::get(b_pntCols, "colors", numPts * sizeof(cl_int));
 	CLFW::get(b_pntCols_copy, "colorsc", numPts * sizeof(cl_int));
 	CLFW::Upload<cl_int>(pointColors, b_pntCols);
 
 	/* Benchmark */
 	BEGIN_ITERATIONS("Radix Sort (BU Pairs by Key)") {
-		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(big));
 		CLFW::DefaultQueue.enqueueCopyBuffer(b_pntCols, b_pntCols_copy, 0, 0, numPts * sizeof(cl_int));
 		BEGIN_BENCHMARK
-			RadixSortBUIntPairsByKey(b_zpoints_copy, b_pntCols_copy, resln.mbits, numPts);
+			RadixSortIntToInt_p(b_zpoints_copy, b_pntCols_copy, numPts, resln.mbits, "");
+			//OldRadixSortBUIntPairsByKey(b_zpoints_copy, b_pntCols_copy, resln.mbits, numPts);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -110,19 +110,19 @@ Benchmark("Parallel Radix Sort (Big Unsigneds)", "[sort][integration][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
-	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//zpoints.bin", numPts);
+	vector<big> zpoints = readFromFile<big>("BenchmarkData//binaries//zpoints.bin", numPts);
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(BigUnsigned));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(BigUnsigned));
-	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::Upload<big>(zpoints, b_zpoints);
 
 	/* Benchmark */
 	BEGIN_ITERATIONS("Parallel Radix Sort (Big Unsigneds)") {
-		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(big));
 		BEGIN_BENCHMARK
-			RadixSortBigUnsigned_p(b_zpoints_copy, numPts, resln.mbits, to_string(i));
+			RadixSortBig_p(b_zpoints_copy, numPts, resln.mbits, to_string(i));
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
@@ -170,46 +170,46 @@ Benchmark("QPoints to ZPoints", "[zorder][done]") {
 }
 
 /* Unique Kernels */
-Benchmark("Unique Sorted BigUnsigned", "[sort][unique][done]") {
+Benchmark("Unique Sorted big", "[sort][unique][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
-	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//sorted_zpoints.bin", numPts);
+	vector<big> zpoints = readFromFile<big>("BenchmarkData//binaries//sorted_zpoints.bin", numPts);
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(BigUnsigned));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(BigUnsigned));
-	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::Upload<big>(zpoints, b_zpoints);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Unique Sorted BigUnsigned") {
-		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
+	BEGIN_ITERATIONS("Unique Sorted big") {
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(big));
 		cl_int uniqueNumPts;
 		BEGIN_BENCHMARK
 			UniqueSorted(b_zpoints_copy, numPts, to_string(i), uniqueNumPts);
 		END_BENCHMARK
 	} END_ITERATIONS;
 }
-Benchmark("Unique Sorted BigUnsigned color pairs", "[sort][unique][done]") {
+Benchmark("Unique Sorted big color pairs", "[sort][unique][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
-	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//sorted_zpoints.bin", numPts);
+	vector<big> zpoints = readFromFile<big>("BenchmarkData//binaries//sorted_zpoints.bin", numPts);
 	vector<cl_int> pntColors = readFromFile<cl_int>("BenchmarkData//binaries//sorted_pointColors.bin", numPts);
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy, b_pntCols, b_pntCols_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(BigUnsigned));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(BigUnsigned));
-	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::Upload<big>(zpoints, b_zpoints);
 	CLFW::get(b_pntCols, "colors", numPts* sizeof(cl_int));
 	CLFW::get(b_pntCols_copy, "colorsc", numPts* sizeof(cl_int));
 	CLFW::Upload<cl_int>(pntColors, b_pntCols);
 
 	/* Benchmark */
-	BEGIN_ITERATIONS("Unique Sorted BigUnsigned color pairs") {
-		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(BigUnsigned));
+	BEGIN_ITERATIONS("Unique Sorted big color pairs") {
+		CLFW::DefaultQueue.enqueueCopyBuffer(b_zpoints, b_zpoints_copy, 0, 0, numPts * sizeof(big));
 		CLFW::DefaultQueue.enqueueCopyBuffer(b_pntCols, b_pntCols_copy, 0, 0, numPts * sizeof(cl_int));
 		cl_int uniqueNumPts;
 		BEGIN_BENCHMARK
@@ -223,12 +223,12 @@ Benchmark("Build Binary Radix Tree", "[tree][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//unique_numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
-	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//unique_sorted_zpoints.bin", numPts);
+	vector<big> zpoints = readFromFile<big>("BenchmarkData//binaries//unique_sorted_zpoints.bin", numPts);
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_brt;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(BigUnsigned));
-	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::Upload<big>(zpoints, b_zpoints);
 
 	/* Benchmark */
 	BEGIN_ITERATIONS("Build Binary Radix Tree") {
@@ -241,13 +241,13 @@ Benchmark("Build Colored Binary Radix Tree", "[tree][done]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//unique_numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
-	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//unique_sorted_zpoints.bin", numPts);
+	vector<big> zpoints = readFromFile<big>("BenchmarkData//binaries//unique_sorted_zpoints.bin", numPts);
 	vector<cl_int> pntCols = readFromFile<cl_int>("BenchmarkData//binaries//unique_sorted_pointColors.bin", numPts);
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_pntCols, b_brt, b_brtCols;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(BigUnsigned));
-	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::Upload<big>(zpoints, b_zpoints);
 	CLFW::get(b_pntCols, "colors", numPts * sizeof(cl_int));
 	CLFW::Upload<cl_int>(pntCols, b_pntCols);
 
@@ -363,7 +363,7 @@ Benchmark("Get LCPs From Lines", "[conflict][done]") {
 	cl_int numLines = readFromFile<cl_int>("BenchmarkData//binaries//numLines.bin");
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
 	Resln resln = readFromFile<Resln>("BenchmarkData//binaries//resln.bin");
-	vector<BigUnsigned> zpoints = readFromFile<BigUnsigned>("BenchmarkData//binaries//zpoints.bin", numPts);
+	vector<big> zpoints = readFromFile<big>("BenchmarkData//binaries//zpoints.bin", numPts);
 	vector<Line> lines = readFromFile<Line>("BenchmarkData//binaries//lines.bin", numLines);
 
 	/* Upload dependencies */
@@ -371,7 +371,7 @@ Benchmark("Get LCPs From Lines", "[conflict][done]") {
 	CLFW::get(b_lines, "lines", numLines * sizeof(Line));
 	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(OctNode));
 	CLFW::Upload<Line>(lines, b_lines);
-	CLFW::Upload<BigUnsigned>(zpoints, b_zpoints);
+	CLFW::Upload<big>(zpoints, b_zpoints);
 
 	/* Benchmark */
 	BEGIN_ITERATIONS("Get LCPs From Lines") {
@@ -515,7 +515,7 @@ Benchmark("Get resolution points", "[resolution][done]") {
 }
 
 /* Quadtree */
-Benchmark("Build Unpruned Quadtree", "[tree][done]") {
+Benchmark("Build Unpruned Quadtree", "[tree][done][selected]") {
 	/* Load dependencies */
 	Options::max_level = 24;
 	Options::pruneOctree = false;
@@ -537,7 +537,7 @@ Benchmark("Build Unpruned Quadtree", "[tree][done]") {
 }
 
 /* Quadtree */
-Benchmark("Build Pruned Quadtree", "[tree][done]") {
+Benchmark("Build Pruned Quadtree", "[tree][done][selected]") {
 	/* Load dependencies */
 	Options::max_level = 24;
 	Options::pruneOctree = true;

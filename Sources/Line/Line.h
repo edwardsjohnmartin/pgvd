@@ -24,16 +24,16 @@ typedef struct Line {
 /* See paper figure f */
 inline void GetLCPFromLine(
   __global Line* lines,
-  __global BigUnsigned *zpoints,
+  __global big *zpoints,
   __global LCP *bCells,
   cl_uint mbits,
   cl_uint gid)
 {
   cl_int firstI = lines[gid].first;
   cl_int secondI = lines[gid].second;
-  BigUnsigned p1 = zpoints[firstI];
-  BigUnsigned p2 = zpoints[secondI];
-  int lcpLength = compute_lcp_length(&p1, &p2, mbits);
+  big p1 = zpoints[firstI];
+  big p2 = zpoints[secondI];
+  int lcpLength = compute_lcp_length(&p1, &p2, mbits, gid);
   bCells[gid].len = lcpLength;
   compute_lcp_bu(&bCells[gid].bu, &zpoints[firstI], lcpLength, mbits);
 }
