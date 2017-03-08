@@ -25,10 +25,10 @@
 //------------------------------------------------------------
 #define CL_VEC
 #ifdef __APPLE__
-//#include <OpenCL/cl.hpp>
-#include "./cl.hpp"
+//#include <OpenCL/cl2.hpp>
+#include "./cl2.hpp"
 #else
-#include <CL/cl.hpp>
+#include <CL/cl2.hpp>
 #endif
 
 #ifndef __APPLE__

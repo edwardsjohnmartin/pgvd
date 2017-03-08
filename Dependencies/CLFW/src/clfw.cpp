@@ -62,6 +62,7 @@ cl::Device CLFW::DefaultDevice;
 cl::Context CLFW::DefaultContext;
 cl::CommandQueue CLFW::DefaultQueue;
 cl::CommandQueue CLFW::SecondaryQueue;
+cl::DeviceCommandQueue CLFW::DeviceQueue;
 
 cl::Program CLFW::DefaultProgram;
 cl::Program::Sources CLFW::DefaultSources;
@@ -111,6 +112,9 @@ cl_int CLFW::Initialize(bool _verbose, bool queryMode, unsigned int numQueues) {
     if (i == 1)
       SecondaryQueue = queue;
   }
+	cl_uint maxQueueSize = DefaultDevice.getInfo<CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE>();
+	DeviceQueue = cl::DeviceCommandQueue(DefaultContext, DefaultDevice, maxQueueSize, cl::DeviceQueueProperties::None, &error);
+
   error |= get(DefaultSources);
 
   error |= Build(DefaultProgram, DefaultSources);
@@ -183,7 +187,7 @@ cl_int CLFW::get(cl::Program::Sources &sources, std::vector<std::string> &files)
     long length = 0;
     char *source = 0;
     error|=loadFile(files[i].c_str(), &source, &length);
-	sources.push_back({ source, length });
+	sources.push_back({ source, (unsigned __int64)length });
   }
   return error;
 }
@@ -199,7 +203,7 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
       long length = 0;
       char *source = 0;
       loadFile(file, &source, &length);
-      sources.push_back({ source, length });
+      sources.push_back({ source, (unsigned __int64)length });
       file = strtok(NULL, "\n\r\n\0");
     } while (file != NULL);
   }
@@ -208,7 +212,7 @@ cl_int CLFW::get(cl::Program::Sources &sources) {
   }
   return CL_SUCCESS;
 }
-cl_int CLFW::get(std::unordered_map<cl::STRING_CLASS, cl::Kernel> &Kernels, cl::Program &program) {
+cl_int CLFW::get(std::unordered_map<cl::string, cl::Kernel> &Kernels, cl::Program &program) {
   Kernels.clear();
   std::vector<cl::Kernel> tempKernels;
   cl_int error = program.createKernels(&tempKernels);
@@ -219,8 +223,9 @@ cl_int CLFW::get(std::unordered_map<cl::STRING_CLASS, cl::Kernel> &Kernels, cl::
   for (int i = 0; i < tempKernels.size(); ++i) {
 	  std::string temp = std::string(tempKernels[i].getInfo<CL_KERNEL_FUNCTION_NAME>());
     
-    //For some reason, OpenCL string's lengths are 1 char longer than they should be.
-    temp = temp.substr(0, temp.length() - 1);
+		//FIXED IN cl2.hpp
+    ////For some reason, OpenCL string's lengths are 1 char longer than they should be.
+    //temp = temp.substr(0, temp.length() - 1);
     Kernels[temp] = tempKernels[i];
   }
   for (auto i : Kernels) {

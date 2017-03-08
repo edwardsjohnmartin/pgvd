@@ -10,9 +10,9 @@
 /* Included files */
 #ifdef __APPLE__
 //#include <OpenCL/cl.hpp>
-#include "./cl.hpp"
+#include "./cl2.hpp"
 #else
-#include <CL/cl.hpp>
+#include <CL/cl2.hpp>
 #endif
 
 #include <vector>
@@ -49,6 +49,7 @@ public:
   static cl::Context DefaultContext;
   static cl::CommandQueue DefaultQueue;
   static cl::CommandQueue SecondaryQueue;
+	static cl::DeviceCommandQueue CLFW::DeviceQueue;
 
   static cl::Program DefaultProgram;
   static cl::Program::Sources DefaultSources;

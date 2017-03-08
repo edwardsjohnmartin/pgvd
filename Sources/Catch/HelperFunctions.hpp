@@ -9,7 +9,6 @@
 #define a_lot 1000000 
 #define totalIterations 30
 
-using namespace cl;
 using namespace Kernels;
 using namespace GLUtilities;
 using namespace std::chrono;
@@ -51,7 +50,6 @@ static long long stopBench(time_point<steady_clock> start) {
 	auto elapsed = high_resolution_clock::now() - start;
 	return std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
 }
-
 
 inline vector<cl_int> generateDeterministicRandomIntegers(int totalElements, int seed = 0, int minimum = -1024, int maximum = 1024) {
   /* To give deterministic results. */

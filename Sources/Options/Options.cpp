@@ -47,7 +47,7 @@ namespace Options {
 
   bool debug = false;
   bool benchmarking = false;
-  std::string cl_options = "-g -cl-std=CL2.0 -I ./Sources -D OpenCL";//"-x spir -cl-std=CL2.0";
+  std::string cl_options = "-cl-std=CL2.0 -I ./Sources -D OpenCL -cl-mad-enable -g -s C:/git/pgvd/build/Sources/Kernels/Kernels.h";//"-x spir -cl-std=CL2.0";
 
 #define $(flag) (strcmp(argv[i], flag) == 0)
   bool processArg(int& i, char** argv) {

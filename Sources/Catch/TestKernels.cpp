@@ -10,7 +10,6 @@ Unit Testing Notes:
 #include "catch.hpp"
 #include "Kernels/Kernels.h"
 #include "HelperFunctions.hpp"
-using namespace cl;
 using namespace Kernels;
 using namespace GLUtilities;
 
@@ -35,7 +34,7 @@ Scenario("Additive Reduction", "[reduction]") {
 			}
 			Then("the series results match the parallel results") {
 				cl_int small_output_p, large_output_p;
-				Buffer b_small_input, b_large_input, b_small_output, b_large_output;
+				cl::Buffer b_small_input, b_large_input, b_small_output, b_large_output;
 				cl_int error = 0;
 				error |= CLFW::get(b_small_input, "small", a_few * sizeof(cl_int));
 				error |= CLFW::get(b_large_input, "large", a_lot * sizeof(cl_int));
@@ -116,7 +115,7 @@ Scenario("Predicate by bit", "[predication]") {
 			}
 			Then("the series results match the parallel results") {
 				vector<cl_int>small_output_p(a_few);
-				Buffer b_small_input, b_small_output;
+				cl::Buffer b_small_input, b_small_output;
 				cl_int error = 0;
 				error |= CLFW::get(b_small_input, "small", a_few * sizeof(cl_int));
 				error |= CLFW::Upload<cl_int>(small_input, b_small_input);
@@ -145,7 +144,7 @@ Scenario("Predicate big by bit", "[predication]") {
 			Then("the series results match the parallel results") {
 				vector<cl_int>small_output_p(a_few);
 				vector<cl_int>large_output_p(a_lot);
-				Buffer b_small_input, b_small_output;
+				cl::Buffer b_small_input, b_small_output;
 				cl_int error = 0;
 				error |= CLFW::get(b_small_input, "small", a_few * sizeof(big));
 				error |= CLFW::Upload<big>(small_input, b_small_input);
@@ -173,7 +172,7 @@ Scenario("Predicate Conflict", "[conflict][predication]") {
 			}
 			Then("the series results match the parallel results") {
 				vector<cl_int>small_output_p(a_few);
-				Buffer b_small_input, b_small_output;
+				cl::Buffer b_small_input, b_small_output;
 				cl_int error = 0;
 				error |= CLFW::get(b_small_input, "small", a_few * sizeof(Conflict));
 				error |= CLFW::Upload<Conflict>(small_input, b_small_input);
@@ -210,7 +209,7 @@ Scenario("Integer Compaction", "[compaction]") {
 			Then("the series results match the parallel results") {
 				cl_int error = 0;
 				vector<cl_int> small_output_p(a_few);
-				Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
+				cl::Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
 				error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(cl_int));
 				error |= CLFW::get(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
 				error |= CLFW::get(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
@@ -250,7 +249,7 @@ Scenario("Big Unsigned Compaction", "[compaction]") {
 			Then("the series results match the parallel results") {
 				cl_int error = 0;
 				vector<big> small_output_p(a_few);
-				Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
+				cl::Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
 				error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(big));
 				error |= CLFW::get(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
 				error |= CLFW::get(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
@@ -290,7 +289,7 @@ Scenario("Conflict Compaction", "[conflict][compaction]") {
 			Then("the series results match the parallel results") {
 				cl_int error = 0;
 				vector<Conflict> small_output_p(a_few);
-				Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
+				cl::Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
 				error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(Conflict));
 				error |= CLFW::get(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
 				error |= CLFW::get(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
@@ -330,7 +329,7 @@ Scenario("Inclusive Summation Scan", "[scan]") {
 			}
 			Then("the series results match the parallel results") {
 				vector<cl_int>small_output_p(a_few), large_output_p(a_lot);
-				Buffer b_small_input, b_large_input, b_small_output, b_large_output;
+				cl::Buffer b_small_input, b_large_input, b_small_output, b_large_output;
 				cl_int error = 0;
 				error |= CLFW::get(b_small_input, "smallin", a_few * sizeof(cl_int));
 				error |= CLFW::get(b_large_input, "largein", a_lot * sizeof(cl_int));
@@ -1327,6 +1326,6 @@ Scenario("Get resolution points", "[resolution]") {
 }
 
 /* Recursive kernel test */
-Scenario("Recursive Dynamic Parallelizm", "[selected]") {
+Scenario("Recursive Dynamic Parallelizm", "[selected][test]") {
 	Kernels::DynamicParallelsim();
 }

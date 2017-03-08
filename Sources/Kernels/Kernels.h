@@ -14,9 +14,9 @@
 // Had to move this here to compile on Mac
 #include "GLUtilities/gl_utils.h"
 #ifdef __APPLE__
-#include "./cl.hpp"
+#include "./cl2.hpp"
 #else
-#include <CL/cl.hpp>
+#include <CL/cl2.hpp>
 #endif
 #include "BoundingBox/BoundingBox.h"
 #include  "Options/options.h"
@@ -158,7 +158,7 @@ namespace Kernels {
 		cl_int error = CLFW::get(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
 
 		error |= kernel.setArg(0, numbers);
-		error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+		error |= kernel.setArg(1, cl::Local(localSize * sizeof(cl_uint)));
 		error |= kernel.setArg(2, nextPowerOfTwo);
 		error |= kernel.setArg(3, reduceResult);
 		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
@@ -166,7 +166,7 @@ namespace Kernels {
 		//If multiple workgroups ran, we need to do a second level reduction.
 		if (suggestedLocal <= globalSize) {
 			error |= kernel.setArg(0, reduceResult);
-			error |= kernel.setArg(1, cl::__local(localSize * sizeof(cl_uint)));
+			error |= kernel.setArg(1, cl::Local(localSize * sizeof(cl_uint)));
 			error |= kernel.setArg(2, resultSize);
 			error |= kernel.setArg(3, reduceResult);
 			error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(localSize / 2), cl::NDRange(localSize / 2));
@@ -381,7 +381,7 @@ namespace Kernels {
 		error |= kernel3.setArg(0, inputBuffer);
 		error |= kernel3.setArg(1, outputBuffer);
 		error |= kernel3.setArg(2, n);
-		error |= kernel3.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+		error |= kernel3.setArg(3, cl::Local(numThreads * sizeof(cl_int)));
 
 		int globalWorkSize = numBlocks * numThreads;
 		int localWorkSize = numThreads;
@@ -397,7 +397,7 @@ namespace Kernels {
 			error |= kernel3.setArg(0, outputBuffer);
 			error |= kernel3.setArg(1, outputBuffer);
 			error |= kernel3.setArg(2, n);
-			error |= kernel3.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+			error |= kernel3.setArg(3, cl::Local(numThreads * sizeof(cl_int)));
 			s = (s + (finalNumThreads * 2 - 1)) / (finalNumThreads * 2);
 			error |= queue.enqueueNDRangeKernel(kernel3, cl::NullRange,
 				cl::NDRange(globalWorkSize), cl::NDRange(localWorkSize));
@@ -432,7 +432,7 @@ namespace Kernels {
 		error |= kernel6.setArg(0, inputBuffer);
 		error |= kernel6.setArg(1, outputBuffer);
 		error |= kernel6.setArg(2, n);
-		error |= kernel6.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+		error |= kernel6.setArg(3, cl::Local(numThreads * sizeof(cl_int)));
 
 		int globalWorkSize = numBlocks * numThreads;
 		int localWorkSize = numThreads;
@@ -449,7 +449,7 @@ namespace Kernels {
 			error |= kernel5.setArg(0, outputBuffer);
 			error |= kernel5.setArg(1, outputBuffer);
 			error |= kernel5.setArg(2, n);
-			error |= kernel5.setArg(3, cl::__local(numThreads * sizeof(cl_int)));
+			error |= kernel5.setArg(3, cl::Local(numThreads * sizeof(cl_int)));
 			s = (s + (finalNumThreads * 2 - 1)) / (finalNumThreads * 2);
 			error |= queue.enqueueNDRangeKernel(kernel5, cl::NullRange,
 				cl::NDRange(globalWorkSize), cl::NDRange(localWorkSize));
@@ -519,8 +519,8 @@ namespace Kernels {
 		error |= CLFW::get(predication, "ascPred", (numElems / localSize) * sizeof(cl_int));
 		error |= predicateAscKernel.setArg(0, bigNumbers_i);
 		error |= predicateAscKernel.setArg(1, numElems);
-		error |= predicateAscKernel.setArg(2, cl::__local((localSize + 1) * sizeof(big)));
-		error |= predicateAscKernel.setArg(3, cl::__local((localSize)* sizeof(cl_int)));
+		error |= predicateAscKernel.setArg(2, cl::Local((localSize + 1) * sizeof(big)));
+		error |= predicateAscKernel.setArg(3, cl::Local((localSize)* sizeof(cl_int)));
 		error |= predicateAscKernel.setArg(4, predication);
 		error |= queue.enqueueNDRangeKernel(predicateAscKernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
 
@@ -1249,7 +1249,7 @@ namespace Kernels {
 		error |= kernel.setArg(0, input_i);
 		error |= kernel.setArg(1, result_i);
 		error |= kernel.setArg(2, intermediate);
-		error |= kernel.setArg(3, cl::__local((localSize + 1) * sizeof(cl_int)));
+		error |= kernel.setArg(3, cl::Local((localSize + 1) * sizeof(cl_int)));
 		error |= kernel.setArg(4, totalElements);
 		error |= queue.enqueueNDRangeKernel(
 			kernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
@@ -1450,8 +1450,8 @@ namespace Kernels {
 		error |= kernel.setArg(0, inputBuffer);
 		error |= kernel.setArg(1, outputBuffer);
 		error |= kernel.setArg(2, intermediate);
-		error |= kernel.setArg(3, cl::__local(localSize * sizeof(cl_int)));
-		error |= kernel.setArg(4, cl::__local(localSize * sizeof(cl_int)));
+		error |= kernel.setArg(3, cl::Local(localSize * sizeof(cl_int)));
+		error |= kernel.setArg(4, cl::Local(localSize * sizeof(cl_int)));
 		error |= queue->enqueueNDRangeKernel(
 			kernel, cl::NullRange, cl::NDRange(nextPow2(globalSize)), cl::NDRange(localSize));
 
@@ -1887,8 +1887,8 @@ namespace Kernels {
 		error |= kernel.setArg(1, bitIndx);
 		error |= kernel.setArg(2, blkIndx);
 		error |= kernel.setArg(3, numElems);
-		error |= kernel.setArg(4, cl::__local(4 * blkSize * sizeof(cl_int)));
-		error |= kernel.setArg(5, cl::__local(blkSize * sizeof(big)));
+		error |= kernel.setArg(4, cl::Local(4 * blkSize * sizeof(cl_int)));
+		error |= kernel.setArg(5, cl::Local(blkSize * sizeof(big)));
 		error |= kernel.setArg(6, blkSum_o);
 		error |= kernel.setArg(7, shuffle_o);
 
@@ -1985,9 +1985,9 @@ namespace Kernels {
 		error |= kernel.setArg(2, bitIndx);
 		error |= kernel.setArg(3, blkIndx);
 		error |= kernel.setArg(4, numElems);
-		error |= kernel.setArg(5, cl::__local(4 * blkSize * sizeof(cl_int)));
-		error |= kernel.setArg(6, cl::__local(blkSize * sizeof(big)));
-		error |= kernel.setArg(7, cl::__local(blkSize * sizeof(cl_int)));
+		error |= kernel.setArg(5, cl::Local(4 * blkSize * sizeof(cl_int)));
+		error |= kernel.setArg(6, cl::Local(blkSize * sizeof(big)));
+		error |= kernel.setArg(7, cl::Local(blkSize * sizeof(cl_int)));
 		error |= kernel.setArg(8, blkSum_o);
 		error |= kernel.setArg(9, keyShuffle_o);
 		error |= kernel.setArg(10, valShuffle_o);
@@ -2020,9 +2020,9 @@ namespace Kernels {
 		error |= kernel.setArg(1, vals_i);
 		error |= kernel.setArg(2, bitIndx);
 		error |= kernel.setArg(3, numElems);
-		error |= kernel.setArg(4, cl::__local(4 * blkSize * sizeof(cl_int)));
-		error |= kernel.setArg(5, cl::__local(blkSize * sizeof(cl_int)));
-		error |= kernel.setArg(6, cl::__local(blkSize * sizeof(cl_int)));
+		error |= kernel.setArg(4, cl::Local(4 * blkSize * sizeof(cl_int)));
+		error |= kernel.setArg(5, cl::Local(blkSize * sizeof(cl_int)));
+		error |= kernel.setArg(6, cl::Local(blkSize * sizeof(cl_int)));
 		error |= kernel.setArg(7, blkSum_o);
 		error |= kernel.setArg(8, keyShuffle_o);
 		error |= kernel.setArg(9, valShuffle_o);
@@ -2182,7 +2182,7 @@ namespace Kernels {
 		CLFW::get(result_o, "4wayresult", nextPow2(closestMultiple) * sizeof(big));
 
 		kernel.setArg(0, shuffle_i);
-		kernel.setArg(1, cl::__local(4 * blkSize * sizeof(big)));
+		kernel.setArg(1, cl::Local(4 * blkSize * sizeof(big)));
 		kernel.setArg(2, blkSum_i);
 		kernel.setArg(3, prefixBlkSum_i);
 		kernel.setArg(4, result_o);
@@ -2253,8 +2253,8 @@ namespace Kernels {
 
 		kernel.setArg(0, keyShuffle_i);
 		kernel.setArg(1, valShuffle_i);
-		kernel.setArg(2, cl::__local(4 * blkSize * sizeof(big)));
-		kernel.setArg(3, cl::__local(4 * blkSize * sizeof(cl_int)));
+		kernel.setArg(2, cl::Local(4 * blkSize * sizeof(big)));
+		kernel.setArg(3, cl::Local(4 * blkSize * sizeof(cl_int)));
 		kernel.setArg(4, blkSum_i);
 		kernel.setArg(5, prefixBlkSum_i);
 		kernel.setArg(6, keys_o);
@@ -2289,8 +2289,8 @@ namespace Kernels {
 
 		kernel.setArg(0, keyShuffle_i);
 		kernel.setArg(1, valShuffle_i);
-		kernel.setArg(2, cl::__local(4 * blkSize * sizeof(cl_int)));
-		kernel.setArg(3, cl::__local(4 * blkSize * sizeof(cl_int)));
+		kernel.setArg(2, cl::Local(4 * blkSize * sizeof(cl_int)));
+		kernel.setArg(3, cl::Local(4 * blkSize * sizeof(cl_int)));
 		kernel.setArg(4, blkSum_i);
 		kernel.setArg(5, prefixBlkSum_i);
 		kernel.setArg(6, keys_o);
@@ -3816,46 +3816,58 @@ namespace Kernels {
 #pragma endregion
 
 #ifdef OpenCL
+	inline void checkError(int error, int id) {
+		if (error == CLK_ENQUEUE_FAILURE) 
+			printf("gid %d got CLK_ENQUEUE_FAILURE\n", id);
+		if (error == CLK_INVALID_QUEUE) 
+			printf("gid %d got CLK_INVALID_QUEUE\n", id);
+		if (error == CLK_INVALID_NDRANGE) 
+			printf("gid %d got CLK_INVALID_NDRANGE\n", id);
+		if (error == CLK_INVALID_EVENT_WAIT_LIST) 
+			printf("gid %d got CLK_INVALID_EVENT_WAIT_LIST\n", id);
+		if (error == CLK_DEVICE_QUEUE_FULL)
+			printf("gid %d got CLK_DEVICE_QUEUE_FULLn", id);
+		if (error == CLK_INVALID_ARG_SIZE) 
+			printf("gid %d got CLK_INVALID_ARG_SIZE\n", id);
+		if (error == CLK_EVENT_ALLOCATION_FAILURE) 
+			printf("gid %d got CLK_EVENT_ALLOCATION_FAILURE\n", id);
+		if (error == CLK_OUT_OF_RESOURCES) 
+			printf("gid %d got CLK_OUT_OF_RESOURCES\n", id);
+	}
+
 	__kernel void DynamicParallelsim_internal(
-		volatile __global cl_int *buffer, 
 		queue_t queue,
 		cl_int location,
 		cl_int recursionLevel
 		)
 	{
-		int old = buffer[location];
-		if (old < 64) {
-			buffer[location] = old + 1;
-
+		if (recursionLevel < 512) {
 			ndrange_t ndrange = ndrange_1D(1);
 			int result = enqueue_kernel(
 				queue,
-				CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
+				CLK_ENQUEUE_FLAGS_NO_WAIT,
 				ndrange,
-				^{ DynamicParallelsim_internal(buffer, queue, location, recursionLevel + 1); });
-			if (result == CLK_ENQUEUE_FAILURE) {
-				printf("gid %d recursion %d got CLK_ENQUEUE_FAILURE \n", location, recursionLevel);
-			}
+				^{ DynamicParallelsim_internal(queue, location, recursionLevel + 1); });
+			//checkError(result, location);
+		}
+		else {
+			//printf("id %d recursed successfully\n", location);
 		}
 	}
 	__kernel void DynamicParallelismTest (
-		volatile __global cl_int *buffer,
 		queue_t queue
 		) 
 	{
 		int gid = get_global_id(0);
-		buffer[gid] = 0;
 
 		ndrange_t ndrange = ndrange_1D(1);
 
 		int result = enqueue_kernel(
 			queue,
-			CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
+			CLK_ENQUEUE_FLAGS_NO_WAIT,
 			ndrange,
-			^{ DynamicParallelsim_internal(buffer, queue, gid, 0); });
-		if (result == CLK_ENQUEUE_FAILURE) {
-			printf("gid %d got CLK_ENQUEUE_FAILURE \n", gid);
-		}
+			^{ DynamicParallelsim_internal(queue, gid, 0); });
+		//checkError(result, gid);
 	}
 #else
 	/* Dynamic Parallelism Test*/
@@ -3865,13 +3877,19 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["DynamicParallelismTest"];
 		cl::Buffer test;
-		cl_int n = 1000;
+		cl_int n = 1;
 		CLFW::get(test, "test", sizeof(cl_int) * n);
 
-		error |= kernel.setArg(0, test);
-		error |= kernel.setArg(1, queue);
+		error |= kernel.setArg(0, CLFW::DeviceQueue);
+		queue.finish();
 
+
+		auto start = std::chrono::high_resolution_clock::now();
 		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(n), cl::NullRange);
+		queue.finish();
+		auto elapsed = high_resolution_clock::now() - start;
+		cout<< std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count()<<endl;
+		
 		vector<cl_int> result;
 		error |= CLFW::Download<cl_int>(test, n, result);
 
