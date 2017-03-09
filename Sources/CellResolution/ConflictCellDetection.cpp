@@ -13,7 +13,7 @@
 #define __local
 #define __global
 #endif
-bool liangBarskey(floatn *min, floatn *max, floatn *p1, floatn *p2) {
+bool liangBarskey(floatn *min, floatn *max, floatn *p1, floatn *p2, int gid, int debug) {
 	float p[4], q[4];
 	p[0] = -(p2->x - p1->x);
 	p[1] = -(p2->y - p1->y);
@@ -28,14 +28,16 @@ bool liangBarskey(floatn *min, floatn *max, floatn *p1, floatn *p2) {
 	float tmin = 0.0;
 	float tmax = 1.0;
 	for (int i = 0; i < 4; ++i) {
-		if (p[i] == 0) {
-			if (q[i] < 0) return false;
+		if (p[i] == 0.0) {
+			if (q[i] < 0.0) return false;
 		}
 		else {
 			float d = q[i] / p[i];
-			if (p[i] > 0)  tmax = (tmax <= d) ? tmax : d;
+
+
+			if (p[i] > 0.0)  tmax = (tmax <= d) ? tmax : d;
 			else            tmin = (tmin >= d) ? tmin : d;
-			if (tmin > tmax || tmax == 0.0 || tmin == 1.0) return false;
+			if (tmin > tmax || tmax == 0.0 || fabs(tmin - 1.0 ) < EPSILON) return false;
 		}
 	}
 	return true;
@@ -108,11 +110,12 @@ void FindConflictCells(
 					floatn P1 = convert_floatn(qpoints[line.first]);
 					floatn P2 = convert_floatn(qpoints[line.second]); //.004
 
+					
 					//...if the line isn't degenerate...
-					if ((P1.x != P2.x || P1.y != P2.y))
+					if ((fabs(P1.x - P2.x) > EPSILON || fabs(P1.y - P2.y) > EPSILON))
 					{
 						//...and if the line touches the current leaf
-						if (liangBarskey((float2*)(&origin), (float2*)(&max_), &P2, &P1))
+						if (liangBarskey((float2*)(&origin), (float2*)(&max_), &P2, &P1, gid, lineIndx))
 						{
 							//...then if the current leaf has no color, color it with the line.
 							if (currentConflict.color == -1)

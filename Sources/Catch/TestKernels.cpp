@@ -17,18 +17,18 @@ using namespace GLUtilities;
 Scenario("Additive Reduction", "[reduction]") {
 	Given("N random integers") {
 		vector<cl_int>small_input = generateDeterministicRandomIntegers(a_few);
-    vector<cl_int>large_input(a_lot, 1);
+		vector<cl_int>large_input(a_lot, 1);
 		When("we reduce these numbers in series") {
 			int small_output_s, large_output_s;
 			Reduce_s(small_input, small_output_s);
 			Reduce_s(large_input, large_output_s);
 			Then("we get the summation of those integers") {
-        cl_int small_actual = 0;
-        cl_int large_actual = 0;
-        for (int i = 0; i < a_few; ++i)
-          small_actual += small_input[i];
-        for (int i = 0; i < a_lot; ++i)
-          large_actual += large_input[i];
+				cl_int small_actual = 0;
+				cl_int large_actual = 0;
+				for (int i = 0; i < a_few; ++i)
+					small_actual += small_input[i];
+				for (int i = 0; i < a_lot; ++i)
+					large_actual += large_input[i];
 				Require(small_output_s == small_actual);
 				Require(large_output_s == large_actual);
 			}
@@ -51,7 +51,7 @@ Scenario("Additive Reduction", "[reduction]") {
 		}
 	}
 }
-Scenario("Check Order", "[4way][sort][reduction]") {
+Scenario("Check Order", "[disabled][4way][sort][reduction]") {
 	Given("a list containing 2^n ordered big") {
 		TODO("run this check on n' elements, and then on 1 + n - n' elements");
 		vector<big> small_input(Kernels::nextPow2(a_few));
@@ -1151,12 +1151,6 @@ Scenario("Find Conflict Cells", "[conflict]") {
 		When("we use this data to find conflict cells in series") {
 			vector<Conflict> s_conflicts;
 			FindConflictCells_s(f_octree, f_leaves, f_LCPToLine, f_LCPBounds, f_lines, f_qpoints, f_resln.width, s_conflicts);
-			Then("the results are valid") {
-				cl_int success = true;
-				for (int i = 0; i < f_numLeaves; ++i)
-					success &= compareConflict(&s_conflicts[i], &f_conflicts[i]);
-				Require(success == true);
-			}
 			Then("the series results match the parallel results") {
 					cl_int error = 0;
 					vector<Conflict> p_conflicts(f_numLeaves);
@@ -1178,10 +1172,21 @@ Scenario("Find Conflict Cells", "[conflict]") {
 					error |= CLFW::Download(b_conflicts, f_numLeaves, p_conflicts);
 					Require(error == 0);
 					cl_int success = true;
-					for (int i = 0; i < f_numLeaves; i++)
+					for (int i = 0; i < f_numLeaves; i++) {
 						success &= compareConflict(&p_conflicts[i], &s_conflicts[i]);
+					}
 					Require(success == true);
 				}
+			Then("the results are valid") {
+				cl_int success = true;
+				for (int i = 0; i < f_numLeaves; ++i) {
+					success &= compareConflict(&s_conflicts[i], &f_conflicts[i]);
+					if (!success) {
+						success &= compareConflict(&s_conflicts[i], &f_conflicts[i]);
+					}
+				}
+				Require(success == true);
+			}
 		}
 	}
 }
@@ -1243,7 +1248,7 @@ Scenario("Sample required resolution points", "[resolution]") {
 		}
 	}
 }
-Scenario("Predicate Conflict To Point", "[predication][resolution]") {
+Scenario("Predicate Conflict To Point", "[selected][predication][resolution]") {
 	Given("the scanned number of resolution points to create per conflict") {
 		cl_int numConflicts = readFromFile<cl_int>("./TestData/simple/numConflicts.bin");
 		cl_int numResPts = readFromFile<cl_int>("TestData//simple//numResPts.bin");
@@ -1326,6 +1331,6 @@ Scenario("Get resolution points", "[resolution]") {
 }
 
 /* Recursive kernel test */
-Scenario("Recursive Dynamic Parallelizm", "[selected][test]") {
+Scenario("Recursive Dynamic Parallelizm", "[test]") {
 	Kernels::DynamicParallelsim();
 }

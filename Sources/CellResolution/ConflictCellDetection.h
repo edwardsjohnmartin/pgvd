@@ -28,7 +28,7 @@ inline std::ostream& operator<<(std::ostream& os, const Conflict& c) {
 #endif
 
 /* Ambiguous cells code */
-bool liangBarskey(floatn *min, floatn *max, floatn *p1, floatn *p2);
+bool liangBarskey(floatn *min, floatn *max, floatn *p1, floatn *p2, int gid, int debug);
 
 #define dot(u,v)   ((u).x * (v).x + (u).y * (v).y)
 

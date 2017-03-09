@@ -1,5 +1,6 @@
 # Defining source files
 set ( SRC
+	"${CMAKE_CURRENT_LIST_DIR}/../include/cl2.hpp"
 	"${CMAKE_CURRENT_LIST_DIR}/../include/clfw.hpp"
 	"${CMAKE_CURRENT_LIST_DIR}/clfw.cpp"
 )

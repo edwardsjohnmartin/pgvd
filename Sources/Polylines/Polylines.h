@@ -50,7 +50,7 @@ class PolyLines {
   void addPoint(const floatn& p) {
 		if (lasts.size() == 0) return;
     using namespace std;
-    glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
+    //glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
 
     if (size == capacity) {
       floatn* temp = new floatn[capacity*2];
@@ -58,15 +58,15 @@ class PolyLines {
       delete [] points;
       points = temp;
       capacity *= 2;
-      glBufferData(
-          GL_ARRAY_BUFFER, capacity*sizeof(floatn), points, GL_STATIC_DRAW);
+      /*glBufferData(
+          GL_ARRAY_BUFFER, capacity*sizeof(floatn), points, GL_STATIC_DRAW);*/
       cout << "Updating capacity to " << capacity << endl;
     }
     points[size] = p;
 
-    glBufferSubData(
+    /*glBufferSubData(
         GL_ARRAY_BUFFER, size*sizeof(floatn),
-        sizeof(floatn), points+size);
+        sizeof(floatn), points+size);*/
 
     ++size;
     lasts.back() = size;

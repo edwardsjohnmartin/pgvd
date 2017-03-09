@@ -7,13 +7,10 @@
   CLFW wraps OpenCL calls in a easy to use framework.
 */
 
+#define CL_HPP_TARGET_OPENCL_VERSION 200
+
 /* Included files */
-#ifdef __APPLE__
-//#include <OpenCL/cl.hpp>
-#include "./cl2.hpp"
-#else
-#include <CL/cl2.hpp>
-#endif
+#include "cl2.hpp"
 
 #include <vector>
 #include <string>

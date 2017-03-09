@@ -165,13 +165,26 @@ namespace GLUtilities {
 		Shaders::boxProgram->use();
 
 		glBindVertexArray(boxesVAO);
+		print_gl_error();
+
 		glBindBuffer(GL_ARRAY_BUFFER, boxesVBO);
+		print_gl_error();
+
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Box) * boxes.size(), boxes.data(),
 			GL_STREAM_DRAW);
+		print_gl_error();
+
 		glUniformMatrix4fv(Shaders::boxProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
+		print_gl_error();
+
 		glUniform1f(Shaders::boxProgram->pointSize_id, 10.0);
+		print_gl_error();
+
 		glLineWidth(2.0);
+		print_gl_error();
+
 		glDrawElementsInstanced(GL_LINES, 12 * 2, GL_UNSIGNED_BYTE, 0, boxes.size());
+
 		print_gl_error();
 		glBindVertexArray(0);
 	}

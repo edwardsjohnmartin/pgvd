@@ -13,11 +13,7 @@
 #ifndef OpenCL
 // Had to move this here to compile on Mac
 #include "GLUtilities/gl_utils.h"
-#ifdef __APPLE__
-#include "./cl2.hpp"
-#else
-#include <CL/cl2.hpp>
-#endif
+#include "cl2.hpp"
 #include "BoundingBox/BoundingBox.h"
 #include  "Options/options.h"
 #include "./glm/gtc/matrix_transform.hpp"
@@ -525,7 +521,7 @@ namespace Kernels {
 		error |= queue.enqueueNDRangeKernel(predicateAscKernel, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(localSize));
 
 		if (globalSize != localSize) {
-			error |= Reduce_p(predication, numElems / localSize, "CBO", resultBuf);
+			error |= Reduce_p(predication, numElems / localSize, "CBO", resultBuf); //Occasionally returns -5!
 			error |= CLFW::Download<cl_int>(resultBuf, 0, result);
 		}
 		else
@@ -3717,14 +3713,14 @@ namespace Kernels {
 		error |= queue.enqueueCopyBuffer(zeroBuffer, predication_o, 0, 0, sizeof(cl_int) * nextPow2(numResPts));
 		error |= kernel.setArg(0, scannedNumPtsPerConflict_i);
 		error |= kernel.setArg(1, predication_o);
-		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numConflicts - 1), cl::NullRange);
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numConflicts), cl::NullRange); //used to be numConflicts -1... not sure why
 
 		return error;
 	}
 
 	inline cl_int PredicatePointToConflict_s(vector<cl_int> scannedNumPtsPerConflict_i, cl_int numResPts, vector<cl_int> &predication_o) {
 		predication_o.resize(numResPts, 0);
-		for (int i = 0; i < scannedNumPtsPerConflict_i.size() - 1; ++i) {
+		for (int i = 0; i < scannedNumPtsPerConflict_i.size(); ++i) {//used to be numConflicts -1... not sure why
 			predPntToConflict(scannedNumPtsPerConflict_i.data(), predication_o.data(), i);
 		}
 		return CL_SUCCESS;
@@ -3817,22 +3813,22 @@ namespace Kernels {
 
 #ifdef OpenCL
 	inline void checkError(int error, int id) {
-		if (error == CLK_ENQUEUE_FAILURE) 
-			printf("gid %d got CLK_ENQUEUE_FAILURE\n", id);
-		if (error == CLK_INVALID_QUEUE) 
-			printf("gid %d got CLK_INVALID_QUEUE\n", id);
-		if (error == CLK_INVALID_NDRANGE) 
-			printf("gid %d got CLK_INVALID_NDRANGE\n", id);
-		if (error == CLK_INVALID_EVENT_WAIT_LIST) 
-			printf("gid %d got CLK_INVALID_EVENT_WAIT_LIST\n", id);
-		if (error == CLK_DEVICE_QUEUE_FULL)
-			printf("gid %d got CLK_DEVICE_QUEUE_FULLn", id);
-		if (error == CLK_INVALID_ARG_SIZE) 
-			printf("gid %d got CLK_INVALID_ARG_SIZE\n", id);
-		if (error == CLK_EVENT_ALLOCATION_FAILURE) 
-			printf("gid %d got CLK_EVENT_ALLOCATION_FAILURE\n", id);
-		if (error == CLK_OUT_OF_RESOURCES) 
-			printf("gid %d got CLK_OUT_OF_RESOURCES\n", id);
+		//if (error == CLK_ENQUEUE_FAILURE) 
+		//	printf("gid %d got CLK_ENQUEUE_FAILURE\n", id);
+		//if (error == CLK_INVALID_QUEUE) 
+		//	printf("gid %d got CLK_INVALID_QUEUE\n", id);
+		//if (error == CLK_INVALID_NDRANGE) 
+		//	printf("gid %d got CLK_INVALID_NDRANGE\n", id);
+		//if (error == CLK_INVALID_EVENT_WAIT_LIST) 
+		//	printf("gid %d got CLK_INVALID_EVENT_WAIT_LIST\n", id);
+		//if (error == CLK_DEVICE_QUEUE_FULL)
+		//	printf("gid %d got CLK_DEVICE_QUEUE_FULLn", id);
+		//if (error == CLK_INVALID_ARG_SIZE) 
+		//	printf("gid %d got CLK_INVALID_ARG_SIZE\n", id);
+		//if (error == CLK_EVENT_ALLOCATION_FAILURE) 
+		//	printf("gid %d got CLK_EVENT_ALLOCATION_FAILURE\n", id);
+		//if (error == CLK_OUT_OF_RESOURCES) 
+		//	printf("gid %d got CLK_OUT_OF_RESOURCES\n", id);
 	}
 
 	__kernel void DynamicParallelsim_internal(
@@ -3841,6 +3837,8 @@ namespace Kernels {
 		cl_int recursionLevel
 		)
 	{
+		if (location == 0)
+			printf("level %d\n", recursionLevel);
 		if (recursionLevel < 512) {
 			ndrange_t ndrange = ndrange_1D(1);
 			int result = enqueue_kernel(
@@ -3851,7 +3849,7 @@ namespace Kernels {
 			//checkError(result, location);
 		}
 		else {
-			//printf("id %d recursed successfully\n", location);
+			printf("id %d recursed successfully\n", location);
 		}
 	}
 	__kernel void DynamicParallelismTest (
@@ -3882,7 +3880,6 @@ namespace Kernels {
 
 		error |= kernel.setArg(0, CLFW::DeviceQueue);
 		queue.finish();
-
 
 		auto start = std::chrono::high_resolution_clock::now();
 		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(n), cl::NullRange);

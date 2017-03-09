@@ -30,6 +30,9 @@
 # GLFW_LIBRARIES
 #
 
+message(WARN $ENV{GLFW_LOCATION})
+
+
 find_path( GLFW_INCLUDE_DIR 
     NAMES
         GLFW/glfw3.h

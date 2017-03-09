@@ -7,7 +7,7 @@
 Benchmark("Additive Reduction", "[reduction]") {
 	TODO("Benchmark this");
 }
-Benchmark("Check Order", "[selected][4way][sort][reduction]") {
+Benchmark("Check Order", "[4way][sort][reduction]") {
 	/* Load dependencies */
 	cl_int numPts = readFromFile<cl_int>("BenchmarkData//binaries//numPts.bin");
 	vector<big> zpoints(numPts);
