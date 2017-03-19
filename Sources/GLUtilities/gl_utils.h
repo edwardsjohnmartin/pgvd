@@ -9,7 +9,6 @@
 
 #pragma once 
 
-#include <string>
 #define GLEW_STATIC
 #include <GL/glew.h>
 #ifdef __MAC__
@@ -18,6 +17,7 @@
   #include <GL/gl.h>
 #endif
 
+#include <string>
 #include <GLFW/glfw3.h> // GLFW helper library
 #include <stdarg.h>
 #define GL_LOG_FILE "gl.log"

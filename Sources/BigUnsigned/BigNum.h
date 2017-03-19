@@ -59,7 +59,7 @@ static inline cl_ulong getRShiftedBlk(big *num, cl_uint blkIndx, cl_uint shift) 
 	return part1 | part2;
 }
 static inline cl_uchar getBigBit(big *b, cl_uint blkIndx, cl_uint bitIndx) {
-	return (b->blk[blkIndx] & (1UL << bitIndx)) != 0UL;
+	return (b->blk[blkIndx] & (1UL << (unsigned long)bitIndx)) != 0UL;
 }
 inline void setBigBit(big *bn, cl_uint blkIndx, cl_uint bitIndx, cl_uchar newBit) {
 	cl_ulong block = bn->blk[blkIndx], mask = 1UL << bitIndx;
@@ -117,7 +117,7 @@ inline big addBig(big *a, big *b) {
 inline big subtractBig(big *a, big *b) {
 	// some variables...
 	big result = makeBig(0);
-	bool borrowin, borrowout;
+	bool borrowout;
 	cl_ulong temp;
 
 #pragma unroll

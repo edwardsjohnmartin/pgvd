@@ -22,14 +22,14 @@ inline void BuildBinaryRadixTree(
 	__global cl_int *IColors, 
 	__global big* mpoints, 
 	__global cl_int *pointColors, 
-	int mbits, int size, bool colored, const unsigned int gid)
+	int mbits, int size, bool colored, const int gid)
 {
 	big current;
   big left;
   big right;
   big temp;
   //n-1 internal nodes.
-  if (gid < size - 1) {
+  if (gid < (size - 1)) {
     // Determine direction of the range (+1 or -1) 
     int d;
     current = mpoints[gid];

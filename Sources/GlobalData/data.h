@@ -3,6 +3,6 @@
 #include "Octree/Octree2.h"
 
 namespace Data {
-  extern PolyLines *lines;
+	extern PolyLines *lines;
   extern Quadtree *quadtree;
 };

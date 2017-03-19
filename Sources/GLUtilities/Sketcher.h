@@ -10,6 +10,9 @@
 #include "Octree/OctNode.h"
 #include "Polylines/Polylines.h"
 
+#include "stb_image.h"
+#include "objload.h"
+
 using namespace std;
 extern class Quadtree;
 namespace GLUtilities {
@@ -29,6 +32,19 @@ namespace GLUtilities {
 		float4 color;
 	} Box;
 
+	typedef struct Texture {
+		GLuint textureId;
+		int width;
+		int height;
+	} Texture;
+
+	typedef struct Plane {
+		glm::vec3 offset;
+		GLfloat width;
+		GLfloat height;
+		string texName;
+	};
+
 	class Sketcher
 	{
 		static Sketcher *s_instance;
@@ -36,16 +52,20 @@ namespace GLUtilities {
 		std::vector<Point> points;
 		std::vector<SketcherLine> lines;
 		std::vector<Box> boxes;
+		std::vector<Plane> planes;
+		std::unordered_map<string, Texture> textures;
 
 		GLuint pointsVBO;
 		GLuint linesVBO;
 		GLuint boxesVBO;
 		GLuint boxPointsVBO;
 		GLuint boxPointIndxVBO;
+		GLuint backgroundVBO;
 
 		GLuint pointsVAO;
 		GLuint linesVAO;
 		GLuint boxesVAO;
+		GLuint backgroundVAO;
 				
 	private: 
 		void add_internal(vector<OctNode> &o, int i, floatn offset, float scale, float3 color);
@@ -55,12 +75,12 @@ namespace GLUtilities {
 			glBindVertexArray(pointsVAO);
 			glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
 			/* Each point has a position (float4) and color (float4)*/
-			glEnableVertexAttribArray(Shaders::sketchProgram->position_id);
-			glEnableVertexAttribArray(Shaders::sketchProgram->color_id);
-			glVertexAttribPointer(Shaders::sketchProgram->position_id, 4, GL_FLOAT, GL_FALSE, sizeof(Point), 0);
-			glVertexAttribPointer(Shaders::sketchProgram->color_id, 4, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)(sizeof(float4)));
-			glVertexAttribDivisor(Shaders::sketchProgram->position_id, 1);
-			glVertexAttribDivisor(Shaders::sketchProgram->color_id, 1);
+			glEnableVertexAttribArray(Shaders::pointProgram->position_id);
+			glEnableVertexAttribArray(Shaders::pointProgram->color_id);
+			glVertexAttribPointer(Shaders::pointProgram->position_id, 4, GL_FLOAT, GL_FALSE, sizeof(Point), 0);
+			glVertexAttribPointer(Shaders::pointProgram->color_id, 4, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)(sizeof(float4)));
+			glVertexAttribDivisor(Shaders::pointProgram->position_id, 1);
+			glVertexAttribDivisor(Shaders::pointProgram->color_id, 1);
 			print_gl_error();
 		}
 		void setupLines() {
@@ -68,11 +88,11 @@ namespace GLUtilities {
 			glBindBuffer(GL_ARRAY_BUFFER, linesVBO);
 			/* Each line contains two points, which each contain a position and color. 
 				 Drawing a line is exactly like drawing a point */
-			glEnableVertexAttribArray(Shaders::sketchLineProgram->position_id);
-			glEnableVertexAttribArray(Shaders::sketchLineProgram->color_id);
-			glVertexAttribPointer(Shaders::sketchLineProgram->position_id, 4, 
+			glEnableVertexAttribArray(Shaders::lineProgram->position_id);
+			glEnableVertexAttribArray(Shaders::lineProgram->color_id);
+			glVertexAttribPointer(Shaders::lineProgram->position_id, 4, 
 				GL_FLOAT, GL_FALSE, sizeof(Point), 0);
-			glVertexAttribPointer(Shaders::sketchLineProgram->color_id, 4, 
+			glVertexAttribPointer(Shaders::lineProgram->color_id, 4, 
 				GL_FLOAT, GL_FALSE, sizeof(Point), (void*)(sizeof(float4)));
 			print_gl_error();
 		}
@@ -127,17 +147,40 @@ namespace GLUtilities {
 			glVertexAttribDivisor(Shaders::boxProgram->color_id, 1);
 			print_gl_error();
 		}
+		void setupPlanes() {
+			glBindVertexArray(backgroundVAO);
+			/* Generate buffers */
+			glGenBuffers(1, &backgroundVBO);
+
+			/* Upload positions */
+			float positions[] = {
+				-1., -1., -1., 1., 1., 1., 
+				-1., -1., 1., -1., 1., 1.,
+			};
+			glBindBuffer(GL_ARRAY_BUFFER, backgroundVBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+			glEnableVertexAttribArray(Shaders::planeProgram->position_id);
+			glVertexAttribPointer(Shaders::planeProgram->position_id, 2, GL_FLOAT, 0,
+				sizeof(glm::vec2), 0);
+			
+			glBindVertexArray(0);
+		}
 	public:
 		void drawPoints(const glm::mat4& mvMatrix);
 		void drawLines(const glm::mat4& mvMatrix);
 		void drawBoxes(const glm::mat4& mvMatrix);
+		void drawPlanes(const glm::mat4& mvMatrix);
 		void draw();
 		void draw(const glm::mat4& mvMatrix);
+		void uploadImage(string imagePath, string textureName);
+		void uploadObj(string objPath, string objName);
 		void add(Point p);
 		void add(SketcherLine l);
 		void add(Box b);
+		void add(Plane p);
 		void add(Quadtree &q); 
 		void add(PolyLines &p);
+		void add(vector<vector<floatn>> polygons);
 		void clearPoints();
 		void clearLines();
 		void clearBoxes();
@@ -163,12 +206,14 @@ namespace GLUtilities {
 			glGenVertexArrays(1, &pointsVAO);
 			glGenVertexArrays(1, &linesVAO);
 			glGenVertexArrays(1, &boxesVAO);
+			glGenVertexArrays(1, &backgroundVAO);
 			assert(glGetError() == GL_NO_ERROR);
 
 			/* Associate buffers with attributes */
 			setupPoints();
 			setupLines();
 			setupBoxes();
+			setupPlanes();
 		}
 	};
 }

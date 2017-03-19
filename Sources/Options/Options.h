@@ -23,19 +23,21 @@
  // Options
  //------------------------------------------------------------------------------
 namespace Options {
-  extern int device;
+  extern int computeDevice;
   extern std::vector<std::string> filenames;
   extern unsigned char max_level;
   extern bool series;
 
-  extern float xmin, ymin, xmax, ymax;
+  extern float bbxmin, bbymin, bbxmax, bbymax;
   
   // Render settings
   extern bool showObjectVertices;
-  extern bool showObjects;
+	extern bool showObjects;
+	extern bool showQuantizedObjects;
   extern bool showOctree;
   extern bool showOctreeConflicts;
 	extern bool showResolutionPoints;
+	extern bool showImage;
 	extern bool pruneOctree;
 
   extern float conflict_color[3];

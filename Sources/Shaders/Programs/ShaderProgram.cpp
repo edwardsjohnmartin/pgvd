@@ -10,13 +10,19 @@ void ShaderProgram::getAttributes() {
   position_id = glGetAttribLocation(program, "position");
   offset_id = glGetAttribLocation(program, "offset");
   scale_id = glGetAttribLocation(program, "scale");
-  color_id = glGetAttribLocation(program, "color");
+	color_id = glGetAttribLocation(program, "color");
+	uv_id = glGetAttribLocation(program, "uv");
+	normal_id = glGetAttribLocation(program, "normal");
 }
 
 void ShaderProgram::getUniforms() {
   matrix_id = glGetUniformLocation(program, "matrix");
   pointSize_id = glGetUniformLocation(program, "point_size");
   color_uniform_id = glGetUniformLocation(program, "color");
+	texture_id = glGetUniformLocation(program, "texture");
+	offset_uniform_id = glGetUniformLocation(program, "u_offset");
+	width_uniform_id = glGetUniformLocation(program, "width");
+	height_uniform_id = glGetUniformLocation(program, "height");
 }
 
 void ShaderProgram::use() {

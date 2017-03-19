@@ -95,8 +95,8 @@ inline int compareLCP(LCP *a, LCP *b) {
 	for (cl_int i = a->len - 1; i >= a->len - numBits; --i) {
 		cl_int blk = i % NumBitsPerBlock;
 		cl_int bit = i / NumBitsPerBlock;
-		bool bit1 = getBigBit(&a->bu, blk, bit);
-		bool bit2 = getBigBit(&b->bu, blk, bit);
+		bool bit1 = (bool)getBigBit(&a->bu, blk, bit);
+		bool bit2 = (bool)getBigBit(&b->bu, blk, bit);
 		if (bit1 == bit2)
 			continue;
 		else if (bit1 > bit2)

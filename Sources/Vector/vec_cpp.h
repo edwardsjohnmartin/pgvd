@@ -552,7 +552,7 @@ inline cl_float length(const float3 v) {
 inline cl_int length(const int3 v) {
   float3 vf = make_float3();
   for (cl_int i = 0; i < 3; ++i) {
-    vf.s[i] = v.s[i];
+    vf.s[i] = (float)v.s[i];
   }
   cl_float n = length(vf);
   return (cl_int)(n+0.5);

@@ -36,8 +36,8 @@ Scenario("Additive Reduction", "[reduction]") {
 				cl_int small_output_p, large_output_p;
 				cl::Buffer b_small_input, b_large_input, b_small_output, b_large_output;
 				cl_int error = 0;
-				error |= CLFW::get(b_small_input, "small", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_large_input, "large", a_lot * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_input, "small", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_large_input, "large", a_lot * sizeof(cl_int));
 				error |= CLFW::Upload<cl_int>(small_input, b_small_input);
 				error |= CLFW::Upload<cl_int>(large_input, b_large_input);
 				Require(error == CL_SUCCESS);
@@ -64,8 +64,8 @@ Scenario("Check Order", "[disabled][4way][sort][reduction]") {
 			cl_int error = 0;
 			cl_int smallResult, largeResult;
 			cl::Buffer b_small_input, b_large_input;
-			error |= CLFW::get(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
-			error |= CLFW::get(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
+			error |= CLFW::getBuffer(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
+			error |= CLFW::getBuffer(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
 			error |= CLFW::Upload<big>(small_input, b_small_input);
 			error |= CLFW::Upload<big>(large_input, b_large_input);
 			error |= CheckBigOrder_p(b_small_input, Kernels::nextPow2(a_few), smallResult);
@@ -83,8 +83,8 @@ Scenario("Check Order", "[disabled][4way][sort][reduction]") {
 				cl_int error = 0;
 				cl_int smallResult, largeResult;
 				cl::Buffer b_small_input, b_large_input;
-				error |= CLFW::get(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
-				error |= CLFW::get(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
+				error |= CLFW::getBuffer(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
+				error |= CLFW::getBuffer(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
 				error |= CLFW::Upload<big>(small_input, b_small_input);
 				error |= CLFW::Upload<big>(large_input, b_large_input);
 				TODO("make checkorder work for non-power of two elements");
@@ -117,7 +117,7 @@ Scenario("Predicate by bit", "[predication]") {
 				vector<cl_int>small_output_p(a_few);
 				cl::Buffer b_small_input, b_small_output;
 				cl_int error = 0;
-				error |= CLFW::get(b_small_input, "small", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_input, "small", a_few * sizeof(cl_int));
 				error |= CLFW::Upload<cl_int>(small_input, b_small_input);
 				error |= PredicateByBit_p(b_small_input, 2, 1, a_few, "a", b_small_output);
 				error |= CLFW::Download<cl_int>(b_small_output, a_few, small_output_p);
@@ -146,7 +146,7 @@ Scenario("Predicate big by bit", "[predication]") {
 				vector<cl_int>large_output_p(a_lot);
 				cl::Buffer b_small_input, b_small_output;
 				cl_int error = 0;
-				error |= CLFW::get(b_small_input, "small", a_few * sizeof(big));
+				error |= CLFW::getBuffer(b_small_input, "small", a_few * sizeof(big));
 				error |= CLFW::Upload<big>(small_input, b_small_input);
 				error |= PredicateBigByBit_p(b_small_input, 2, 1, a_few, "a", b_small_output);
 				error |= CLFW::Download<cl_int>(b_small_output, a_few, small_output_p);
@@ -174,7 +174,7 @@ Scenario("Predicate Conflict", "[conflict][predication]") {
 				vector<cl_int>small_output_p(a_few);
 				cl::Buffer b_small_input, b_small_output;
 				cl_int error = 0;
-				error |= CLFW::get(b_small_input, "small", a_few * sizeof(Conflict));
+				error |= CLFW::getBuffer(b_small_input, "small", a_few * sizeof(Conflict));
 				error |= CLFW::Upload<Conflict>(small_input, b_small_input);
 				error |= PredicateConflicts_p(b_small_input, a_few, "a", b_small_output);
 				error |= CLFW::Download<cl_int>(b_small_output, a_few, small_output_p);
@@ -210,10 +210,10 @@ Scenario("Integer Compaction", "[compaction]") {
 				cl_int error = 0;
 				vector<cl_int> small_output_p(a_few);
 				cl::Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
-				error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_small_output, "b_small_output", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_output, "b_small_output", a_few * sizeof(cl_int));
 				error |= CLFW::Upload<cl_int>(small_input, b_small_input);
 				error |= CLFW::Upload<cl_int>(small_pred, b_small_pred);
 				error |= CLFW::Upload<cl_int>(small_addr, b_small_addr);
@@ -250,10 +250,10 @@ Scenario("Big Unsigned Compaction", "[compaction]") {
 				cl_int error = 0;
 				vector<big> small_output_p(a_few);
 				cl::Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
-				error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(big));
-				error |= CLFW::get(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_small_output, "b_small_output", a_few * sizeof(big));
+				error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(big));
+				error |= CLFW::getBuffer(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_output, "b_small_output", a_few * sizeof(big));
 				error |= CLFW::Upload<big>(small_input, b_small_input);
 				error |= CLFW::Upload<cl_int>(small_pred, b_small_pred);
 				error |= CLFW::Upload<cl_int>(small_addr, b_small_addr);
@@ -290,10 +290,10 @@ Scenario("Conflict Compaction", "[conflict][compaction]") {
 				cl_int error = 0;
 				vector<Conflict> small_output_p(a_few);
 				cl::Buffer b_small_input, b_small_pred, b_small_addr, b_small_output;
-				error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(Conflict));
-				error |= CLFW::get(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_small_output, "b_small_output", a_few * sizeof(Conflict));
+				error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(Conflict));
+				error |= CLFW::getBuffer(b_small_pred, "b_small_pred", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_addr, "b_small_addr", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_output, "b_small_output", a_few * sizeof(Conflict));
 				error |= CLFW::Upload<Conflict>(small_input, b_small_input);
 				error |= CLFW::Upload<cl_int>(small_pred, b_small_pred);
 				error |= CLFW::Upload<cl_int>(small_addr, b_small_addr);
@@ -331,10 +331,10 @@ Scenario("Inclusive Summation Scan", "[scan]") {
 				vector<cl_int>small_output_p(a_few), large_output_p(a_lot);
 				cl::Buffer b_small_input, b_large_input, b_small_output, b_large_output;
 				cl_int error = 0;
-				error |= CLFW::get(b_small_input, "smallin", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_large_input, "largein", a_lot * sizeof(cl_int));
-				error |= CLFW::get(b_small_output, "smallout", a_few * sizeof(cl_int));
-				error |= CLFW::get(b_large_output, "largeout", a_lot * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_input, "smallin", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_large_input, "largein", a_lot * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_small_output, "smallout", a_few * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_large_output, "largeout", a_lot * sizeof(cl_int));
 				error |= CLFW::Upload<cl_int>(small_input, b_small_input);
 				error |= CLFW::Upload<cl_int>(large_input, b_large_input);
 				error |= StreamScan_p(b_small_input, a_few, "a", b_small_output);
@@ -386,7 +386,7 @@ Scenario("Four Way Frequency Count (bigs)", "[sort][4way]") {
 					vector<big> p_shuffle;
 					vector<cl_int> p_blockSum;
 					cl::Buffer b_in, b_blkSum, b_shuffle;
-					error |= CLFW::get(b_in, "in", 20 * sizeof(big));
+					error |= CLFW::getBuffer(b_in, "in", 20 * sizeof(big));
 					error |= CLFW::Upload<big>(in, b_in);
 					error |= BigFourWayPrefixSumAndShuffle_p(b_in, 20, blockSize, 0, 0, b_blkSum, b_shuffle);
 					error |= CLFW::Download<big>(b_shuffle, 20, p_shuffle);
@@ -424,9 +424,9 @@ Scenario("Move Four Way Shuffled Elements (bigs)", "[sort][4way]")
 					vector<big> p_result;
 					vector<cl_int> p_blockSum;
 					cl::Buffer b_shuffle, b_blkSum, b_prefixBlkSum, b_result;
-					error |= CLFW::get(b_shuffle, "shuffle", 20 * sizeof(big));
-					error |= CLFW::get(b_blkSum, "blkSum", 20 * sizeof(cl_int));
-					error |= CLFW::get(b_prefixBlkSum, "prefixBlkSum", 20 * sizeof(cl_int));
+					error |= CLFW::getBuffer(b_shuffle, "shuffle", 20 * sizeof(big));
+					error |= CLFW::getBuffer(b_blkSum, "blkSum", 20 * sizeof(cl_int));
+					error |= CLFW::getBuffer(b_prefixBlkSum, "prefixBlkSum", 20 * sizeof(cl_int));
 					error |= CLFW::Upload<big>(f_shuffle, b_shuffle);
 					error |= CLFW::Upload<cl_int>(f_blockSum, b_blkSum);
 					error |= CLFW::Upload<cl_int>(f_prefixBlockSum, b_prefixBlkSum);
@@ -456,7 +456,7 @@ Scenario("Four Way Radix Sort (bigs)", "[sort][4way]") {
 			vector<big> result2;
 			cl_int error = 0;
 			cl::Buffer b_input, b_other;
-			error |= CLFW::get(b_input, "input", numElements * sizeof(big));
+			error |= CLFW::getBuffer(b_input, "input", numElements * sizeof(big));
 			error |= CLFW::Upload<big>(input, b_input);
 			error |= RadixSortBig_p(b_input, numElements, 48, "");
 			error |= CLFW::Download<big>(b_input, numElements, result);
@@ -486,8 +486,8 @@ Scenario("Four Way Radix Sort (<big, cl_int> by Key)", "[sort][4way]") {
 		When("these pairs are sorted by key in parallel") {
 			cl_int error = 0;
 			cl::Buffer b_keys, b_values;
-			error |= CLFW::get(b_keys, "b_keys", a_lot * sizeof(big));
-			error |= CLFW::get(b_values, "b_values", a_lot * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_keys, "b_keys", a_lot * sizeof(big));
+			error |= CLFW::getBuffer(b_values, "b_values", a_lot * sizeof(cl_int));
 			error |= CLFW::Upload<big>(keys, b_keys);
 			error |= CLFW::Upload<cl_int>(values, b_values);
 			Require(error == CL_SUCCESS);
@@ -521,8 +521,8 @@ Scenario("Four Way Radix Sort (<cl_int, cl_int> by Key)", "[sort][4way]") {
 		When("these pairs are sorted by key in parallel") {
 			cl_int error = 0;
 			cl::Buffer b_keys, b_values;
-			error |= CLFW::get(b_keys, "b_keys", a_lot * sizeof(cl_int));
-			error |= CLFW::get(b_values, "b_values", a_lot * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_keys, "b_keys", a_lot * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_values, "b_values", a_lot * sizeof(cl_int));
 			error |= CLFW::Upload<cl_int>(keys, b_keys);
 			error |= CLFW::Upload<cl_int>(values, b_values);
 			Require(error == CL_SUCCESS);
@@ -554,8 +554,8 @@ Scenario("Parallel Radix Sort", "[1][sort][integration][failing][disabled]") {
 		When("these numbers are sorted in parallel") {
 			cl_int error = 0;
 			cl::Buffer b_small_input, b_large_input;
-			error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(cl_ulong));
-			error |= CLFW::get(b_large_input, "b_large_input", a_lot * sizeof(cl_ulong));
+			error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(cl_ulong));
+			error |= CLFW::getBuffer(b_large_input, "b_large_input", a_lot * sizeof(cl_ulong));
 			error |= CLFW::Upload<cl_ulong>(small_input, b_small_input);
 			error |= CLFW::Upload<cl_ulong>(large_input, b_large_input);
 			error |= OldRadixSort_p(b_small_input, a_few, 20);
@@ -592,10 +592,10 @@ Scenario("Parallel Radix Sort (Pairs by Key)", "[2][sort][integration]") {
 		When("these pairs are sorted by key in parallel") {
 			cl_int error = 0;
 			cl::Buffer b_small_keys, b_small_values, b_large_keys, b_large_values;
-			error |= CLFW::get(b_small_keys, "b_small_keys", a_few * sizeof(cl_int));
-			error |= CLFW::get(b_small_values, "b_small_values", a_few * sizeof(cl_int));
-			error |= CLFW::get(b_large_keys, "b_large_keys", a_lot * sizeof(cl_int));
-			error |= CLFW::get(b_large_values, "b_large_values", a_lot * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_small_keys, "b_small_keys", a_few * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_small_values, "b_small_values", a_few * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_large_keys, "b_large_keys", a_lot * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_large_values, "b_large_values", a_lot * sizeof(cl_int));
 			error |= CLFW::Upload<cl_int>(small_keys_in, b_small_keys);
 			error |= CLFW::Upload<cl_int>(small_values_in, b_small_values);
 			error |= CLFW::Upload<cl_int>(large_keys_in, b_large_keys);
@@ -655,7 +655,7 @@ Scenario("Quantize Points", "[zorder]") {
 					cl_int error = 0;
 					cl::Buffer b_small_input, b_small_output;
 					vector<intn> small_output_p(a_few);
-					error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(int2));
+					error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(int2));
 					error |= CLFW::Upload<floatn>(small_input, b_small_input);
 					error |= QuantizePoints_p(b_small_input, a_few, bb, resolution_width, "a", b_small_output);
 					error |= CLFW::Download<intn>(b_small_output, a_few, small_output_p);
@@ -681,7 +681,7 @@ Scenario("QPoints to ZPoints", "[zorder]") {
 					cl_int error = 0;
 					vector<big> small_output_p(a_few), large_output_p(a_lot);
 					cl::Buffer b_small_input, b_small_output;
-					error |= CLFW::get(b_small_input, "b_small_input", a_few * sizeof(big));
+					error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(big));
 					error |= CLFW::Upload<intn>(small_input, b_small_input);
 					error |= QPointsToZPoints_p(b_small_input, a_few, 30, "a", b_small_output);
 					error |= CLFW::Download<big>(b_small_output, a_few, small_output_p);
@@ -703,7 +703,7 @@ Scenario("Unique Sorted big", "[sort][unique]") {
 		When("those bigs are uniqued in parallel") {
 			cl_int error = 0, newSmallSize, newLargeSize;
 			cl::Buffer b_small_zpoints, b_unique_small_zpoints;
-			error |= CLFW::get(b_small_zpoints, "b_small_zpoints", a_few * sizeof(big));
+			error |= CLFW::getBuffer(b_small_zpoints, "b_small_zpoints", a_few * sizeof(big));
 			error |= CLFW::Upload<big>(small_zpoints, b_small_zpoints);
 			error |= UniqueSorted(b_small_zpoints, a_few, "a", newSmallSize);
 			vector<big> p_small_zpoints(newSmallSize);
@@ -734,8 +734,8 @@ Scenario("Unique Sorted big color pairs", "[sort][unique]") {
 			cl_int error = 0, newSmallSize, newLargeSize;
 			cl::Buffer b_small_keys, b_unique_small_keys;
 			cl::Buffer b_small_values, b_unique_small_values;
-			error |= CLFW::get(b_small_keys, "b_small_zpoints", a_few * sizeof(big));
-			error |= CLFW::get(b_small_values, "b_small_values", a_few * sizeof(cl_int));
+			error |= CLFW::getBuffer(b_small_keys, "b_small_zpoints", a_few * sizeof(big));
+			error |= CLFW::getBuffer(b_small_values, "b_small_values", a_few * sizeof(cl_int));
 			error |= CLFW::Upload<big>(small_keys, b_small_keys);
 			error |= CLFW::Upload<cl_int>(small_values, b_small_values);
 			error |= UniqueSortedBUIntPair(b_small_keys, b_small_values, a_few, "a", newSmallSize);
@@ -778,7 +778,7 @@ Scenario("Build Binary Radix Tree", "[tree]") {
 				cl_int error = 0;
 				vector<BrtNode> p_brt;
 				cl::Buffer b_zpoints, b_brt;
-				error |= CLFW::get(b_zpoints, "b_zpoints", numPts * sizeof(big));
+				error |= CLFW::getBuffer(b_zpoints, "b_zpoints", numPts * sizeof(big));
 				error |= CLFW::Upload<big>(zpnts, b_zpoints);
 				error |= BuildBinaryRadixTree_p(b_zpoints, numPts, resln.mbits, "a", b_brt);
 				error |= CLFW::Download<BrtNode>(b_brt, numPts - 1, p_brt);
@@ -826,8 +826,8 @@ Scenario("Build Colored Binary Radix Tree", "[tree]") {
 				vector<BrtNode> brt_p;
 				vector<cl_int> brtColors_p;
 				cl::Buffer b_zpoints, b_leafColors, b_brt, b_brtColors;
-				error |= CLFW::get(b_zpoints, "b_zpoints", numPts * sizeof(big));
-				error |= CLFW::get(b_leafColors, "b_leafColors", numPts * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_zpoints, "b_zpoints", numPts * sizeof(big));
+				error |= CLFW::getBuffer(b_leafColors, "b_leafColors", numPts * sizeof(cl_int));
 				error |= CLFW::Upload<big>(zpnts, b_zpoints);
 				error |= CLFW::Upload<cl_int>(leafColors, b_leafColors);
 				error |= BuildColoredBinaryRadixTree_p(b_zpoints, b_leafColors, numPts, resln.mbits, "", b_brt, b_brtColors);
@@ -866,8 +866,8 @@ Scenario("Propagate Brt Colors", "[tree]") {
 				cl_int error = 0;
 				cl::Buffer b_brt, b_brtColors;
 				vector<cl_int> brtColors_p;
-				error |= CLFW::get(b_brt, "brt", (totalPoints - 1) * sizeof(BrtNode));
-				error |= CLFW::get(b_brtColors, "b_brtColors", (totalPoints - 1) * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_brt, "brt", (totalPoints - 1) * sizeof(BrtNode));
+				error |= CLFW::getBuffer(b_brtColors, "b_brtColors", (totalPoints - 1) * sizeof(cl_int));
 				error |= CLFW::Upload<BrtNode>(brt, b_brt);
 				error |= CLFW::Upload<cl_int>(brtColors_f, b_brtColors);
 				error |= PropagateBRTColors_p(b_brt, b_brtColors, totalPoints - 1, "");
@@ -891,7 +891,7 @@ Scenario("Build Quadtree", "[tree]") {
 		When("we use that binary radix tree to build an octree in parallel") {
 			cl_int error = 0, octree_size;
 			cl::Buffer b_brt, b_octree, nullBuffer;
-			error |= CLFW::get(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
+			error |= CLFW::getBuffer(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
 			error |= CLFW::Upload<BrtNode>(brt, b_brt);
 			error |= BinaryRadixToOctree_p(b_brt, false, nullBuffer, numPts, "", b_octree, octree_size);
 			vector<OctNode> p_octree(octree_size);
@@ -957,7 +957,7 @@ Scenario("GenerateLeaves", "[tree]") {
 				vector<cl_int> pred_p(4* numOctNodes);
 				vector<Leaf> leaves_p(4* numOctNodes);
 				cl::Buffer b_small_octree, b_small_pred, b_small_leaves;
-				error |= CLFW::get(b_small_octree, "b_small_octree", 4 * numOctNodes * sizeof(OctNode));
+				error |= CLFW::getBuffer(b_small_octree, "b_small_octree", 4 * numOctNodes * sizeof(OctNode));
 				error |= CLFW::Upload<OctNode>(octree, b_small_octree);
 				error |= GenerateLeaves_p(b_small_octree, numOctNodes, b_small_leaves, b_small_pred);
 				error |= CLFW::Download(b_small_pred, 4 * numOctNodes, pred_p);
@@ -1016,10 +1016,10 @@ Scenario("Get LCPs From Lines", "[conflict]") {
 				cl_int error = 0;
 				vector<LCP> small_lcps_p(a_few), large_lcps_p(a_lot);
 				cl::Buffer b_small_lines, b_large_lines, b_small_zpoints, b_large_zpoints, b_small_lcps, b_large_lcps;
-				error |= CLFW::get(b_small_lines, "b_small_lines", a_few * sizeof(Line));
-				error |= CLFW::get(b_large_lines, "b_large_lines", a_lot * sizeof(Line));
-				error |= CLFW::get(b_small_zpoints, "b_small_zpoints", a_few * sizeof(big));
-				error |= CLFW::get(b_large_zpoints, "b_large_zpoints", a_lot * sizeof(big));
+				error |= CLFW::getBuffer(b_small_lines, "b_small_lines", a_few * sizeof(Line));
+				error |= CLFW::getBuffer(b_large_lines, "b_large_lines", a_lot * sizeof(Line));
+				error |= CLFW::getBuffer(b_small_zpoints, "b_small_zpoints", a_few * sizeof(big));
+				error |= CLFW::getBuffer(b_large_zpoints, "b_large_zpoints", a_lot * sizeof(big));
 				error |= CLFW::Upload<Line>(small_lines, b_small_lines);
 				error |= CLFW::Upload<Line>(large_lines, b_large_lines);
 				error |= CLFW::Upload<big>(small_zpoints, b_small_zpoints);
@@ -1078,8 +1078,8 @@ Scenario("Look Up Octnode From LCP", "[conflict]") {
 				cl_int error = 0;
 				vector<cl_int> p_LCPToOctnode(numLines);
 				cl::Buffer b_octree, b_lineLCPs, b_LCPToOctnode;
-				error |= CLFW::get(b_octree, "b_octree", numOctNodes * sizeof(OctNode));
-				error |= CLFW::get(b_lineLCPs, "b_lineLCPs", nextPow2(numOctNodes * sizeof(LCP)));
+				error |= CLFW::getBuffer(b_octree, "b_octree", numOctNodes * sizeof(OctNode));
+				error |= CLFW::getBuffer(b_lineLCPs, "b_lineLCPs", nextPow2(numOctNodes * sizeof(LCP)));
 				error |= CLFW::Upload(octree, b_octree);
 				error |= CLFW::Upload(lineLCPs, b_lineLCPs);
 				error |= LookUpOctnodeFromLCP_p(b_lineLCPs, numLines, b_octree, b_LCPToOctnode);
@@ -1114,7 +1114,7 @@ Scenario("Get Octnode LCP Bounds", "[conflict]") {
 					cl_int error = 0;
 					vector<Pair> p_LCPBounds(numOctNodes);
 					cl::Buffer b_LCPToOctNode, b_LCPBounds;
-					error |= CLFW::get(b_LCPToOctNode, "b_LCPToOctNode", sizeof(cl_int) * numLines);
+					error |= CLFW::getBuffer(b_LCPToOctNode, "b_LCPToOctNode", sizeof(cl_int) * numLines);
 					error |= CLFW::Upload(LCPToOctNode, b_LCPToOctNode);
 					error |= GetLCPBounds_p(b_LCPToOctNode, numLines, numOctNodes, b_LCPBounds);
 					error |= CLFW::Download(b_LCPBounds, numOctNodes, p_LCPBounds);
@@ -1129,7 +1129,7 @@ Scenario("Get Octnode LCP Bounds", "[conflict]") {
 		}
 	}
 }
-Scenario("Find Conflict Cells", "[conflict]") {
+Scenario("Find Conflict Cells", "[conflict][selected]") {
 	Given("An octree, that octree's leaves, a bcell to \n"
 		+ "line mapping (see paper), bcell index bounds for \n"
 		+ "each internal octnode, the lines and cooresponding \n"
@@ -1150,17 +1150,17 @@ Scenario("Find Conflict Cells", "[conflict]") {
 
 		When("we use this data to find conflict cells in series") {
 			vector<Conflict> s_conflicts;
-			FindConflictCells_s(f_octree, f_leaves, f_LCPToLine, f_LCPBounds, f_lines, f_qpoints, f_resln.width, s_conflicts);
+			FindConflictCells_s(f_octree, f_leaves, f_LCPToLine, f_LCPBounds, f_lines, f_qpoints, f_resln.width, false, s_conflicts);
 			Then("the series results match the parallel results") {
 					cl_int error = 0;
 					vector<Conflict> p_conflicts(f_numLeaves);
 					cl::Buffer b_octree, b_leaves, b_LCPToLine, b_LCPBounds, b_lines, b_qpoints, b_conflicts;
-					error |= CLFW::get(b_octree, "b_octree", sizeof(OctNode) * f_numOctnodes);
-					error |= CLFW::get(b_leaves, "b_leaves", sizeof(Leaf) * f_numLeaves);
-					error |= CLFW::get(b_LCPToLine, "b_LCPToLine", sizeof(cl_int) * f_numLines);
-					error |= CLFW::get(b_LCPBounds, "b_LCPBounds", sizeof(Pair) * f_numOctnodes);
-					error |= CLFW::get(b_lines, "b_lines", sizeof(Line) * f_numLines);
-					error |= CLFW::get(b_qpoints, "b_qpoints", sizeof(intn) * f_numPoints);
+					error |= CLFW::getBuffer(b_octree, "b_octree", sizeof(OctNode) * f_numOctnodes);
+					error |= CLFW::getBuffer(b_leaves, "b_leaves", sizeof(Leaf) * f_numLeaves);
+					error |= CLFW::getBuffer(b_LCPToLine, "b_LCPToLine", sizeof(cl_int) * f_numLines);
+					error |= CLFW::getBuffer(b_LCPBounds, "b_LCPBounds", sizeof(Pair) * f_numOctnodes);
+					error |= CLFW::getBuffer(b_lines, "b_lines", sizeof(Line) * f_numLines);
+					error |= CLFW::getBuffer(b_qpoints, "b_qpoints", sizeof(intn) * f_numPoints);
 					error |= CLFW::Upload(f_octree, b_octree);
 					error |= CLFW::Upload(f_leaves, b_leaves);
 					error |= CLFW::Upload(f_LCPToLine, b_LCPToLine);
@@ -1168,7 +1168,7 @@ Scenario("Find Conflict Cells", "[conflict]") {
 					error |= CLFW::Upload(f_lines, b_lines);
 					error |= CLFW::Upload(f_qpoints, b_qpoints);
 					error |= FindConflictCells_p(b_octree, b_leaves, f_numLeaves, b_LCPToLine, b_LCPBounds, 
-						b_lines, f_numLines, b_qpoints, f_resln.width, b_conflicts);
+						b_lines, f_numLines, b_qpoints, f_resln.width, false, b_conflicts);
 					error |= CLFW::Download(b_conflicts, f_numLeaves, p_conflicts);
 					Require(error == 0);
 					cl_int success = true;
@@ -1183,6 +1183,8 @@ Scenario("Find Conflict Cells", "[conflict]") {
 					success &= compareConflict(&s_conflicts[i], &f_conflicts[i]);
 					if (!success) {
 						success &= compareConflict(&s_conflicts[i], &f_conflicts[i]);
+						if (!success)
+							success &= compareConflict(&s_conflicts[i], &f_conflicts[i]);
 					}
 				}
 				Require(success == true);
@@ -1222,8 +1224,8 @@ Scenario("Sample required resolution points", "[resolution]") {
 				vector<ConflictInfo> conflictInfo_p(numConflicts);
 				vector<cl_int> numPtsPerConflict_p(numConflicts);
 				cl::Buffer b_conflicts, b_qpoints, b_conflictInfo, b_numPtsPerConflict;
-				error |= CLFW::get(b_conflicts, "b_conflicts", numConflicts * sizeof(Conflict));
-				error |= CLFW::get(b_qpoints, "b_qpoints", numPoints * sizeof(intn));
+				error |= CLFW::getBuffer(b_conflicts, "b_conflicts", numConflicts * sizeof(Conflict));
+				error |= CLFW::getBuffer(b_qpoints, "b_qpoints", numPoints * sizeof(intn));
 				error |= CLFW::Upload<Conflict>(conflicts, b_conflicts);
 				error |= CLFW::Upload<intn>(qpoints, b_qpoints);
 				error |= GetResolutionPointsInfo_p(b_conflicts, numConflicts, b_qpoints, b_conflictInfo, b_numPtsPerConflict);
@@ -1248,7 +1250,7 @@ Scenario("Sample required resolution points", "[resolution]") {
 		}
 	}
 }
-Scenario("Predicate Conflict To Point", "[selected][predication][resolution]") {
+Scenario("Predicate Conflict To Point", "[predication][resolution]") {
 	Given("the scanned number of resolution points to create per conflict") {
 		cl_int numConflicts = readFromFile<cl_int>("./TestData/simple/numConflicts.bin");
 		cl_int numResPts = readFromFile<cl_int>("TestData//simple//numResPts.bin");
@@ -1269,7 +1271,7 @@ Scenario("Predicate Conflict To Point", "[selected][predication][resolution]") {
 				cl_int error = 0;
 				vector<cl_int> predication_p;
 				cl::Buffer b_scannedNumPtsPerConflict, b_predication;
-				error |= CLFW::get(b_scannedNumPtsPerConflict, "b_scannedNumPtsPerConflict", numConflicts * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_scannedNumPtsPerConflict, "b_scannedNumPtsPerConflict", numConflicts * sizeof(cl_int));
 				error |= CLFW::Upload<cl_int>(scannedNumPtsPerConflict, b_scannedNumPtsPerConflict);
 				error |= PredicatePointToConflict_p(b_scannedNumPtsPerConflict, numConflicts, numResPts, b_predication);
 				error |= CLFW::Download<cl_int>(b_predication, numResPts, predication_p);
@@ -1309,11 +1311,11 @@ Scenario("Get resolution points", "[resolution]") {
 				cl_int error = 0;
 				vector<intn> resPts_p;
 				cl::Buffer b_conflicts, b_conflictInfo, b_scannedNumPtsPerConflict, b_pntToConflict, b_qpoints, b_resPts;
-				error |= CLFW::get(b_conflicts, "b_conflicts", numConflicts * sizeof(Conflict));
-				error |= CLFW::get(b_conflictInfo, "b_conflictInfo", numConflicts * sizeof(ConflictInfo));
-				error |= CLFW::get(b_scannedNumPtsPerConflict, "b_scannedNumPtsPerConflict", numConflicts * sizeof(cl_int));
-				error |= CLFW::get(b_pntToConflict, "b_pntToConflict", numResPts * sizeof(cl_int));
-				error |= CLFW::get(b_qpoints, "b_qpoints", numPts * sizeof(intn));
+				error |= CLFW::getBuffer(b_conflicts, "b_conflicts", numConflicts * sizeof(Conflict));
+				error |= CLFW::getBuffer(b_conflictInfo, "b_conflictInfo", numConflicts * sizeof(ConflictInfo));
+				error |= CLFW::getBuffer(b_scannedNumPtsPerConflict, "b_scannedNumPtsPerConflict", numConflicts * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_pntToConflict, "b_pntToConflict", numResPts * sizeof(cl_int));
+				error |= CLFW::getBuffer(b_qpoints, "b_qpoints", numPts * sizeof(intn));
 				error |= CLFW::Upload<Conflict>(conflicts, b_conflicts);
 				error |= CLFW::Upload<ConflictInfo>(conflictInfo, b_conflictInfo);
 				error |= CLFW::Upload<cl_int>(scannedNumPtsPerConflict, b_scannedNumPtsPerConflict);

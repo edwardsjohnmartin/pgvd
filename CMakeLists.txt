@@ -47,6 +47,9 @@ include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 find_package(OpenCL REQUIRED)
 include_directories(SYSTEM ${OPENCL_INCLUDE_DIR})
 
+# use OpenCV
+find_package(OpenCV REQUIRED)
+include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
 
 # use CLFW (OpenCL must be included first.)
 add_subdirectory(Dependencies/CLFW)
@@ -91,7 +94,7 @@ target_link_libraries (Benchmarks ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_L
 # QUADTREE TARGET
 add_executable (Quadtree "${OCTREE_SRC}")
 set_target_properties (Quadtree PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
-target_link_libraries (Quadtree ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW)
+target_link_libraries (Quadtree ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} ${OpenCV_LIBRARIES} CLFW)
 
 # For IDE folder hierarchy generation
 foreach(_source IN ITEMS ${SRC_LIST})

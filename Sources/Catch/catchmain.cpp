@@ -45,7 +45,7 @@ void InitializeGLFW(int width = 1000, int height = 1000) {
 int main( int argc, char* const argv[] )
 {
   /* global setup... */
-  CLFW::Initialize(true, true, 2);
+	CLFW::Initialize(false, Options::computeDevice, Options::cl_options, 2);
 	//InitializeGLFW();
 	//Shaders::create();
 

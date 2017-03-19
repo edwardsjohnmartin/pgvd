@@ -15,8 +15,12 @@
 #pragma once
 
 // We can't define OCT2D in CMake definitions, since OpenCL won't see them!
-#define QUADTREE
-#define OCT2D
+#ifndef QUADTREE
+	#define QUADTREE
+#endif
+#ifndef OCT2D
+	#define OCT2D
+#endif
 
 #ifdef OpenCL
 #include "./vec_cl.h"

@@ -6,4 +6,6 @@ set (GLUtilities_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/Sketcher.cpp 
 	${CMAKE_CURRENT_SOURCE_DIR}/OrthoCamera.h 
 	${CMAKE_CURRENT_SOURCE_DIR}/OrthoCamera.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/stb_image.h
+	${CMAKE_CURRENT_SOURCE_DIR}/objload.h
 	PARENT_SCOPE)

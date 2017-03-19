@@ -72,6 +72,7 @@ void FindConflictCells(
 	__global Pair *bCellBounds,
 	__global Line* lines,
 	cl_int numLines,
+	cl_int keepCollisions,
 	__global intn* qpoints,
 	cl_int qwidth,
 	__global Conflict* conflicts
@@ -90,7 +91,7 @@ void FindConflictCells(
 	floatn max_ = origin + (leafWidth - .1F);
 
 	//If the cell is resolvable...
-	if (leafWidth > 1)
+	if (leafWidth > 1 || keepCollisions)
 	{
 		//...then, for each node from the leaf's parent to the root...
 		int N = leaf.parent;

@@ -151,7 +151,7 @@ namespace Kernels {
 
 		cl::Buffer reduceResult;
 		cl_int resultSize = nextPow2(size / localSize);
-		cl_int error = CLFW::get(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
+		cl_int error = CLFW::getBuffer(reduceResult, "reduceResult", resultSize * sizeof(cl_uint));
 
 		error |= kernel.setArg(0, numbers);
 		error |= kernel.setArg(1, cl::Local(localSize * sizeof(cl_uint)));
@@ -353,7 +353,7 @@ namespace Kernels {
 		// Non-Nvidia platforms can't take advantage of Nvidia SIMD warp unrolling optimizations.
 		// As a result, we default to the less efficient reduction number 3.
 		cl::Kernel &kernel3 = CLFW::Kernels["reduce3"];
-		error |= CLFW::get(outputBuffer, uniqueString + "reduceout", nextPow2(totalNumbers) * sizeof(cl_int));
+		error |= CLFW::getBuffer(outputBuffer, uniqueString + "reduceout", nextPow2(totalNumbers) * sizeof(cl_int));
 
 		int maxThreads = std::min((int)kernel3.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), 128);
 		if (maxThreads == 1) {
@@ -415,7 +415,7 @@ namespace Kernels {
 		int maxBlocks = 64;
 		int maxThreads = min((int)kernel6.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(CLFW::DefaultDevice), 1024);
 
-		error |= CLFW::get(outputBuffer, "resulttestnumbers", nextPow2(totalNumbers) * sizeof(cl_int));
+		error |= CLFW::getBuffer(outputBuffer, "resulttestnumbers", nextPow2(totalNumbers) * sizeof(cl_int));
 
 		int whichKernel = 6;
 		int numBlocks = 0, finalNumBlocks = 0;
@@ -512,7 +512,7 @@ namespace Kernels {
 			localSize = std::min(localSize, 1024);
 
 		cl::Buffer predication, resultBuf;
-		error |= CLFW::get(predication, "ascPred", (numElems / localSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(predication, "ascPred", (numElems / localSize) * sizeof(cl_int));
 		error |= predicateAscKernel.setArg(0, bigNumbers_i);
 		error |= predicateAscKernel.setArg(1, numElems);
 		error |= predicateAscKernel.setArg(2, cl::Local((localSize + 1) * sizeof(big)));
@@ -568,7 +568,7 @@ namespace Kernels {
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["PredicateBitKernel"];
 
-		cl_int error = CLFW::get(predicate, uniqueString + "predicateBit", sizeof(cl_int)* roundSize);
+		cl_int error = CLFW::getBuffer(predicate, uniqueString + "predicateBit", sizeof(cl_int)* roundSize);
 
 		error |= kernel->setArg(0, input);
 		error |= kernel->setArg(1, predicate);
@@ -605,7 +605,7 @@ namespace Kernels {
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["PredicateULLBitKernel"];
 
-		cl_int error = CLFW::get(predicate, uniqueString + "predicateBit", sizeof(cl_int)* roundSize);
+		cl_int error = CLFW::getBuffer(predicate, uniqueString + "predicateBit", sizeof(cl_int)* roundSize);
 
 		error |= kernel->setArg(0, input);
 		error |= kernel->setArg(1, predicate);
@@ -653,7 +653,7 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["PredicateBigBitKernel"];
 
-		cl_int error = CLFW::get(predicate_o, uniqueString + "predicateBUBit", sizeof(cl_int)* (roundSize));
+		cl_int error = CLFW::getBuffer(predicate_o, uniqueString + "predicateBUBit", sizeof(cl_int)* (roundSize));
 		cl_int numIterations = (roundSize > 128) ? 4 : 1;
 		error |= kernel.setArg(0, input_i);
 		error |= kernel.setArg(1, predicate_o);
@@ -700,7 +700,7 @@ namespace Kernels {
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["PredicateLCPKernel"];
 		int roundSize = nextPow2(totalElements);
-		cl_int error = CLFW::get(predicate_o, "PredicateLCP", sizeof(cl_int)* (roundSize));
+		cl_int error = CLFW::getBuffer(predicate_o, "PredicateLCP", sizeof(cl_int)* (roundSize));
 
 		error |= kernel->setArg(0, input_i);
 		error |= kernel->setArg(1, predicate_o);
@@ -730,7 +730,7 @@ namespace Kernels {
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["PredicateLevelKernel"];
 		int roundSize = nextPow2(totalElements);
-		cl_int error = CLFW::get(predicate, "PredicateLevel", sizeof(cl_int)* (roundSize));
+		cl_int error = CLFW::getBuffer(predicate, "PredicateLevel", sizeof(cl_int)* (roundSize));
 
 		error |= kernel->setArg(0, input);
 		error |= kernel->setArg(1, predicate);
@@ -785,7 +785,7 @@ namespace Kernels {
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["PredicateConflictsKernel"];
 
-		cl_int error = CLFW::get(predicate, uniqueString + "cPred", sizeof(cl_int)* roundSize);
+		cl_int error = CLFW::getBuffer(predicate, uniqueString + "cPred", sizeof(cl_int)* roundSize);
 
 		error |= kernel->setArg(0, input);
 		error |= kernel->setArg(1, predicate);
@@ -1052,8 +1052,8 @@ namespace Kernels {
 		cl::Buffer zeroLCPBuffer;
 		cl::Buffer zeroIndexBuffer;
 		cl_int roundSize = nextPow2(globalSize);
-		error |= CLFW::get(zeroLCPBuffer, "zeroLCPBuffer", sizeof(LCP)*roundSize, isOld);
-		error |= CLFW::get(zeroIndexBuffer, "zeroIndexBuffer", sizeof(cl_int)*roundSize, isOld);
+		error |= CLFW::getBuffer(zeroLCPBuffer, "zeroLCPBuffer", sizeof(LCP)*roundSize, isOld);
+		error |= CLFW::getBuffer(zeroIndexBuffer, "zeroIndexBuffer", sizeof(cl_int)*roundSize, isOld);
 
 		error |= kernel->setArg(0, inputLCPs_i);
 		error |= kernel->setArg(1, resultLCPs_i);
@@ -1232,8 +1232,8 @@ namespace Kernels {
 
 		/* Each workgroup gets a spot in the intermediate buffer. */
 		cl::Buffer intermediate, intermediateCopy;
-		error |= CLFW::get(intermediate, uniqueString + "I", sizeof(cl_int) * numGroups);
-		error |= CLFW::get(intermediateCopy, uniqueString + "Icopy",
+		error |= CLFW::getBuffer(intermediate, uniqueString + "I", sizeof(cl_int) * numGroups);
+		error |= CLFW::getBuffer(intermediateCopy, uniqueString + "Icopy",
 			sizeof(cl_int) * numGroups, isOld);
 		if (!isOld)
 			error |= queue.enqueueFillBuffer<cl_int>(
@@ -1416,8 +1416,8 @@ namespace Kernels {
 			input[i] = 1;
 		}
 
-		error |= CLFW::get(inputBuffer, "scanIn", nextPow2(size) * sizeof(cl_int));
-		error |= CLFW::get(outputBuffer, "scanout", nextPow2(size) * sizeof(cl_int));
+		error |= CLFW::getBuffer(inputBuffer, "scanIn", nextPow2(size) * sizeof(cl_int));
+		error |= CLFW::getBuffer(outputBuffer, "scanout", nextPow2(size) * sizeof(cl_int));
 		error |= CLFW::Upload<cl_int>(input, inputBuffer);
 		CLFW::DefaultQueue.finish();
 
@@ -1428,9 +1428,9 @@ namespace Kernels {
 
 		bool isOld;
 		cl::Buffer intermediate, intermediateCopy;
-		error |= CLFW::get(intermediate, "StreamScanTestIntermediate",
+		error |= CLFW::getBuffer(intermediate, "StreamScanTestIntermediate",
 			sizeof(cl_int) * currentNumWorkgroups);
-		error |= CLFW::get(intermediateCopy, "StreamScanTestIntermediateCopy",
+		error |= CLFW::getBuffer(intermediateCopy, "StreamScanTestIntermediateCopy",
 			sizeof(cl_int) * currentNumWorkgroups, isOld);
 
 		if (!isOld) {
@@ -1494,8 +1494,8 @@ namespace Kernels {
 		const cl_int globalSize = nextPow2(totalPoints);
 
 		cl::Buffer predicate, address, temp, tempValues, swap;
-		error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
-		error |= CLFW::get(temp, "tempRadix", sizeof(unsigned long long)*globalSize);
+		error |= CLFW::getBuffer(address, "radixAddress", sizeof(cl_int)*(globalSize));
+		error |= CLFW::getBuffer(temp, "tempRadix", sizeof(unsigned long long)*globalSize);
 
 		if (error != CL_SUCCESS)
 			return error;
@@ -1588,9 +1588,9 @@ namespace Kernels {
 		const cl_int globalSize = nextPow2(size);
 
 		cl::Buffer predicate, address, tempKeys, tempValues, swap;
-		error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
-		error |= CLFW::get(tempKeys, "tempRadixKeys", sizeof(cl_int)*globalSize);
-		error |= CLFW::get(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
+		error |= CLFW::getBuffer(address, "radixAddress", sizeof(cl_int)*(globalSize));
+		error |= CLFW::getBuffer(tempKeys, "tempRadixKeys", sizeof(cl_int)*globalSize);
+		error |= CLFW::getBuffer(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
 
 		if (error != CL_SUCCESS)
 			return error;
@@ -1644,9 +1644,9 @@ namespace Kernels {
 		const cl_int globalSize = nextPow2(size);
 
 		cl::Buffer predicate, address, tempKeys, tempValues, swap;
-		error |= CLFW::get(address, "radixAddress", sizeof(cl_int)*(globalSize));
-		error |= CLFW::get(tempKeys, "tempRadixKeys", sizeof(big)*globalSize);
-		error |= CLFW::get(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
+		error |= CLFW::getBuffer(address, "radixAddress", sizeof(cl_int)*(globalSize));
+		error |= CLFW::getBuffer(tempKeys, "tempRadixKeys", sizeof(big)*globalSize);
+		error |= CLFW::getBuffer(tempValues, "tempRadixValues", sizeof(cl_int)*globalSize);
 
 		if (error != CL_SUCCESS)
 			return error;
@@ -1876,8 +1876,8 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["BigFourWayPrefixSumWithShuffleKernel"];
 
-		error |= CLFW::get(blkSum_o, "blkSum", Kernels::nextPow2(4 * closestMultiple / blkSize) * sizeof(cl_int));
-		error |= CLFW::get(shuffle_o, "shuffle", Kernels::nextPow2(closestMultiple) * sizeof(big));
+		error |= CLFW::getBuffer(blkSum_o, "blkSum", Kernels::nextPow2(4 * closestMultiple / blkSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(shuffle_o, "shuffle", Kernels::nextPow2(closestMultiple) * sizeof(big));
 
 		error |= kernel.setArg(0, data_i);
 		error |= kernel.setArg(1, bitIndx);
@@ -1972,9 +1972,9 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["BigToIntFourWayPrefixSumWithShuffleKernel"];
 
-		error |= CLFW::get(blkSum_o, "blkSum", Kernels::nextPow2(4 * closestMultiple / blkSize) * sizeof(cl_int));
-		error |= CLFW::get(keyShuffle_o, "keyshuffle", Kernels::nextPow2(closestMultiple) * sizeof(big));
-		error |= CLFW::get(valShuffle_o, "valshuffle", Kernels::nextPow2(closestMultiple) * sizeof(cl_int));
+		error |= CLFW::getBuffer(blkSum_o, "blkSum", Kernels::nextPow2(4 * closestMultiple / blkSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(keyShuffle_o, "keyshuffle", Kernels::nextPow2(closestMultiple) * sizeof(big));
+		error |= CLFW::getBuffer(valShuffle_o, "valshuffle", Kernels::nextPow2(closestMultiple) * sizeof(cl_int));
 
 		error |= kernel.setArg(0, keys_i);
 		error |= kernel.setArg(1, vals_i);
@@ -2008,9 +2008,9 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["IntToIntFourWayPrefixSumWithShuffleKernel"];
 
-		error |= CLFW::get(blkSum_o, "blkSum", Kernels::nextPow2(4 * closestMultiple / blkSize) * sizeof(cl_int));
-		error |= CLFW::get(keyShuffle_o, "keyshuffle", Kernels::nextPow2(closestMultiple) * sizeof(cl_int));
-		error |= CLFW::get(valShuffle_o, "valshuffle", Kernels::nextPow2(closestMultiple) * sizeof(cl_int));
+		error |= CLFW::getBuffer(blkSum_o, "blkSum", Kernels::nextPow2(4 * closestMultiple / blkSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(keyShuffle_o, "keyshuffle", Kernels::nextPow2(closestMultiple) * sizeof(cl_int));
+		error |= CLFW::getBuffer(valShuffle_o, "valshuffle", Kernels::nextPow2(closestMultiple) * sizeof(cl_int));
 
 		error |= kernel.setArg(0, keys_i);
 		error |= kernel.setArg(1, vals_i);
@@ -2175,7 +2175,7 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["MoveBigElementsKernel"];
 
-		CLFW::get(result_o, "4wayresult", nextPow2(closestMultiple) * sizeof(big));
+		CLFW::getBuffer(result_o, "4wayresult", nextPow2(closestMultiple) * sizeof(big));
 
 		kernel.setArg(0, shuffle_i);
 		kernel.setArg(1, cl::Local(4 * blkSize * sizeof(big)));
@@ -2244,8 +2244,8 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["MoveBigToIntElementsKernel"];
 
-		CLFW::get(keys_o, "4waykeysresult", nextPow2(closestMultiple) * sizeof(big));
-		CLFW::get(vals_o, "4wayvalsresult", nextPow2(closestMultiple) * sizeof(cl_int));
+		CLFW::getBuffer(keys_o, "4waykeysresult", nextPow2(closestMultiple) * sizeof(big));
+		CLFW::getBuffer(vals_o, "4wayvalsresult", nextPow2(closestMultiple) * sizeof(cl_int));
 
 		kernel.setArg(0, keyShuffle_i);
 		kernel.setArg(1, valShuffle_i);
@@ -2280,8 +2280,8 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["MoveIntToIntElementsKernel"];
 
-		CLFW::get(keys_o, "4waykeysresult", nextPow2(closestMultiple) * sizeof(cl_int));
-		CLFW::get(vals_o, "4wayvalsresult", nextPow2(closestMultiple) * sizeof(cl_int));
+		CLFW::getBuffer(keys_o, "4waykeysresult", nextPow2(closestMultiple) * sizeof(cl_int));
+		CLFW::getBuffer(vals_o, "4wayvalsresult", nextPow2(closestMultiple) * sizeof(cl_int));
 
 		kernel.setArg(0, keyShuffle_i);
 		kernel.setArg(1, valShuffle_i);
@@ -2312,7 +2312,7 @@ namespace Kernels {
 		cl_int numBlks = closestMultiple / blkSize;
 	
 		cl::Buffer shuffle, blkSum, prefixBlkSum;
-		error |= CLFW::get(prefixBlkSum, "prefixBlkSum", Kernels::nextPow2(4 * numElems / blkSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(prefixBlkSum, "prefixBlkSum", Kernels::nextPow2(4 * numElems / blkSize) * sizeof(cl_int));
 		for (int i = 0; i < numBits; i += 2) {
 			cl_int bitIndx = i % (8 * sizeof(cl_long));
 			cl_int blkIndx = i / (8 * sizeof(cl_long));
@@ -2336,7 +2336,7 @@ namespace Kernels {
 		cl_int numBlks = closestMultiple / blkSize;
 
 		cl::Buffer keyShuffle, valShuffle, blkSum, prefixBlkSum;
-		error |= CLFW::get(prefixBlkSum, "prefixBlkSum", Kernels::nextPow2(4 * numElems / blkSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(prefixBlkSum, "prefixBlkSum", Kernels::nextPow2(4 * numElems / blkSize) * sizeof(cl_int));
 		for (int i = 0; i < numBits; i += 2) {
 			cl_int bitIndx = i % (8 * sizeof(cl_long));
 			cl_int blkIndx = i / (8 * sizeof(cl_long));
@@ -2360,7 +2360,7 @@ namespace Kernels {
 		cl_int numBlks = closestMultiple / blkSize;
 
 		cl::Buffer keyShuffle, valShuffle, blkSum, prefixBlkSum;
-		error |= CLFW::get(prefixBlkSum, "prefixBlkSum", Kernels::nextPow2(4 * numElems / blkSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(prefixBlkSum, "prefixBlkSum", Kernels::nextPow2(4 * numElems / blkSize) * sizeof(cl_int));
 		for (int i = 0; i < numBits; i += 2) {
 			error |= IntToIntFourWayPrefixSumAndShuffle_p(keys_io, vals_io, numElems, blkSize, i, blkSum, keyShuffle, valShuffle);
 			error |= StreamScan_p(blkSum, 4 * numBlks, "", prefixBlkSum);
@@ -2402,7 +2402,7 @@ namespace Kernels {
 		startBenchmark();
 		cl_int error = 0;
 		cl_int roundSize = nextPow2(numPoints);
-		error |= CLFW::get(qPoints_o, uniqueString + "qpts", sizeof(intn)*roundSize);
+		error |= CLFW::getBuffer(qPoints_o, uniqueString + "qpts", sizeof(intn)*roundSize);
 		cl::Kernel kernel = CLFW::Kernels["QuantizePointsKernel"];
 		error |= kernel.setArg(0, points_i);
 		error |= kernel.setArg(1, qPoints_o);
@@ -2465,7 +2465,7 @@ namespace Kernels {
 		cl_int error = 0;
 		cl_int globalSize = nextPow2(totalPoints);
 		bool old;
-		error |= CLFW::get(zpoints, uniqueString + "zpts", globalSize * sizeof(big), old, CLFW::DefaultContext, CL_MEM_READ_ONLY);
+		error |= CLFW::getBuffer(zpoints, uniqueString + "zpts", globalSize * sizeof(big), old, CLFW::DefaultContext, CL_MEM_READ_ONLY);
 		cl::Kernel kernel = CLFW::Kernels["PointsToMortonKernel"];
 		error |= kernel.setArg(0, zpoints);
 		error |= kernel.setArg(1, qpoints);
@@ -2513,9 +2513,9 @@ namespace Kernels {
 		cl_int error = 0;
 
 		cl::Buffer predicate, address, intermediate, result;
-		error = CLFW::get(predicate, uniqueString + "uniqpred", sizeof(cl_int)*(globalSize));
-		error |= CLFW::get(address, uniqueString + "uniqaddr", sizeof(cl_int)*(globalSize));
-		error |= CLFW::get(result, uniqueString + "uniqresult", sizeof(big) * globalSize);
+		error = CLFW::getBuffer(predicate, uniqueString + "uniqpred", sizeof(cl_int)*(globalSize));
+		error |= CLFW::getBuffer(address, uniqueString + "uniqaddr", sizeof(cl_int)*(globalSize));
+		error |= CLFW::getBuffer(result, uniqueString + "uniqresult", sizeof(big) * globalSize);
 
 		error |= PredicateUnique_p(input_io, predicate, originalSize);
 		error |= StreamScan_p(predicate, originalSize, uniqueString + "uniqI", address);
@@ -2539,10 +2539,10 @@ namespace Kernels {
 		cl_int error = 0;
 
 		cl::Buffer predicate, address, intermediate, result_keys, result_vals;
-		error = CLFW::get(predicate, uniqueString + "uniqpred", sizeof(cl_int)*(globalSize));
-		error |= CLFW::get(address, uniqueString + "uniqaddr", sizeof(cl_int)*(globalSize));
-		error |= CLFW::get(result_keys, uniqueString + "uniqkresult", sizeof(big) * globalSize);
-		error |= CLFW::get(result_vals, uniqueString + "uniqvresult", sizeof(cl_int) * globalSize);
+		error = CLFW::getBuffer(predicate, uniqueString + "uniqpred", sizeof(cl_int)*(globalSize));
+		error |= CLFW::getBuffer(address, uniqueString + "uniqaddr", sizeof(cl_int)*(globalSize));
+		error |= CLFW::getBuffer(result_keys, uniqueString + "uniqkresult", sizeof(big) * globalSize);
+		error |= CLFW::getBuffer(result_vals, uniqueString + "uniqvresult", sizeof(cl_int) * globalSize);
 
 		error |= PredicateUnique_p(keys_io, predicate, originalSize);
 		error |= StreamScan_p(predicate, originalSize, uniqueString + "uniqI", address);
@@ -2595,8 +2595,8 @@ namespace Kernels {
 		bool isOld;
 		cl::Buffer zeroBuffer;
 
-		cl_int error = CLFW::get(localSplits_o, uniqueString + "localSplits", sizeof(cl_int) * globalSize);
-		error |= CLFW::get(zeroBuffer, uniqueString + "zeroBuffer", sizeof(cl_int) * globalSize, isOld);
+		cl_int error = CLFW::getBuffer(localSplits_o, uniqueString + "localSplits", sizeof(cl_int) * globalSize);
+		error |= CLFW::getBuffer(zeroBuffer, uniqueString + "zeroBuffer", sizeof(cl_int) * globalSize, isOld);
 
 		//Fill any new zero buffers with zero. Then initialize localSplits with zero.
 		if (!isOld) {
@@ -2660,8 +2660,8 @@ namespace Kernels {
 		cl_int globalSize = nextPow2(totalUniquePoints);
 		bool isOld;
 		cl::Buffer zeroBRTNodes;
-		cl_int error = CLFW::get(internalBRTNodes_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
-		error |= CLFW::get(zeroBRTNodes, uniqueString + "brtzero", sizeof(BrtNode)* (globalSize), isOld);
+		cl_int error = CLFW::getBuffer(internalBRTNodes_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
+		error |= CLFW::getBuffer(zeroBRTNodes, uniqueString + "brtzero", sizeof(BrtNode)* (globalSize), isOld);
 		if (!isOld) {
 			BrtNode b = { 0 };
 			queue.enqueueFillBuffer<BrtNode>(zeroBRTNodes, { b }, 0, sizeof(BrtNode) * globalSize);
@@ -2718,14 +2718,14 @@ namespace Kernels {
 		cl::Buffer zeroBrtNodes;
 		bool isOld;
 
-		cl_int error = CLFW::get(brt_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
-		error |= CLFW::get(zeroBrtNodes, uniqueString + "brtzero", sizeof(BrtNode)* (globalSize), isOld);
+		cl_int error = CLFW::getBuffer(brt_o, uniqueString + "brt", sizeof(BrtNode)* (globalSize));
+		error |= CLFW::getBuffer(zeroBrtNodes, uniqueString + "brtzero", sizeof(BrtNode)* (globalSize), isOld);
 		if (!isOld) {
 			BrtNode b = { 0 };
 			queue.enqueueFillBuffer<BrtNode>(zeroBrtNodes, { b }, 0, sizeof(BrtNode) * globalSize);
 		}
 		error |= queue.enqueueCopyBuffer(zeroBrtNodes, brt_o, 0, 0, sizeof(BrtNode)* (globalSize));
-		error |= CLFW::get(brtColors_o, uniqueString + "brtc", sizeof(cl_int)* (globalSize));
+		error |= CLFW::getBuffer(brtColors_o, uniqueString + "brtc", sizeof(cl_int)* (globalSize));
 		error |= kernel.setArg(0, brt_o);
 		error |= kernel.setArg(1, brtColors_o);
 		error |= kernel.setArg(2, zpoints_i);
@@ -2906,7 +2906,7 @@ namespace Kernels {
 
 		if (totalBRTNode < 1) return CL_SUCCESS;
 		else if (totalBRTNode == 1) {
-			error |= CLFW::get(octree_o, uniqueString + "octree", sizeof(OctNode));
+			error |= CLFW::getBuffer(octree_o, uniqueString + "octree", sizeof(OctNode));
 			OctNode root = { -1, -1, -1, -1, -1, -1 - 1, -1, -1 };
 			error |= CLFW::Upload<OctNode>(root, 0, octree_o);
 			octreeSize_o = 1;
@@ -2918,8 +2918,8 @@ namespace Kernels {
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Buffer localSplits, scannedSplits, flags;
 		bool isOld;
-		error |= CLFW::get(scannedSplits, uniqueString + "scannedSplits", sizeof(cl_int) * globalSize);
-		error |= CLFW::get(flags, uniqueString + "flags", nextPow2(totalBRTNode) * sizeof(cl_int), isOld);
+		error |= CLFW::getBuffer(scannedSplits, uniqueString + "scannedSplits", sizeof(cl_int) * globalSize);
+		error |= CLFW::getBuffer(flags, uniqueString + "flags", nextPow2(totalBRTNode) * sizeof(cl_int), isOld);
 		if (isOld) error |= CLFW::DefaultQueue.enqueueFillBuffer<cl_int>(flags, { 0 }, 0, sizeof(cl_int) * nextPow2(totalBRTNode));
 
 		error |= ComputeLocalSplits_p(brt_i, totalBRTNode, colored, colors_i, uniqueString, localSplits);
@@ -2932,7 +2932,7 @@ namespace Kernels {
 		cl_int roundOctreeSize = nextPow2(octreeSize);
 
 		//Create an octree buffer.
-		error |= CLFW::get(octree_o, uniqueString + "octree", sizeof(OctNode) * roundOctreeSize);
+		error |= CLFW::getBuffer(octree_o, uniqueString + "octree", sizeof(OctNode) * roundOctreeSize);
 
 		//use the scanned splits & brt to create octree.
 		error |= InitOctree(octree_o, octreeSize);
@@ -2944,8 +2944,7 @@ namespace Kernels {
 		error |= kernel.setArg(5, scannedSplits);
 		error |= kernel.setArg(6, flags);
 
-		/* Skip the root */
-		error |= queue.enqueueNDRangeKernel(kernel, cl::NDRange(1), cl::NDRange(totalBRTNode - 1), cl::NullRange);
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NDRange(0), cl::NDRange(totalBRTNode), cl::NullRange);
 		octreeSize_o = octreeSize;
 		stopBenchmark();
 		return error;
@@ -2974,7 +2973,7 @@ namespace Kernels {
 		octree_o[0].level = 0;
 		for (int i = 0; i < octreeSize; ++i)
 			brt2octree_init(octree_o.data(), i);
-		for (int brt_i = 1; brt_i < size - 1; ++brt_i)
+		for (int brt_i = 0; brt_i < size; ++brt_i)
 			brt2octree(internalBRTNodes_i.data(), internalBRTNodes_i.size(),
 				octree_o.data(), octree_o.size(), localSplits.data(),
 				prefixSums.data(), flags.data(), brt_i);
@@ -3051,8 +3050,8 @@ namespace Kernels {
 		cl::Buffer &leafPredicates_o)
 	{
 		cl_int error = 0;
-		error |= CLFW::get(sparseleaves_o, "sleaves", nextPow2(4 * octreeSize) * sizeof(Leaf));
-		error |= CLFW::get(leafPredicates_o, "lfPrdcts", nextPow2(4 * octreeSize) * sizeof(cl_int));
+		error |= CLFW::getBuffer(sparseleaves_o, "sleaves", nextPow2(4 * octreeSize) * sizeof(Leaf));
+		error |= CLFW::getBuffer(leafPredicates_o, "lfPrdcts", nextPow2(4 * octreeSize) * sizeof(cl_int));
 		cl::Kernel &kernel = CLFW::Kernels["ComputeLeavesKernel"];
 
 		error |= kernel.setArg(0, octree_i);
@@ -3088,8 +3087,8 @@ namespace Kernels {
 		cl::Buffer sparseLeafParents, leafPredicates, leafAddresses;
 
 		cl_int error = GenerateLeaves_p(octree_i, octreeSize, sparseLeafParents, leafPredicates);
-		CLFW::get(leafAddresses, "lfaddrs", nextPow2(octreeSize * 4) * sizeof(cl_int));
-		CLFW::get(Leaves_o, "leaves", nextPow2(octreeSize * 4) * sizeof(Leaf));
+		CLFW::getBuffer(leafAddresses, "lfaddrs", nextPow2(octreeSize * 4) * sizeof(cl_int));
+		CLFW::getBuffer(Leaves_o, "leaves", nextPow2(octreeSize * 4) * sizeof(Leaf));
 		error |= Kernels::StreamScan_p(leafPredicates, nextPow2(octreeSize * 4), "lfintrmdt", leafAddresses);
 		error |= CLFW::DefaultQueue.enqueueReadBuffer(leafAddresses, CL_TRUE, (sizeof(cl_int)*(octreeSize * 4) - (sizeof(cl_int))), sizeof(cl_int), &totalLeaves);
 		error |= Kernels::LeafDoubleCompact(sparseLeafParents, Leaves_o, leafPredicates, leafAddresses, octreeSize * 4);
@@ -3141,7 +3140,7 @@ namespace Kernels {
 	inline cl_int PredicateDuplicateNodes_p(cl::Buffer origOT_i, cl::Buffer newOT_i, int newOTSize, cl::Buffer &duplicate_o) {
 		cl_int error = 0;
 		cl::Kernel &kernel = CLFW::Kernels["PredicateDuplicateNodesKernelPart1"];
-		CLFW::get(duplicate_o, "dup", sizeof(cl_int) * nextPow2(newOTSize));
+		CLFW::getBuffer(duplicate_o, "dup", sizeof(cl_int) * nextPow2(newOTSize));
 		error |= kernel.setArg(0, origOT_i);
 		error |= kernel.setArg(1, newOT_i);
 		error |= kernel.setArg(2, duplicate_o);
@@ -3190,7 +3189,7 @@ namespace Kernels {
 		cl_int error = 0;
 
 		cl_int roundSize = nextPow2(totalLines);
-		error |= CLFW::get(LineLCPs_o, "LineLCPs", roundSize * sizeof(LCP));
+		error |= CLFW::getBuffer(LineLCPs_o, "LineLCPs", roundSize * sizeof(LCP));
 		error |= kernel->setArg(0, linesBuffer_i);
 		error |= kernel->setArg(1, zpoints_i);
 		error |= kernel->setArg(2, LineLCPs_o);
@@ -3233,7 +3232,7 @@ namespace Kernels {
 		cl_int error = 0;
 
 		cl_int roundSize = nextPow2(totalFacets);
-		error |= CLFW::get(facetIndices_o, "facetIndices", roundSize * sizeof(cl_int));
+		error |= CLFW::getBuffer(facetIndices_o, "facetIndices", roundSize * sizeof(cl_int));
 		error |= kernel.setArg(0, facetIndices_o);
 		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(totalFacets), cl::NullRange);
 
@@ -3282,7 +3281,7 @@ namespace Kernels {
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["LookUpOctnodeFromLCPKernel"];
 		int roundNumber = nextPow2(numLCPs);
-		cl_int error = CLFW::get(
+		cl_int error = CLFW::getBuffer(
 			LCPToOctnode_o, "LCPToOctnode", sizeof(cl_int)* (roundNumber));
 
 		error |= kernel->setArg(0, LCPs_i);
@@ -3368,7 +3367,7 @@ namespace Kernels {
 		cl::CommandQueue *queue = &CLFW::DefaultQueue;
 		cl::Kernel *kernel = &CLFW::Kernels["GetFacetPairsKernel"];
 		int roundNumber = nextPow2(octreeSize);
-		cl_int error = CLFW::get(facetPairs_o, "facetPairs", sizeof(Pair)* (roundNumber));
+		cl_int error = CLFW::getBuffer(facetPairs_o, "facetPairs", sizeof(Pair)* (roundNumber));
 		Pair initialPair = { -1, -1 };
 		error |= queue->enqueueFillBuffer<Pair>(facetPairs_o, { initialPair }, 0, sizeof(Pair) * roundNumber);
 		error |= kernel->setArg(0, orderedNodeIndices_i);
@@ -3405,41 +3404,6 @@ namespace Kernels {
 	}
 #endif
 
-//	// Get Quadrant (probably should be moved)
-//#ifndef OpenCL
-//	inline unsigned char getQuadrant(big *lcp, unsigned char lcpShift, unsigned char i) {
-//		big buMask, result;
-//		cl_int quadrantMask = (DIM == 2) ? 3 : 7;
-//		initBlkBU(&buMask, quadrantMask);
-//
-//		shiftBULeft(&buMask, &buMask, i * DIM + lcpShift);
-//		andBU(&result, &buMask, lcp);
-//		shiftBURight(&result, &result, i * DIM + lcpShift);
-//		return (result.len == 0) ? 0 : result.blk[0];
-//	}
-//#endif
-
-//	//Get Node Center From LCP (probably should be moved)
-//#ifndef OpenCL
-//	inline floatn getNodeCenterFromLCP(big *LCP, cl_int LCPLength, float octreeWidth) {
-//		cl_int level = LCPLength / DIM;
-//		cl_int lcpShift = LCPLength % DIM;
-//		floatn center = { 0.0, 0.0 };
-//		float centerShift = octreeWidth / (2.0 * (1 << level));
-//
-//		for (int i = 0; i < level; ++i) {
-//			unsigned quadrant = getQuadrant(LCP, lcpShift, i);
-//			center.x += (quadrant & (1 << 0)) ? centerShift : -centerShift;
-//			center.y += (quadrant & (1 << 1)) ? centerShift : -centerShift;
-//#if DIM == 3
-//			center.z += (quadrant & (1 << 2)) ? centerShift : -centerShift;
-//#endif
-//			centerShift *= 2.0;
-//		}
-//		return center;
-//	}
-//#endif
-
 	// Find Conflict Cells
 #ifdef OpenCL
 	__kernel void FindConflictCellsKernel(
@@ -3449,6 +3413,7 @@ namespace Kernels {
 		__global Pair *facetBounds,
 		__global Line* lines,
 		cl_int numLines,
+		cl_int keepCollisions,
 		__global intn* qpoints,
 		cl_int qwidth,
 		__global Conflict* conflicts
@@ -3456,7 +3421,7 @@ namespace Kernels {
 		const int gid = get_global_id(0);
 		FindConflictCells(
 			gid, octree, leaves, nodeToFacet, facetBounds,
-			lines, numLines, qpoints, qwidth, conflicts);
+			lines, numLines, keepCollisions, qpoints, qwidth, conflicts);
 	}
 #else
 	inline cl_int FindConflictCells_p(
@@ -3469,6 +3434,7 @@ namespace Kernels {
 		cl_int numLines,
 		cl::Buffer &qpoints_i,
 		cl_int qwidth,
+		bool keepCollisions,
 		cl::Buffer &conflicts_o
 		) {
 		startBenchmark();
@@ -3479,23 +3445,20 @@ namespace Kernels {
 		cl::Buffer initialConflictsBuffer;
 		cl_int error = 0;
 		bool isOld;
-		//		Conflict initialConflict;
-		//		initialConflict.color = initialConflict.q1[0] = initialConflict.q1[1] = initialConflict.q2[0] = initialConflict.q2[1] = -1;
 
-				/* We need to initialize the conflict info to -1, but only initialize if we're forced to do so. */
-		error |= CLFW::get(conflicts_o, "sparseConflicts", nextPow2(numLeaves) * sizeof(Conflict));
-		//error |= CLFW::get(initialConflictsBuffer, "initialConflicts", nextPow2(numLeaves) * sizeof(Conflict), isOld);
-		//if (!isOld) error |= queue.enqueueFillBuffer<Conflict>(initialConflictsBuffer, { initialConflict }, 0, nextPow2(numLeaves) * sizeof(Conflict));
-		//error |= queue.enqueueCopyBuffer(initialConflictsBuffer, conflicts_o, 0, 0, nextPow2(numLeaves) * sizeof(Conflict));
+		/* We need to initialize the conflict info to -1, but only initialize if we're forced to do so. */
+		error |= CLFW::getBuffer(conflicts_o, "sparseConflicts", nextPow2(numLeaves) * sizeof(Conflict));
+		
 		error |= kernel.setArg(0, octree_i);
 		error |= kernel.setArg(1, leaves_i);
 		error |= kernel.setArg(2, LCPToLine_i);
 		error |= kernel.setArg(3, LCPBounds_i);
 		error |= kernel.setArg(4, lines_i);
 		error |= kernel.setArg(5, numLines);
-		error |= kernel.setArg(6, qpoints_i);
-		error |= kernel.setArg(7, qwidth);
-		error |= kernel.setArg(8, conflicts_o);
+		error |= kernel.setArg(6, (int)keepCollisions);
+		error |= kernel.setArg(7, qpoints_i);
+		error |= kernel.setArg(8, qwidth);
+		error |= kernel.setArg(9, conflicts_o);
 		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numLeaves), cl::NullRange);
 
 		stopBenchmark();
@@ -3509,6 +3472,7 @@ namespace Kernels {
 		vector<Line> &lines_i,
 		vector<intn> &qpoints_i,
 		cl_int qwidth,
+		bool keepCollisions,
 		vector<Conflict> &conflicts_o
 		) {
 		startBenchmark();
@@ -3520,64 +3484,12 @@ namespace Kernels {
 		for (cl_int i = 0; i < leaves_i.size(); ++i) {
 			FindConflictCells(
 				i, octree_i.data(), leaves_i.data(), nodeToFacet_i.data(), facetBounds_i.data(),
-				lines_i.data(), lines_i.size(), qpoints_i.data(), qwidth, conflicts_o.data());
+				lines_i.data(), lines_i.size(), keepCollisions, qpoints_i.data(), qwidth, conflicts_o.data());
 		}
 		stopBenchmark();
 		return CL_SUCCESS;
 	}
 #endif
-
-	//	// Sample Conflict Counts
-	//#ifndef OpenCL
-	//	inline cl_int SampleConflictCounts_s(cl_int totalOctnodes, Conflict *conflicts, int *totalAdditionalPoints,
-	//		vector<int> &counts, Line* orderedLines, intn* qPoints, vector<intn> &newPoints) {
-	//		startBenchmark();
-	//		*totalAdditionalPoints = 0;
-	//		//This is inefficient. We should only iterate over the conflict leaves, not all leaves. (reduce to find total conflicts)
-	//		for (int i = 0; i < totalOctnodes * 4; ++i) {
-	//			Conflict c = conflicts[i];
-	//			int currentTotalPoints = 0;
-	//
-	//			if (conflicts[i].color == -2)
-	//			{
-	//				ConflictInfo info;
-	//				Line firstLine = orderedLines[c.q1[0]];
-	//				Line secondLine = orderedLines[c.q1[1]];
-	//				intn q1 = qPoints[firstLine.first];
-	//				intn q2 = qPoints[firstLine.second];
-	//				intn r1 = qPoints[secondLine.first];
-	//				intn r2 = qPoints[secondLine.second];
-	//				sample_conflict_count(&info, q1, q2, r1, r2, c.origin, c.width);
-	//
-	//				const int n = info.num_samples;
-	//				for (int i = 0; i < info.num_samples; ++i) {
-	//					floatn sample;
-	//					sample_conflict_kernel(i, &info, &sample);
-	//					newPoints.push_back(convert_intn(sample));
-	//				}
-	//
-	//				*totalAdditionalPoints += n;
-	//
-	//				////Bug here...
-	//				//if (currentTotalPoints == 0) {
-	//				//    printf("Origin: %d %d Width %d (%d %d) (%d %d) : (%d %d) (%d %d) \n", conflicts[i].origin.x, conflicts[i].origin.y,
-	//				//        conflicts[i].width, qPoints[firstLine.first].x, qPoints[firstLine.first].y,
-	//				//        qPoints[firstLine.second].x, qPoints[firstLine.second].y,
-	//				//        qPoints[secondLine.first].x, qPoints[secondLine.first].y,
-	//				//        qPoints[secondLine.second].x, qPoints[secondLine.second].y);
-	//				//}
-	//			}
-	//			counts[i] = currentTotalPoints;
-	//			//    cl_int color;
-	//			//cl_int i[2];
-	//			//cl_float i2[2];
-	//			//cl_int width;
-	//			//intn origin;
-	//		}
-	//		stopBenchmark();
-	//		return CL_SUCCESS;
-	//	}
-	//#endif
 
 		// Get Resolution Points Info
 #ifdef OpenCL
@@ -3636,8 +3548,8 @@ namespace Kernels {
 
 		int globalSize = nextPow2(numConflicts);
 		//    cout<<"cpu sizeof conflict info: "<<sizeof(ConflictInfo)<<endl;
-		error |= CLFW::get(conflictInfo_o, "conflictInfoBuffer", globalSize * sizeof(ConflictInfo));
-		error |= CLFW::get(numPtsPerConflict_o, "numPtsPerConflict", globalSize * sizeof(cl_int));
+		error |= CLFW::getBuffer(conflictInfo_o, "conflictInfoBuffer", globalSize * sizeof(ConflictInfo));
+		error |= CLFW::getBuffer(numPtsPerConflict_o, "numPtsPerConflict", globalSize * sizeof(cl_int));
 
 		error |= kernel.setArg(0, conflicts_i);
 		error |= kernel.setArg(1, qpoints_i);
@@ -3707,8 +3619,8 @@ namespace Kernels {
 
 		bool isOld;
 		cl::Buffer zeroBuffer;
-		error |= CLFW::get(zeroBuffer, "pPntToConfZero", sizeof(cl_int) * nextPow2(numResPts), isOld);
-		error |= CLFW::get(predication_o, "pPntToConfl", sizeof(cl_int) * nextPow2(numResPts));
+		error |= CLFW::getBuffer(zeroBuffer, "pPntToConfZero", sizeof(cl_int) * nextPow2(numResPts), isOld);
+		error |= CLFW::getBuffer(predication_o, "pPntToConfl", sizeof(cl_int) * nextPow2(numResPts));
 		if (!isOld) error |= queue.enqueueFillBuffer<cl_int>(zeroBuffer, { 0 }, 0, sizeof(cl_int) * nextPow2(numResPts));
 		error |= queue.enqueueCopyBuffer(zeroBuffer, predication_o, 0, 0, sizeof(cl_int) * nextPow2(numResPts));
 		error |= kernel.setArg(0, scannedNumPtsPerConflict_i);
@@ -3768,7 +3680,7 @@ namespace Kernels {
 		cl::Kernel &kernel = CLFW::Kernels["GetResolutionPointsKernel"];
 		cl_int error = 0;
 
-		error |= CLFW::get(resolutionPoints_o, "ResPts", nextPow2(numResPts) * sizeof(intn));
+		error |= CLFW::getBuffer(resolutionPoints_o, "ResPts", nextPow2(numResPts) * sizeof(intn));
 		error |= kernel.setArg(0, conflicts_i);
 		error |= kernel.setArg(1, conflictInfo_i);
 		error |= kernel.setArg(2, scannedNumPtsPerConflict_i);
@@ -3876,7 +3788,7 @@ namespace Kernels {
 		cl::Kernel &kernel = CLFW::Kernels["DynamicParallelismTest"];
 		cl::Buffer test;
 		cl_int n = 1;
-		CLFW::get(test, "test", sizeof(cl_int) * n);
+		CLFW::getBuffer(test, "test", sizeof(cl_int) * n);
 
 		error |= kernel.setArg(0, CLFW::DeviceQueue);
 		queue.finish();
@@ -3893,6 +3805,56 @@ namespace Kernels {
 		for (int i = 0; i < n; ++i) {
 			cout << result[i] << endl;
 		}
+		return error;
+	}
+#endif
+
+	/* Matrix Vector Multiplier */
+#ifdef OpenCL 
+	static float4 multiplyM4V4(float16 m, float4 v) {
+		float4 temp = {
+			m.s0 * v.s0 + m.s1 * v.s1 + m.s2 * v.s2 + m.s3 * v.s3,
+			m.s4 * v.s0 + m.s5 * v.s1 + m.s6 * v.s2 + m.s7 * v.s3,
+			m.s8 * v.s0 + m.s9 * v.s1 + m.sa * v.s2 + m.sb * v.s3,
+			m.sc * v.s0 + m.sd * v.s1 + m.se * v.s2 + m.sf * v.s3,
+		};
+		return temp;
+	}
+	__kernel void multiplyM4V4Kernel(
+		__global float2 *v, float16 m, __global float2 *result
+	) 
+	{
+		float2 vec = v[get_global_id(0)];
+		float4 augmented = { vec.x, vec.y, 0.0, 1.0 };
+		float4 augmentedResult = multiplyM4V4(m, augmented);
+		float2 out = { augmentedResult.s0, augmentedResult.s1 };
+		result[get_global_id(0)] = out;
+	}
+#else
+	inline cl_int multiplyM4V4_p (
+		cl::Buffer &VBuffer,
+		cl_int numV4,
+		glm::mat4 matrix,
+		string resultName,
+		cl::Buffer &result
+	) {
+		cl_int error = 0;
+		cl::CommandQueue &queue = CLFW::DefaultQueue;
+		cl::Kernel &kernel = CLFW::Kernels["multiplyM4V4Kernel"];
+		error |= CLFW::getBuffer(result, resultName, nextPow2(numV4) * sizeof(float2));
+		
+		cl_float16 temp = {
+			matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
+			matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
+			matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2],
+			matrix[0][3], matrix[1][3], matrix[2][3], matrix[3][3]
+		};
+
+		error |= kernel.setArg(0, VBuffer);
+		error |= kernel.setArg(1, temp);
+		error |= kernel.setArg(2, result);
+
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numV4), cl::NullRange);
 		return error;
 	}
 #endif

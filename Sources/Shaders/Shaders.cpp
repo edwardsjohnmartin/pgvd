@@ -1,15 +1,15 @@
 #include "Shaders.hpp"
 namespace Shaders {
-  ShaderProgram* boxProgram;
+	ShaderProgram* planeProgram;
+	ShaderProgram* boxProgram;
+  ShaderProgram* pointProgram;
   ShaderProgram* lineProgram;
-  ShaderProgram* sketchProgram;
-  ShaderProgram* sketchLineProgram;
   //ShaderProgram* sketchBoxProgram;
   void create() {
-    boxProgram = new ShaderProgram("./Sources/OpenGL/Shaders/boxes.vert", "./Sources/OpenGL/Shaders/boxes.frag");
-    lineProgram = new ShaderProgram("./Sources/OpenGL/Shaders/lines.vert", "./Sources/OpenGL/Shaders/lines.frag");
-    sketchProgram = new ShaderProgram("./Sources/OpenGL/Shaders/sketchPoint.vert", "./Sources/OpenGL/Shaders/sketchPoint.frag");
-    sketchLineProgram = new ShaderProgram("./Sources/OpenGL/Shaders/sketchLine.vert", "./Sources/OpenGL/Shaders/sketchLine.frag");
+		planeProgram = new ShaderProgram("./Sources/OpenGL/Shaders/plane.vert", "./Sources/OpenGL/Shaders/plane.frag");
+		boxProgram = new ShaderProgram("./Sources/OpenGL/Shaders/boxes.vert", "./Sources/OpenGL/Shaders/boxes.frag");
+		lineProgram = new ShaderProgram("./Sources/OpenGL/Shaders/lines.vert", "./Sources/OpenGL/Shaders/lines.frag");
+  	pointProgram = new ShaderProgram("./Sources/OpenGL/Shaders/points.vert", "./Sources/OpenGL/Shaders/points.frag");
     //sketchBoxProgram = new ShaderProgram("./Sources/OpenGL/Shaders/sketchBox.vert", "./Sources/OpenGL/Shaders/sketchBox.frag");
   }
 }

@@ -1,12 +1,14 @@
-#ifndef __LINES_H__
-#define __LINES_H__
+#pragma once
 
 #include <vector>
+#include <iostream>
+#include <fstream>
 
 #include "./glm/gtc/matrix_transform.hpp"
 #include "Shaders/Shaders.hpp"
+#include "Quantize/Quantize.h"
 extern "C" {
-  #include "Line/Line.h"
+#include "Line/Line.h"
 }
 #include "Vector/vec.h"
 #include "Options/Options.h"
@@ -15,164 +17,157 @@ extern "C" {
 #include <iostream>
 
 class PolyLines {
- private:
-  int capacity;
-  int size;
-  floatn* points;
-  // Index of last+1 point in a line
-  std::vector<int> lasts;
-  std::vector<float3> colors;
+private:
+	std::vector<floatn> points;
+	// Index of last+1 point in a line
+	std::vector<int> lasts;
+	std::vector<float3> colors;
 
-  GLuint pointsVboId;
-  GLuint pointsVaoId;
+	GLuint pointsVboId;
+	GLuint pointsVaoId;
 
- public:
-  PolyLines() : capacity(1024), size(0), points(new floatn[capacity]) {
-    //glGenBuffers(1, &pointsVboId);
-    //glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
-    //glBufferData(GL_ARRAY_BUFFER, capacity*sizeof(floatn), points, GL_STATIC_DRAW);
-    //glGenVertexArrays(1, &pointsVaoId);
-    //glBindVertexArray(pointsVaoId);
-    //glEnableVertexAttribArray(Shaders::lineProgram->position_id);
-    //assert(glGetError() == GL_NO_ERROR);
-    srand(time(NULL));
-  }
+public:
+	PolyLines(std::vector<std::string> filenames) {
+		/* Read files */
+		for (int i = 0; i < Options::filenames.size(); ++i)
+			readMesh(Options::filenames[i]);
+		srand(time(NULL));
+	}
 
-  ~PolyLines() {
-    delete [] points;
-  }
+	~PolyLines() {
+	}
 
-  void clear() {
-    size = 0;
-    lasts.clear();
-  }
+	void clear() {
+		points.clear();
+		lasts.clear();
+		colors.clear();
+	}
 
-  void addPoint(const floatn& p) {
+	void addPoint(const floatn& p) {
 		if (lasts.size() == 0) return;
-    using namespace std;
-    //glBindBuffer(GL_ARRAY_BUFFER, pointsVboId);
+		using namespace std;
 
-    if (size == capacity) {
-      floatn* temp = new floatn[capacity*2];
-      memcpy(temp, points, capacity*sizeof(floatn));
-      delete [] points;
-      points = temp;
-      capacity *= 2;
-      /*glBufferData(
-          GL_ARRAY_BUFFER, capacity*sizeof(floatn), points, GL_STATIC_DRAW);*/
-      cout << "Updating capacity to " << capacity << endl;
-    }
-    points[size] = p;
+		points.push_back(p);
 
-    /*glBufferSubData(
-        GL_ARRAY_BUFFER, size*sizeof(floatn),
-        sizeof(floatn), points+size);*/
+		lasts.back() = points.size();
+	}
 
-    ++size;
-    lasts.back() = size;
-  }
+	void newLine(const floatn& p) {
+		lasts.push_back(0);
+		colors.push_back(Color::randomColor());
+		addPoint(p);
+	}
 
-  void newLine(const floatn& p) {
-    lasts.push_back(0);
-    colors.push_back(Color::randomColor());
-    addPoint(p);
-  }
+	void undoLine() {
+		if (lasts.size() == 0) return;
+		int numElements = lasts[lasts.size() - 1] - ((lasts.size() == 1) ? 0 : lasts[lasts.size() - 2]);
+		points.resize(points.size() - numElements);
+		lasts.pop_back();
+		colors.pop_back();
+	}
 
-  std::vector<std::vector<floatn>> getPolygons() const {
-    using namespace std;
-    vector<vector<floatn>> ret;
+	void readMesh(const string& filename) {
+		ifstream in(filename.c_str());
+		if (!in) {
+			cerr << "Failed to read " << filename << endl;
+			return;
+		}
 
-    int first = 0;
-    for (int i = 0; i < lasts.size(); ++i) {
-      const int last = lasts[i];
-      vector<floatn> polygon;
-      for (int j = first; j < last; ++j) {
-        polygon.push_back(points[j]);
-      }
-      if (polygon.size() > 1) {
-        ret.push_back(polygon);
-      }
-      first = lasts[i];
-    }
-    return ret;
-  }
+		float x, y;
+		in >> x >> y;
+		if (!in.eof()) {
+			newLine({ x, y });
+		}
 
-  std::vector<Line> getLines() const {
-    using namespace std;
-    vector<Line> lines;
-    int totalSkips = 0; //we skip single point polylines.
-    int first = 0;
-    //For each polyline 
-    for (int i = 0; i < lasts.size(); ++i) {
-      int last = lasts[i];
-      first = (i != 0) ? lasts[i - 1] : i;
-      //if the polyline has more than one point
-      if (last - first > 1) {
-        //then add the lines in this polyline
-        for (int j = 0; j < (last - first) - 1; ++j) {
-          Line line;
-          line.first = first + j - totalSkips;
-          line.second = first + j + 1 - totalSkips;
-          line.color = i;
-          lines.push_back(line);
-        }
-      }
-      else totalSkips++;
-    }
-    return lines;
-  }
+		while (in >> x && in >> y) {
+			addPoint({ x, y });
+		}
 
-  //void render(const glm::mat4& mvMatrix) {
-  //  using namespace std;
-  //  using namespace GLUtilities;
-  //  Shaders::lineProgram->use();
-  //  glUniform1f(Shaders::lineProgram->pointSize_id, 5.0);
+		in.close();
+	}
 
-  //  print_gl_error();
+	void writeToFile(const string &foldername) {
+		auto polygons = getPolygons();
+		ofstream out;
+		ofstream subout;
+		out.open(foldername + "/" + "files" + ".txt");
+		out.clear();
+		for (int i = 0; i < polygons.size(); ++i) {
+			cout << "writing to " << foldername << "/" << i << ".bin" << endl;
+			out << foldername << "/" << i << ".bin" << endl;
+			subout.open(foldername + "/" + std::to_string(i) + ".bin");
+			subout.clear();
+			auto polygon = polygons[i];
+			for (int j = 0; j < polygon.size(); j++) {
+				subout << polygon[j].x << " " << polygon[j].y << endl;
+			}
+			subout.close();
+		}
+		out.close();
+	}
 
-  //  glBindVertexArray(pointsVaoId);
-  //  glBindBuffer(GL_ARRAY_BUFFER, pointsVboId); //Think this isn't required after vao setup.
-  //  print_gl_error();
-  //  glVertexAttribPointer( Shaders::lineProgram->position_id, sizeof(floatn)/sizeof(cl_float), GL_FLOAT, GL_FALSE, 0, NULL);
-  //  print_gl_error();
-  //  glEnableVertexAttribArray(Shaders::lineProgram->position_id);
-  //  print_gl_error();
+	std::vector<std::vector<floatn>> getPolygons() const {
+		using namespace std;
+		vector<vector<floatn>> ret;
 
-  //  glUniformMatrix4fv(
-  //      Shaders::lineProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
+		int first = 0;
+		for (int i = 0; i < lasts.size(); ++i) {
+			const int last = lasts[i];
+			vector<floatn> polygon;
+			for (int j = first; j < last; ++j) {
+				polygon.push_back(points[j]);
+			}
+			if (polygon.size() > 1) {
+				ret.push_back(polygon);
+			}
+			first = lasts[i];
+		}
+		return ret;
+	}
 
-  //  glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-  //  glEnable(GL_LINE_SMOOTH);
-  //  glLineWidth(1.0);
-  //  GLenum error = glGetError();
-  //  // if (error != GL_NO_ERROR) {
-  //  //   if (error == GL_INVALID_VALUE) {
-  //  //     // Line widths of >1 not supported on Mac OS X. No big deal.
-  //  //   } else {
-  //  //     print_gl_error(error, "Polylines0.4");
-  //  //   }
-  //  // }
+	std::vector<std::vector<floatn>> getQuantizedPolygons(const floatn minimum, const int reslnWidth, const float bbWidth) const {
+		using namespace std;
+		vector<vector<floatn>> ret;
 
-  //  int first = 0;
-  //  for (int i = 0; i < lasts.size(); ++i) {
-  //    const int len = lasts[i]-first;
+		int first = 0;
+		for (int i = 0; i < lasts.size(); ++i) {
+			const int last = lasts[i];
+			vector<floatn> polygon;
+			for (int j = first; j < last; ++j) {
+				intn quantized = QuantizePoint(&points[j], &minimum, reslnWidth, bbWidth);
+				floatn unquantized = UnquantizePoint(&quantized, &minimum, reslnWidth, bbWidth);
+				polygon.push_back(unquantized);
+			}
+			if (polygon.size() > 1) {
+				ret.push_back(polygon);
+			}
+			first = lasts[i];
+		}
+		return ret;
+	}
 
-  //    float3 color = colors[i];
-  //    glUniform3fv(Shaders::lineProgram->color_uniform_id, 1, color.s);
-  //    glLineWidth(2.0);
-  //    if (Options::showObjectVertices) {
-  //      glDrawArrays(GL_POINTS, first, len);
-  //      print_gl_error();
-  //    }
-  //    if (Options::showObjects) {
-  //      glDrawArrays(GL_LINE_STRIP, first, len);
-  //      // print_gl_error();
-  //      ignore_gl_error();
-  //    }
-  //    first = lasts[i];
-  //  }
-  //  print_gl_error();
-  //}
+	std::vector<Line> getLines() const {
+		using namespace std;
+		vector<Line> lines;
+		int totalSkips = 0; //we skip single point polylines.
+		int first = 0;
+		//For each polyline 
+		for (int i = 0; i < lasts.size(); ++i) {
+			int last = lasts[i];
+			first = (i != 0) ? lasts[i - 1] : i;
+			//if the polyline has more than one point
+			if (last - first > 1) {
+				//then add the lines in this polyline
+				for (int j = 0; j < (last - first) - 1; ++j) {
+					Line line;
+					line.first = first + j - totalSkips;
+					line.second = first + j + 1 - totalSkips;
+					line.color = i;
+					lines.push_back(line);
+				}
+			}
+			else totalSkips++;
+		}
+		return lines;
+	}
 };
-
-#endif

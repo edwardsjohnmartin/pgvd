@@ -4,7 +4,6 @@
 #ifndef  OpenCL 
 #include <stdbool.h>
 #include <stdio.h>
-#include <math.h>
 #define __local
 #define __global
 #define barrier(a)
@@ -13,7 +12,7 @@
 void ComputeLocalSplits(__global cl_int* splits, __global BrtNode* node, bool colored, __global cl_int *colors, const int gid) {
 	BrtNode n = node[gid];
 	const int currentLenPerDim = n.lcp.len / DIM;
-	const int left = node[gid].left;
+	const int left = n.left;
 	const int right = left + 1;
 	if (!n.left_leaf) {
 		if (!colored || colors[left] == -2)
@@ -61,16 +60,16 @@ int getQuadrantFromLCP(big lcp, cl_int lcpLen, cl_int i) {
 /*
   Binary radix to Octree
 */
-//gid is between 0 and the octree size excluding 0
+//gid is between 0 and the octree size
 void brt2octree(__global BrtNode* BRT, const cl_int totalBrtNodes, __global OctNode* octree, 
   const cl_int totalOctNodes, __global cl_int* local_splits, __global cl_int* prefix_sums, 
   __global cl_int* flags, const cl_int gid) {
-  BrtNode brtNode = BRT[gid];
+	BrtNode brtNode = BRT[gid];
   OctNode n;
 
   /* Get total number of nodes to generate, and where to put them */
   const cl_int mySplits = local_splits[gid];
-  const cl_int startIndx = prefix_sums[gid - 1];
+  const cl_int startIndx = (gid == 0) ? 0 : prefix_sums[gid - 1];
 
   /* Build first node in the list */
   for (int i = 0; i < mySplits; ++i) {
@@ -79,11 +78,17 @@ void brt2octree(__global BrtNode* BRT, const cl_int totalBrtNodes, __global OctN
        If this isn't the first node, the parent is just the previously generated node. */
 
     if (i == 0) {
-      /* Find the first ancestor containing a split... */
-      int parentBRTIndx = brtNode.parent;
-      while (local_splits[parentBRTIndx] == 0)
-        parentBRTIndx = BRT[parentBRTIndx].parent;
-      n.parent = (parentBRTIndx == 0) ? 0 : prefix_sums[parentBRTIndx - 1] + local_splits[parentBRTIndx] - 1;
+			if (gid == 0) {
+				n.parent = -1;
+			}
+			else {
+				/* Find the first ancestor containing a split... */
+				int parentBRTIndx = brtNode.parent;
+				if (parentBRTIndx > 0)
+					while (local_splits[parentBRTIndx] == 0)
+						parentBRTIndx = BRT[parentBRTIndx].parent;
+				n.parent = (parentBRTIndx == 0) ? local_splits[0] - 1 : prefix_sums[parentBRTIndx - 1] + local_splits[parentBRTIndx] - 1;
+			}
     }
     else { n.parent = startIndx + i - 1; }
 
@@ -96,7 +101,8 @@ void brt2octree(__global BrtNode* BRT, const cl_int totalBrtNodes, __global OctN
     octree[startIndx + i].quadrant = n.quadrant;
 
     /* Add this first node to its parent */
-    octree[n.parent].children[n.quadrant] = startIndx + i;
+		if (n.parent != -1)
+			octree[n.parent].children[n.quadrant] = startIndx + i;
   }
 }
 void brt2octree_init(__global OctNode* octree, const int gid) {

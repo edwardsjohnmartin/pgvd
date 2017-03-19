@@ -16,7 +16,7 @@ Benchmark("Check Order", "[4way][sort][reduction]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints;
-	CLFW::get(b_zpoints, "zpoints", Kernels::nextPow2(numPts) * sizeof(big));
+	CLFW::getBuffer(b_zpoints, "zpoints", Kernels::nextPow2(numPts) * sizeof(big));
 	CLFW::Upload<big>(zpoints, b_zpoints);
 	big maxbig = makeMaxBig();
 	CLFW::DefaultQueue.enqueueFillBuffer<big>(b_zpoints, { maxbig }, numPts * sizeof(big), 
@@ -68,8 +68,8 @@ Benchmark("Parallel Radix Sort", "[sort][integration][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(unsigned long long));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(unsigned long long));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(unsigned long long));
+	CLFW::getBuffer(b_zpoints_copy, "zpointsc", numPts * sizeof(unsigned long long));
 	CLFW::Upload<unsigned long long>(zpoints, b_zpoints);
 
 	/* Benchmark */
@@ -89,11 +89,11 @@ Benchmark("Parallel Radix Sort (Pairs by Key)", "[sort][integration][done][selec
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy, b_pntCols, b_pntCols_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
 	CLFW::Upload<big>(zpoints, b_zpoints);
-	CLFW::get(b_pntCols, "colors", numPts * sizeof(cl_int));
-	CLFW::get(b_pntCols_copy, "colorsc", numPts * sizeof(cl_int));
+	CLFW::getBuffer(b_pntCols, "colors", numPts * sizeof(cl_int));
+	CLFW::getBuffer(b_pntCols_copy, "colorsc", numPts * sizeof(cl_int));
 	CLFW::Upload<cl_int>(pointColors, b_pntCols);
 
 	/* Benchmark */
@@ -114,8 +114,8 @@ Benchmark("Parallel Radix Sort (Big Unsigneds)", "[sort][integration][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
 	CLFW::Upload<big>(zpoints, b_zpoints);
 
 	/* Benchmark */
@@ -140,7 +140,7 @@ Benchmark("Quantize Points", "[zorder][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_points, b_qpoints;
-	CLFW::get(b_points, "points", numPts * sizeof(floatn));
+	CLFW::getBuffer(b_points, "points", numPts * sizeof(floatn));
 	CLFW::Upload<floatn>(points, b_points);
 
 	/* Benchmark */
@@ -158,7 +158,7 @@ Benchmark("QPoints to ZPoints", "[zorder][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_qpoints, b_zpoints;
-	CLFW::get(b_qpoints, "qpoints", numPts * sizeof(intn));
+	CLFW::getBuffer(b_qpoints, "qpoints", numPts * sizeof(intn));
 	CLFW::Upload<intn>(qpoints, b_qpoints);
 
 	/* Benchmark */
@@ -178,8 +178,8 @@ Benchmark("Unique Sorted big", "[sort][unique][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
 	CLFW::Upload<big>(zpoints, b_zpoints);
 
 	/* Benchmark */
@@ -200,11 +200,11 @@ Benchmark("Unique Sorted big color pairs", "[sort][unique][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_zpoints_copy, b_pntCols, b_pntCols_copy;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
-	CLFW::get(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints_copy, "zpointsc", numPts * sizeof(big));
 	CLFW::Upload<big>(zpoints, b_zpoints);
-	CLFW::get(b_pntCols, "colors", numPts* sizeof(cl_int));
-	CLFW::get(b_pntCols_copy, "colorsc", numPts* sizeof(cl_int));
+	CLFW::getBuffer(b_pntCols, "colors", numPts* sizeof(cl_int));
+	CLFW::getBuffer(b_pntCols_copy, "colorsc", numPts* sizeof(cl_int));
 	CLFW::Upload<cl_int>(pntColors, b_pntCols);
 
 	/* Benchmark */
@@ -227,7 +227,7 @@ Benchmark("Build Binary Radix Tree", "[tree][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_brt;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(big));
 	CLFW::Upload<big>(zpoints, b_zpoints);
 
 	/* Benchmark */
@@ -246,9 +246,9 @@ Benchmark("Build Colored Binary Radix Tree", "[tree][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_zpoints, b_pntCols, b_brt, b_brtCols;
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(big));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(big));
 	CLFW::Upload<big>(zpoints, b_zpoints);
-	CLFW::get(b_pntCols, "colors", numPts * sizeof(cl_int));
+	CLFW::getBuffer(b_pntCols, "colors", numPts * sizeof(cl_int));
 	CLFW::Upload<cl_int>(pntCols, b_pntCols);
 
 	/* Benchmark */
@@ -267,9 +267,9 @@ Benchmark("Propagate Brt Colors", "[tree][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_brt, b_brtCols;
-	CLFW::get(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
+	CLFW::getBuffer(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
 	CLFW::Upload<BrtNode>(brt, b_brt);
-	CLFW::get(b_brtCols, "brtCols", (numPts - 1) * sizeof(cl_int));
+	CLFW::getBuffer(b_brtCols, "brtCols", (numPts - 1) * sizeof(cl_int));
 	CLFW::Upload<cl_int>(brtCols, b_brtCols);
 
 	/* Benchmark */
@@ -287,7 +287,7 @@ Benchmark("Build Quadtree from BRT", "[tree][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_brt, nullBuffer, b_octree;
-	CLFW::get(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
+	CLFW::getBuffer(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
 	CLFW::Upload<BrtNode>(brt, b_brt);
 
 	/* Benchmark */
@@ -307,9 +307,9 @@ Benchmark("Build Pruned Quadtree from BRT", "[tree][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_brt, b_brtCols, b_octree;
-	CLFW::get(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
+	CLFW::getBuffer(b_brt, "brt", (numPts - 1) * sizeof(BrtNode));
 	CLFW::Upload<BrtNode>(brt, b_brt);
-	CLFW::get(b_brtCols, "brtCols", (numPts - 1) * sizeof(cl_int));
+	CLFW::getBuffer(b_brtCols, "brtCols", (numPts - 1) * sizeof(cl_int));
 	CLFW::Upload<cl_int>(brtCols, b_brtCols);
 
 	/* Benchmark */
@@ -327,7 +327,7 @@ Benchmark("Generate Leaves", "[tree][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_octree, b_leaves;
-	CLFW::get(b_octree, "octree", numOctnodes * sizeof(OctNode));
+	CLFW::getBuffer(b_octree, "octree", numOctnodes * sizeof(OctNode));
 	CLFW::Upload<OctNode>(octree, b_octree);
 
 	/* Benchmark */
@@ -345,7 +345,7 @@ Benchmark("Generate Pruned Leaves", "[tree][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_octree, b_leaves;
-	CLFW::get(b_octree, "octree", numOctnodes * sizeof(OctNode));
+	CLFW::getBuffer(b_octree, "octree", numOctnodes * sizeof(OctNode));
 	CLFW::Upload<OctNode>(octree, b_octree);
 
 	/* Benchmark */
@@ -368,8 +368,8 @@ Benchmark("Get LCPs From Lines", "[conflict][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_lines, b_zpoints, b_LineLCPs;
-	CLFW::get(b_lines, "lines", numLines * sizeof(Line));
-	CLFW::get(b_zpoints, "zpoints", numPts * sizeof(OctNode));
+	CLFW::getBuffer(b_lines, "lines", numLines * sizeof(Line));
+	CLFW::getBuffer(b_zpoints, "zpoints", numPts * sizeof(OctNode));
 	CLFW::Upload<Line>(lines, b_lines);
 	CLFW::Upload<big>(zpoints, b_zpoints);
 
@@ -389,8 +389,8 @@ Benchmark("Look Up Octnode From LCP", "[conflict][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_lineLCPs, b_octree, b_LCPToOctNode;
-	CLFW::get(b_lineLCPs, "lineLCPs", numLines * sizeof(LCP));
-	CLFW::get(b_octree, "octree", numOctnodes * sizeof(OctNode));
+	CLFW::getBuffer(b_lineLCPs, "lineLCPs", numLines * sizeof(LCP));
+	CLFW::getBuffer(b_octree, "octree", numOctnodes * sizeof(OctNode));
 	CLFW::Upload<LCP>(lineLCPs, b_lineLCPs);
 	CLFW::Upload<OctNode>(octree, b_octree);
 
@@ -409,7 +409,7 @@ Benchmark("Get Octnode LCP Bounds", "[conflict][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_LCPToOctNode, b_LCPBounds;
-	CLFW::get(b_LCPToOctNode, "LCPToOctNode", numLines * sizeof(cl_int));
+	CLFW::getBuffer(b_LCPToOctNode, "LCPToOctNode", numLines * sizeof(cl_int));
 	CLFW::Upload<cl_int>(LCPToOctNode, b_LCPToOctNode);
 
 	/* Benchmark */
@@ -435,12 +435,12 @@ Benchmark("Find Conflict Cells", "[conflict][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_octree, b_leaves, b_lineIndices, b_LCPBounds, b_lines, b_qpoints, b_sparseConflicts;
-	CLFW::get(b_octree, "octree", numOctnodes * sizeof(OctNode));
-	CLFW::get(b_leaves, "leaves", numLeaves * sizeof(Leaf));
-	CLFW::get(b_lineIndices, "lineIndices", numLines * sizeof(cl_int));
-	CLFW::get(b_LCPBounds, "LCPBounds", numOctnodes * sizeof(Pair));
-	CLFW::get(b_lines, "lines", numLines * sizeof(Line));
-	CLFW::get(b_qpoints, "qpoints", numPts * sizeof(intn));
+	CLFW::getBuffer(b_octree, "octree", numOctnodes * sizeof(OctNode));
+	CLFW::getBuffer(b_leaves, "leaves", numLeaves * sizeof(Leaf));
+	CLFW::getBuffer(b_lineIndices, "lineIndices", numLines * sizeof(cl_int));
+	CLFW::getBuffer(b_LCPBounds, "LCPBounds", numOctnodes * sizeof(Pair));
+	CLFW::getBuffer(b_lines, "lines", numLines * sizeof(Line));
+	CLFW::getBuffer(b_qpoints, "qpoints", numPts * sizeof(intn));
 	CLFW::Upload<OctNode>(octree, b_octree);
 	CLFW::Upload<Leaf>(leaves, b_leaves);
 	CLFW::Upload<cl_int>(lineIndices, b_lineIndices);
@@ -467,9 +467,9 @@ Benchmark("Sample required resolution points", "[resolution][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_conflicts, b_qpoints, b_conflictInfo, b_numPtsPerConflict;
-	CLFW::get(b_qpoints, "qpoints", numPts * sizeof(intn));
+	CLFW::getBuffer(b_qpoints, "qpoints", numPts * sizeof(intn));
 	CLFW::Upload<intn>(qpoints, b_qpoints);
-	CLFW::get(b_conflicts, "conflicts", numConflicts * sizeof(Conflict));
+	CLFW::getBuffer(b_conflicts, "conflicts", numConflicts * sizeof(Conflict));
 	CLFW::Upload<Conflict>(conflicts, b_conflicts);
 
 	/* Benchmark */
@@ -495,15 +495,15 @@ Benchmark("Get resolution points", "[resolution][done]") {
 
 	/* Upload dependencies */
 	cl::Buffer b_conflicts, b_conflictInfo, b_qpoints, b_scannedNumPtsPerConflict, b_pntToConflict, b_resPts;
-	CLFW::get(b_qpoints, "qpoints", numPts * sizeof(intn));
+	CLFW::getBuffer(b_qpoints, "qpoints", numPts * sizeof(intn));
 	CLFW::Upload<intn>(qpoints, b_qpoints);
-	CLFW::get(b_conflicts, "conflicts", numConflicts * sizeof(Conflict));
+	CLFW::getBuffer(b_conflicts, "conflicts", numConflicts * sizeof(Conflict));
 	CLFW::Upload<Conflict>(conflicts, b_conflicts);
-	CLFW::get(b_scannedNumPtsPerConflict, "scannumpts", sizeof(cl_int) * numConflicts);
+	CLFW::getBuffer(b_scannedNumPtsPerConflict, "scannumpts", sizeof(cl_int) * numConflicts);
 	CLFW::Upload<cl_int>(scannedNumPtsPerConflict, b_scannedNumPtsPerConflict);
-	CLFW::get(b_pntToConflict, "pntToConflict", sizeof(cl_int) * numResPts);
+	CLFW::getBuffer(b_pntToConflict, "pntToConflict", sizeof(cl_int) * numResPts);
 	CLFW::Upload<cl_int>(pntToConflict, b_pntToConflict);
-	CLFW::get(b_conflictInfo, "conflictInfo", sizeof(ConflictInfo) * numConflicts);
+	CLFW::getBuffer(b_conflictInfo, "conflictInfo", sizeof(ConflictInfo) * numConflicts);
 	CLFW::Upload<ConflictInfo>(conflictInfo, b_conflictInfo);
 
 	/* Benchmark */

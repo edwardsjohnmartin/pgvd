@@ -11,7 +11,7 @@ inline intn QuantizePoint(const floatn *p, const floatn *minimum, const int resl
 
 inline floatn UnquantizePoint(const intn *p, const floatn *minimum, const int reslnWidth, const float bbWidth) {
   int effectiveWidth = reslnWidth;
-  floatn q = make_floatn(p->x, p->y);
-  q = (((q) / effectiveWidth) * bbWidth) + *minimum;
+  floatn q = make_floatn((float)p->x, (float)p->y);
+  q = (((q) / (float)effectiveWidth) * bbWidth) + *minimum;
   return q;
 }
