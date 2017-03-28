@@ -13,7 +13,7 @@
 #define __global
 #endif
 
-
+/* 16 bytes */
 typedef struct Line {
   cl_int first;
   cl_int second;

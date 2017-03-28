@@ -34,6 +34,7 @@ namespace GLUtilities {
 		Texture t = {};
 		int comp;
 		int forceChannels = 4;
+		stbi_set_flip_vertically_on_load(1);
 		unsigned char* image = stbi_load(imagePath.c_str(), &t.width, &t.height, &comp, forceChannels);
 		assert(image != 0);
 
@@ -116,7 +117,8 @@ namespace GLUtilities {
 		float3 color = { 0.75, 0.75, 0.75 };
 		add_internal(q.nodes, 0, center, q.bb.maxwidth * .5, color);
 
-		for (int i = 0; i < q.conflicts.size(); ++i) {
+		if (Options::showObjectIntersections)
+			for (int i = 0; i < q.conflicts.size(); ++i) {
 			Box temp = {};
 			floatn min = UnquantizePoint(&q.conflicts[i].origin, &q.bb.minimum, q.resln.width, q.bb.maxwidth);
 			temp.scale = (q.conflicts[i].width / (q.resln.width * 2.0)) * q.bb.maxwidth;
@@ -124,6 +126,13 @@ namespace GLUtilities {
 			temp.color = { 1.0, 0.0, 0.0, 1.0 };
 			add(temp);
 		}
+		if (Options::showResolutionPoints)
+			for (int i = 0; i < q.resolutionPoints.size(); ++i) {
+				Point p;
+				p.color = { 1.0, 0.0, 0.0, 1.0 };
+				p.p = { q.resolutionPoints[i].x, q.resolutionPoints[i].y, 0, 1 };
+				add(p);
+			}
 
 	}
 	void Sketcher::add(Point p) {
@@ -139,37 +148,72 @@ namespace GLUtilities {
 		planes.push_back(p);
 	}
 	void Sketcher::add(PolyLines &p) {
- 		const vector<vector<floatn>> polygons = p.getPolygons();
 		Color::currentColor = -1;
 		
+		int first = 0;
 		/* For each polygon */
-		for (int i = 0; i < polygons.size(); ++i) {
-			vector<floatn> polygon = polygons[i];
-
+		for (int i = 0; i < p.lasts.size(); ++i) {
+			int last = p.lasts[i];
 			float3 color = Color::randomColor();
-			/* For each point in the polygon */
+			/* For each point in the line */
 			if (Options::showObjectVertices)
-				for (int j = 0; j < polygon.size(); ++j) {
+				for (int j = first; j < first + last; ++j) {
 					Point point;
 					point.color = { color.x, color.y, color.z, 1.0 };
-					point.p = {polygon[j].x, polygon[j].y, 0.0, 1.0};
+					point.p = {p.points[j].x, p.points[j].y, 0.0, 1.0};
 					add(point);
 				}
 
 			if (Options::showObjects)
-				for (int j = 0; j < polygon.size() - 1; ++j) {
+				for (int j = first; j < first + last - 1; ++j) {
 					Point first, second;
 					first.color = { color.x, color.y, color.z, 1.0 };
 					second.color = { color.x, color.y, color.z, 1.0 };
-					first.p = { polygon[j].x, polygon[j].y, 0.0, 1.0 };
-					second.p = { polygon[j + 1].x, polygon[j + 1].y, 0.0, 1.0 };
+					first.p = { p.points[j].x, p.points[j].y, 0.0, 1.0 };
+					second.p = { p.points[j + 1].x, p.points[j + 1].y, 0.0, 1.0 };
 					SketcherLine l;
 					l.p1 = { first };
 					l.p2 = { second };
 					add(l);
 				}
+			first += last;
 		}
 	}
+
+	void Sketcher::add(Polygons &polygons) {
+		Color::currentColor = -1;
+
+		int first = 0;
+		/* For each polygon */
+		for (int i = 0; i < polygons.numPointsInPolygon.size(); ++i) {
+			int last = polygons.numPointsInPolygon[i];
+			float3 color = Color::randomColor();
+			/* For each point in the line */
+			if (Options::showObjectVertices)
+				for (int j = first; j < first + last; ++j) {
+					Point point;
+					point.color = { color.x, color.y, color.z, 1.0 };
+					point.p = { polygons.points[j].x, polygons.points[j].y, 0.0, 1.0 };
+					add(point);
+				}
+
+			if (Options::showObjects)
+				for (int j = first; j < first + last; ++j) {
+					Line line = polygons.lines[j];
+					Point first, second;
+					first.color = { color.x, color.y, color.z, 1.0 };
+					second.color = { color.x, color.y, color.z, 1.0 };
+					first.p = { polygons.points[line.first].x, polygons.points[line.first].y, 0.0, 1.0 };
+					second.p = { polygons.points[line.second].x, polygons.points[line.second].y, 0.0, 1.0 };
+					SketcherLine l;
+					l.p1 = { first };
+					l.p2 = { second };
+					add(l);
+				}
+			first += last;
+		}
+	}
+
 	void Sketcher::add(vector<vector<floatn>> polygons) {
 		Color::currentColor = -1;
 
@@ -230,7 +274,7 @@ namespace GLUtilities {
 		//     Shaders::sketchProgram->matrix_id, 1, 0, &(identity[0].x));
 		glUniformMatrix4fv(
 			Shaders::pointProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
-		glUniform1f(Shaders::pointProgram->pointSize_id, 10.0);
+		glUniform1f(Shaders::pointProgram->pointSize_id, 5.0);
 		glDrawArraysInstanced(GL_POINTS, 0, 1, points.size());
 		print_gl_error();
 		glBindVertexArray(0);
@@ -314,6 +358,23 @@ namespace GLUtilities {
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 			print_gl_error();
 		}
+	}
+	void Sketcher::drawPlane(string texkey, int planeIndex, const glm::mat4& mvMatrix) {
+		glUseProgram(Shaders::planeProgram->program);
+		glBindVertexArray(backgroundVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, backgroundVBO);
+		glUniformMatrix4fv(Shaders::planeProgram->matrix_id, 1, 0, &(mvMatrix[0].x));
+		glActiveTexture(GL_TEXTURE0);
+		print_gl_error();
+
+		glBindTexture(GL_TEXTURE_2D, textures[texkey].textureId);
+		glUniform1i(Shaders::planeProgram->texture_id, 0);
+		glUniform3fv(Shaders::planeProgram->offset_uniform_id,
+			1, &planes[planeIndex].offset[0]);
+		glUniform1f(Shaders::planeProgram->width_uniform_id, planes[planeIndex].width);
+		glUniform1f(Shaders::planeProgram->height_uniform_id, planes[planeIndex].height);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		print_gl_error();
 	}
 	void Sketcher::draw() {
 		glm::mat4 mvMatrix(1.0);

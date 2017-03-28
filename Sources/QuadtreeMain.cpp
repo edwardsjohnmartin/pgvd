@@ -1,9 +1,10 @@
 #include <iostream>
 #include "GLUtilities/gl_utils.h"
 #include "clfw.hpp"
-#include "Events/events.h"
+#include "Events/QuadtreeEvents.h"
 #include "Shaders/Shaders.hpp"
 #include "Polylines/Polylines.h"
+#include "GLUtilities/Polygons.h"
 #include "GlobalData/data.h"
 #include "Options/Options.h"
 
@@ -28,11 +29,17 @@ namespace GLFW {
 		GLUtilities::window_width = width;
 
 		print_gl_error();
-		glfwSetWindowTitle(window, "Parallel GVD");
+		glfwSetWindowTitle(window, "Quadtree Demo");
 		InitializeGLFWEventCallbacks();
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_LINE_SMOOTH);
+    glEnable(GL_POLYGON_SMOOTH);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
 		glfwSwapBuffers(window);
 		glfwSwapInterval(1);
 	}

@@ -33,7 +33,9 @@ ENDMACRO()
 GETFILES(_OCTREE_SRC SRC)
 
 set(OCTREE_SRC ${_OCTREE_SRC} 
-  ${CMAKE_CURRENT_SOURCE_DIR}/main_pgvd2.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Events/QuadtreeEvents.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Events/QuadtreeEvents.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/QuadtreeMain.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
   PARENT_SCOPE)
 
@@ -51,6 +53,12 @@ set(OCTREE_BENCH ${_OCTREE_SRC}
   ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
   PARENT_SCOPE)
 
+set(OCTREE_COLLISION ${_OCTREE_SRC}
+	${CMAKE_CURRENT_SOURCE_DIR}/Events/CollisionDetectionEvents.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Events/CollisionDetectionEvents.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/CollisionDetectionMain.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
+	PARENT_SCOPE)
 # -----------------------------------------------------
 # Shader files
 # -----------------------------------------------------

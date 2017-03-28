@@ -198,16 +198,27 @@ cl_int CLFW::getKernels(std::unordered_map<cl::string, cl::Kernel> &Kernels, cl:
 	}
 	return CL_SUCCESS;
 }
-cl_int CLFW::getBuffer(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old, cl::Context &context, int flag) {
+cl_int CLFW::getBuffer(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old, bool resize, int flag) {
 	error = 0;
+	cl_int oldSize = 0;
 	old = true;
 	//If the key is not found...
-	if (Buffers.find(key) == Buffers.end()) old = false;
-	else if (Buffers[key].getInfo<CL_MEM_SIZE>() != size) old = false;
-
+	if (Buffers.find(key) == Buffers.end()) 
+		old = false;
+	else { // else check to see if we can reuse the old buffer. 
+		oldSize = Buffers[key].getInfo<CL_MEM_SIZE>();
+		if (!resize)
+			old = (oldSize >= size);
+		else 
+			old = (oldSize == size);
+	}
+	/* if we can't reuse the old buffer... */
 	if (old == false) 
 	{
-		Buffers[key] = cl::Buffer(context, flag, size, NULL, &error);
+		cl::Buffer temp = Buffers[key];
+		Buffers[key] = cl::Buffer(DefaultContext, flag, size, NULL, &error);
+		if (resize && oldSize != 0)
+			error |= DefaultQueue.enqueueCopyBuffer(temp, Buffers[key], 0, 0, std::min((cl_ulong)oldSize, size));
 		if (error == CL_SUCCESS)
 			print("Created buffer " + key + " of size " + std::to_string(size) + " bytes");
 		else

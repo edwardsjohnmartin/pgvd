@@ -1,6 +1,4 @@
 set (Events_SRC 
 	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
-	${CMAKE_CURRENT_SOURCE_DIR}/events.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/events.h
 	${CMAKE_CURRENT_SOURCE_DIR}/mouse.h
 	PARENT_SCOPE)

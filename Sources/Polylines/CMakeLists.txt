@@ -1,4 +1,5 @@
 set (Polylines_SRC 
 	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
 	${CMAKE_CURRENT_SOURCE_DIR}/Polylines.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Polylines.cpp
 	PARENT_SCOPE)

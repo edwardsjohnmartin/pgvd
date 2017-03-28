@@ -48,8 +48,8 @@ find_package(OpenCL REQUIRED)
 include_directories(SYSTEM ${OPENCL_INCLUDE_DIR})
 
 # use OpenCV
-find_package(OpenCV REQUIRED)
-include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
+# find_package(OpenCV REQUIRED)
+# include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
 
 # use CLFW (OpenCL must be included first.)
 add_subdirectory(Dependencies/CLFW)
@@ -82,19 +82,25 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Sources)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Dependencies)
 
 # UNIT TEST TARGET
-add_executable (Unit_Tests "${OCTREE_TEST}")
-set_target_properties (Unit_Tests PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
-target_link_libraries (Unit_Tests ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW)
+add_executable (2D_Unit_Tests "${OCTREE_TEST}")
+set_target_properties (2D_Unit_Tests PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
+target_link_libraries (2D_Unit_Tests ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW)
 
 # BENCHMARK TARGET
-add_executable (Benchmarks "${OCTREE_BENCH}")
-set_target_properties (Benchmarks PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
-target_link_libraries (Benchmarks ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW)
+add_executable (2D_Benchmarks "${OCTREE_BENCH}")
+set_target_properties (2D_Benchmarks PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
+target_link_libraries (2D_Benchmarks ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} CLFW)
 
 # QUADTREE TARGET
-add_executable (Quadtree "${OCTREE_SRC}")
-set_target_properties (Quadtree PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
-target_link_libraries (Quadtree ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} ${OpenCV_LIBRARIES} CLFW)
+add_executable (2D_Quadtree "${OCTREE_SRC}")
+set_target_properties (2D_Quadtree PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
+target_link_libraries (2D_Quadtree ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} ${OpenCV_LIBRARIES} CLFW)
+
+# COLLISION DETECTION TARGET
+add_executable (2D_Collision_Detection "${OCTREE_COLLISION}")
+set_target_properties (2D_Collision_Detection PROPERTIES COMPILE_DEFINITIONS "QUADTREE;OCT2D;__OPEN_CL_SUPPORT__")
+target_link_libraries (2D_Collision_Detection ${OPENCL_LIBRARY} ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES} ${GLEW_LIBRARY} ${OpenCV_LIBRARIES} CLFW)
+
 
 # For IDE folder hierarchy generation
 foreach(_source IN ITEMS ${SRC_LIST})
@@ -116,10 +122,10 @@ copy_touched (
  CopyUnitTestDataToBinary
 )
 
-add_dependencies(Unit_Tests CopyUnitTestDataToBinary)
-add_dependencies(Unit_Tests CopySourcesToBinary)
-add_dependencies(Benchmarks CopySourcesToBinary)
-add_dependencies(Quadtree CopySourcesToBinary)
+#add_dependencies(2D_Unit_Tests CopyUnitTestDataToBinary)
+#add_dependencies(2D_Unit_Tests CopySourcesToBinary)
+add_dependencies(2D_Benchmarks CopySourcesToBinary)
+add_dependencies(2D_Quadtree CopySourcesToBinary)
 
 # Most platforms don't support SPIR-V yet. Eventually we'll switch to this though.
 #string(REPLACE ";" " " _KERNEL_SRC "${KERNEL_SRC}")

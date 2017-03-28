@@ -32,26 +32,24 @@ namespace Options {
   
 // Render settings
 	bool showObjectVertices = false;
-	bool showObjects = false;
-	bool showQuantizedObjects = true;
+	bool showObjects = true;
+	bool showQuantizedObjects = false;
 	bool showOctree = true;
-	bool showOctreeConflicts = false;
-	bool showResolutionPoints = true;
-	bool showImage = true;
+	bool showObjectIntersections = false;
+	bool showResolutionPoints = false;
+	bool showInstructions = true;
 
 	bool pruneOctree = true;
 
 	float conflict_color[3] = { 1.0, 0.0, 0.0 };
 
-	int maxConflictIterations = 5;
+	int maxConflictIterations = 3;
 
 	bool zoomMode;
 
 	bool debug = true;
 	bool benchmarking = false;
 	std::string cl_options = "-cl-std=CL2.0 -I ./Sources -D OpenCL -cl-mad-enable";//"-x spir -cl-std=CL2.0";
-
-
 
 #define $(flag) (strcmp(argv[i], flag) == 0)
 	bool processArg(int& i, char** argv) {

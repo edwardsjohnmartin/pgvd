@@ -1,11 +1,20 @@
 /*
-* C - clears all lines.
-* P - Show points
+* Left click - Draw a line
+* Right click - Pan the camera
+* Scroll - Zoom in or out
+* R - Reset the camera
+* P - Toggle quadtree pruning
+* X - Show intersections
+* C - Clear all lines.
+* V - Show line vertices
+* L - Show lines
 * O - Show octree
-* Z - Enter zoom mode
-* Q - Quit
+* U - Undo a line
+* Q - Show quantized lines
+* S - Save lines to new dataset
+* H - Hide/Show instructions
 */
-#include "events.h"
+#include "QuadtreeEvents.h"
 #include "mouse.h"
 
 using namespace GLUtilities;
@@ -19,38 +28,31 @@ static GLFWcursor* crossHairCursor;
 static floatn point1 = make_floatn(-1.0, -1.0);
 static floatn point2 = make_floatn(1.0, 1.0);
 
-static void one(bool down) {
+static void X(bool down) {
 	if (down) {
-		cout << "Toggling conflicts" << endl;
-		Options::showOctreeConflicts = !Options::showOctreeConflicts;
+		cout << "Toggling Intersections" << endl;
+		Options::showObjectIntersections = !Options::showObjectIntersections;
 		Data::quadtree->build(Data::lines);
 		Update();
 		Refresh();
 	}
 }
 
-static void two(bool down) {
+static void V(bool down) {
 	if (down) {
-		cout << "Toggling Points" << endl;
+		cout << "Toggling Vertices" << endl;
 		Options::showObjectVertices = !Options::showObjectVertices;
+		Options::showResolutionPoints = !Options::showResolutionPoints;
+		Data::quadtree->build(Data::lines);
 		Update();
 		Refresh();
 	}
 }
 
-static void three(bool down) {
+static void L(bool down) {
 	if (down) {
 		cout << "Toggling lines" << endl;
-		if (Options::showObjects) {
-			Options::showObjects = !Options::showObjects;
-			Options::showQuantizedObjects = !Options::showQuantizedObjects;
-		}
-		else if (Options::showQuantizedObjects) {
-			Options::showQuantizedObjects = !Options::showQuantizedObjects;
-		}
-		else if (!Options::showObjects) {
-			Options::showObjects = !Options::showObjects;
-		}
+		Options::showObjects = !Options::showObjects;
 		Update();
 		Refresh();
 	}
@@ -100,15 +102,15 @@ static void R(bool down) {
 
 static void Q(bool down) {
 	if (down) {
-		cout << "Quitting!" << endl;
-		glfwSetWindowShouldClose(GLUtilities::window, 1);
+		cout << "Showing Quantized Lines" << endl;
+		Options::showQuantizedObjects = !Options::showQuantizedObjects;
 	}
 }
 
 static void I(bool down) {
 	if (down) {
-		cout << "Toggling Image" << endl;
-		Options::showImage = !Options::showImage;
+		cout << "Toggling Instructions" << endl;
+		Options::showInstructions = !Options::showInstructions;
 	}
 }
 
@@ -128,6 +130,7 @@ static void S(bool down) {
 		Data::lines->writeToFile("./TestData/TestData/vascular_bundles");
 	}
 }
+
 void LeftMouse(bool down, int mods) {
 	md.leftDown = down;
 	if (md.leftDown) {
@@ -181,11 +184,11 @@ void Events::key_cb(GLFWwindow* window, int key, int scancode, int action, int m
 		break;
 	case GLFW_KEY_U: U(down);
 		break;
-	case GLFW_KEY_1: one(down);
+	case GLFW_KEY_X: X(down);
 		break;
-	case GLFW_KEY_2: two(down);
+	case GLFW_KEY_V: V(down);
 		break;
-	case GLFW_KEY_3: three(down);
+	case GLFW_KEY_L: L(down);
 		break;
 	}
 }
@@ -244,22 +247,20 @@ void Events::resize_cb(GLFWwindow* window, int width, int height) {
 }
 
 void Events::focus_cb(GLFWwindow* window, int focused) {
-
 }
 
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
+//#include "opencv2/highgui/highgui.hpp"
+//#include "opencv2/imgproc/imgproc.hpp"
 void Events::Initialize() {
-	//using namespace GLUtilities;
-	//string file = "./TestData/images/Vascular_bundles.png";
-	//Sketcher::instance()->uploadImage(file, "test");
-	////Sketcher::instance()->uploadObj("./TestData/images/cube.obj", "cube");
-	//Plane p = {};
-	//p.width = .5;
-	//p.height = .5;
-	//p.offset = glm::vec3(0.0);
-	//p.texName = "test";
-	//Sketcher::instance()->add(p);
+	using namespace GLUtilities;
+	string file = "./instructions.png";
+	Sketcher::instance()->uploadImage(file, "instructions");
+	Plane p = {};
+	p.width = .5;
+	p.height = .5;
+	p.offset = glm::vec3(0.0);
+	p.texName = "test";
+	Sketcher::instance()->add(p);
 
 	//using namespace cv;
 	//using namespace std;
@@ -299,15 +300,8 @@ void Events::Update() {
 	if (Options::showOctree)
 		Sketcher::instance()->add(*quadtree);
 
-	if (Options::showObjects)
+	if (Options::showObjects || Options::showQuantizedObjects)
 		Sketcher::instance()->add(*lines);
-
-	if (Options::showQuantizedObjects) {
-		Sketcher::instance()->add(
-			lines->getQuantizedPolygons(quadtree->bb.minimum, 
-				quadtree->resln.width, quadtree->bb.maxwidth
-		));
-	}
 }
 
 void Events::Refresh() {
@@ -317,9 +311,6 @@ void Events::Refresh() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	/* Draw objects */
-	if (Options::showImage)
-		Sketcher::instance()->drawPlanes(OrthoCamera::MV);
-
 	if (Options::showOctree)
 		Sketcher::instance()->drawBoxes(OrthoCamera::MV);
 
@@ -328,6 +319,9 @@ void Events::Refresh() {
 
 	if (Options::showObjectVertices || Options::showResolutionPoints)
 		Sketcher::instance()->drawPoints(OrthoCamera::MV);
+
+	if (Options::showInstructions)
+		Sketcher::instance()->drawPlane("instructions", 0, glm::mat4(1));
 
 	glfwSwapBuffers(GLUtilities::window);
 }

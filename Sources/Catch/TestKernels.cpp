@@ -51,54 +51,54 @@ Scenario("Additive Reduction", "[reduction]") {
 		}
 	}
 }
-Scenario("Check Order", "[disabled][4way][sort][reduction]") {
-	Given("a list containing 2^n ordered big") {
-		TODO("run this check on n' elements, and then on 1 + n - n' elements");
-		vector<big> small_input(Kernels::nextPow2(a_few));
-		vector<big> large_input(Kernels::nextPow2(a_lot));
-		for (int i = 0; i < small_input.size(); ++i)
-			small_input[i] = makeBig(i);
-		for (int i = 0; i < large_input.size(); ++i)
-			large_input[i] = makeBig(i);
-		When("we check to see if these numbers are in order in parallel") {
-			cl_int error = 0;
-			cl_int smallResult, largeResult;
-			cl::Buffer b_small_input, b_large_input;
-			error |= CLFW::getBuffer(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
-			error |= CLFW::getBuffer(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
-			error |= CLFW::Upload<big>(small_input, b_small_input);
-			error |= CLFW::Upload<big>(large_input, b_large_input);
-			error |= CheckBigOrder_p(b_small_input, Kernels::nextPow2(a_few), smallResult);
-			error |= CheckBigOrder_p(b_large_input, Kernels::nextPow2(a_lot), largeResult);
-			Require(error == CL_SUCCESS);
-			Then("we should get back true") {
-				Require(smallResult == 0);
-				Require(largeResult == 0);
-			}
-		}
-		And_when("we modify the list so it isn't in order") {
-			small_input[10] = makeBig(999);
-			large_input[600] = makeBig(13);
-			When("we check to see if these numbers are in order in parallel") {
-				cl_int error = 0;
-				cl_int smallResult, largeResult;
-				cl::Buffer b_small_input, b_large_input;
-				error |= CLFW::getBuffer(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
-				error |= CLFW::getBuffer(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
-				error |= CLFW::Upload<big>(small_input, b_small_input);
-				error |= CLFW::Upload<big>(large_input, b_large_input);
-				TODO("make checkorder work for non-power of two elements");
-				error |= CheckBigOrder_p(b_small_input, Kernels::nextPow2(a_few), smallResult);
-				error |= CheckBigOrder_p(b_large_input, Kernels::nextPow2(a_lot), largeResult);
-				Require(error == CL_SUCCESS);
-				Then("we should get back the total number of out of order numbers") {
-					Require(smallResult == 1);
-					Require(largeResult == 1);
-				}
-			}
-		}
-	}
-}
+//Scenario("Check Order", "[disabled][4way][sort][reduction]") {
+//	Given("a list containing 2^n ordered big") {
+//		TODO("run this check on n' elements, and then on 1 + n - n' elements");
+//		vector<big> small_input(Kernels::nextPow2(a_few));
+//		vector<big> large_input(Kernels::nextPow2(a_lot));
+//		for (int i = 0; i < small_input.size(); ++i)
+//			small_input[i] = makeBig(i);
+//		for (int i = 0; i < large_input.size(); ++i)
+//			large_input[i] = makeBig(i);
+//		When("we check to see if these numbers are in order in parallel") {
+//			cl_int error = 0;
+//			cl_int smallResult, largeResult;
+//			cl::Buffer b_small_input, b_large_input;
+//			error |= CLFW::getBuffer(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
+//			error |= CLFW::getBuffer(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
+//			error |= CLFW::Upload<big>(small_input, b_small_input);
+//			error |= CLFW::Upload<big>(large_input, b_large_input);
+//			error |= CheckBigOrder_p(b_small_input, Kernels::nextPow2(a_few), smallResult);
+//			error |= CheckBigOrder_p(b_large_input, Kernels::nextPow2(a_lot), largeResult);
+//			Require(error == CL_SUCCESS);
+//			Then("we should get back true") {
+//				Require(smallResult == 0);
+//				Require(largeResult == 0);
+//			}
+//		}
+//		And_when("we modify the list so it isn't in order") {
+//			small_input[10] = makeBig(999);
+//			large_input[600] = makeBig(13);
+//			When("we check to see if these numbers are in order in parallel") {
+//				cl_int error = 0;
+//				cl_int smallResult, largeResult;
+//				cl::Buffer b_small_input, b_large_input;
+//				error |= CLFW::getBuffer(b_small_input, "small_input", Kernels::nextPow2(a_few) * sizeof(big));
+//				error |= CLFW::getBuffer(b_large_input, "large_input", Kernels::nextPow2(a_lot) * sizeof(big));
+//				error |= CLFW::Upload<big>(small_input, b_small_input);
+//				error |= CLFW::Upload<big>(large_input, b_large_input);
+//				TODO("make checkorder work for non-power of two elements");
+//				error |= CheckBigOrder_p(b_small_input, Kernels::nextPow2(a_few), smallResult);
+//				error |= CheckBigOrder_p(b_large_input, Kernels::nextPow2(a_lot), largeResult);
+//				Require(error == CL_SUCCESS);
+//				Then("we should get back the total number of out of order numbers") {
+//					Require(smallResult == 1);
+//					Require(largeResult == 1);
+//				}
+//			}
+//		}
+//	}
+//}
 
 /* Predication Kernels */
 Scenario("Predicate by bit", "[predication]") {
@@ -543,42 +543,42 @@ Scenario("Four Way Radix Sort (<cl_int, cl_int> by Key)", "[sort][4way]") {
 		}
 	}
 }
-Scenario("Parallel Radix Sort", "[1][sort][integration][failing][disabled]") {
-	Given("An arbitrary set of numbers") {
-		vector<cl_ulong> small_input(a_few);
-		vector<cl_ulong> large_input(a_lot);
-
-		for (cl_ulong i = 0; i < a_few; ++i) small_input[i] = a_few - i;
-		for (cl_ulong i = 0; i < a_lot; ++i) large_input[i] = a_lot - i;
-
-		When("these numbers are sorted in parallel") {
-			cl_int error = 0;
-			cl::Buffer b_small_input, b_large_input;
-			error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(cl_ulong));
-			error |= CLFW::getBuffer(b_large_input, "b_large_input", a_lot * sizeof(cl_ulong));
-			error |= CLFW::Upload<cl_ulong>(small_input, b_small_input);
-			error |= CLFW::Upload<cl_ulong>(large_input, b_large_input);
-			error |= OldRadixSort_p(b_small_input, a_few, 20);
-			error |= OldRadixSort_p(b_large_input, a_lot, 20);
-			Require(error == CL_SUCCESS);
-			Then("the numbers are ordered assending") {
-				vector<cl_ulong> small_output_p(a_few), large_output_p(a_lot);
-				error |= CLFW::Download<cl_ulong>(b_small_input, a_few, small_output_p);
-				error |= CLFW::Download<cl_ulong>(b_large_input, a_lot, large_output_p);
-				int success = true;
-				for (cl_ulong i = 0; i < a_few; ++i) {
-					big temp = makeBig(i + 1);
-					success &= (small_output_p[i] == i + 1);
-				}
-				Require(success == true);
-				for (cl_ulong i = 0; i < a_lot; ++i) {
-					success &= (large_output_p[i] == i + 1);
-				}
-				Require(success == true);
-			}
-		}
-	}
-}
+//Scenario("Parallel Radix Sort", "[1][sort][integration][failing][disabled]") {
+//	Given("An arbitrary set of numbers") {
+//		vector<cl_ulong> small_input(a_few);
+//		vector<cl_ulong> large_input(a_lot);
+//
+//		for (cl_ulong i = 0; i < a_few; ++i) small_input[i] = a_few - i;
+//		for (cl_ulong i = 0; i < a_lot; ++i) large_input[i] = a_lot - i;
+//
+//		When("these numbers are sorted in parallel") {
+//			cl_int error = 0;
+//			cl::Buffer b_small_input, b_large_input;
+//			error |= CLFW::getBuffer(b_small_input, "b_small_input", a_few * sizeof(cl_ulong));
+//			error |= CLFW::getBuffer(b_large_input, "b_large_input", a_lot * sizeof(cl_ulong));
+//			error |= CLFW::Upload<cl_ulong>(small_input, b_small_input);
+//			error |= CLFW::Upload<cl_ulong>(large_input, b_large_input);
+//			error |= OldRadixSort_p(b_small_input, a_few, 20);
+//			error |= OldRadixSort_p(b_large_input, a_lot, 20);
+//			Require(error == CL_SUCCESS);
+//			Then("the numbers are ordered assending") {
+//				vector<cl_ulong> small_output_p(a_few), large_output_p(a_lot);
+//				error |= CLFW::Download<cl_ulong>(b_small_input, a_few, small_output_p);
+//				error |= CLFW::Download<cl_ulong>(b_large_input, a_lot, large_output_p);
+//				int success = true;
+//				for (cl_ulong i = 0; i < a_few; ++i) {
+//					big temp = makeBig(i + 1);
+//					success &= (small_output_p[i] == i + 1);
+//				}
+//				Require(success == true);
+//				for (cl_ulong i = 0; i < a_lot; ++i) {
+//					success &= (large_output_p[i] == i + 1);
+//				}
+//				Require(success == true);
+//			}
+//		}
+//	}
+//}
 Scenario("Parallel Radix Sort (Pairs by Key)", "[2][sort][integration]") {
 	Given("An arbitrary set of unsigned key and integer value pairs") {
 		vector<cl_int> small_keys_in(a_few);
@@ -698,7 +698,6 @@ Scenario("QPoints to ZPoints", "[zorder]") {
 /* Unique Kernels */
 Scenario("Unique Sorted big", "[sort][unique]") {
 	Given("An ascending sorted set of bigs") {
-		TODO("delete large binary for this");
 		vector<big> small_zpoints = readFromFile<big>("TestData//few_non-unique_s_zpoints.bin", a_few);
 		When("those bigs are uniqued in parallel") {
 			cl_int error = 0, newSmallSize, newLargeSize;
@@ -1129,7 +1128,7 @@ Scenario("Get Octnode LCP Bounds", "[conflict]") {
 		}
 	}
 }
-Scenario("Find Conflict Cells", "[conflict][selected]") {
+Scenario("Find Conflict Cells", "[conflict]") {
 	Given("An octree, that octree's leaves, a bcell to \n"
 		+ "line mapping (see paper), bcell index bounds for \n"
 		+ "each internal octnode, the lines and cooresponding \n"
@@ -1194,7 +1193,7 @@ Scenario("Find Conflict Cells", "[conflict][selected]") {
 }
 
 /* Ambiguous cell resolution kernels */
-Scenario("Sample required resolution points", "[resolution]") {
+Scenario("Sample required resolution points", "[selected][resolution]") {
 	Given("a set of conflicts and the quantized points used to build the original octree") {
 		cl_int numConflicts = readFromFile<cl_int>("TestData//simple//numConflicts.bin");
 		cl_int numPoints = readFromFile<cl_int>("TestData//simple//numPoints.bin");
@@ -1205,20 +1204,6 @@ Scenario("Sample required resolution points", "[resolution]") {
 			vector<ConflictInfo> conflictInfo_s;
 			vector<cl_int> numPtsPerConflict_s;
 			GetResolutionPointsInfo_s(conflicts, qpoints, conflictInfo_s, numPtsPerConflict_s);
-			Then("our results are valid") {
-				vector<ConflictInfo> conflictInfo_f = readFromFile<ConflictInfo>("TestData//simple//conflictInfo.bin", numConflicts);
-				vector<cl_int>numPtsPerConflict_f = readFromFile<cl_int>("TestData//simple//numPtsPerConflict.bin", numConflicts);
-				cl_int success = true;
-				for (int i = 0; i < numConflicts; ++i) {
-					success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_f[i]);
-					success &= (numPtsPerConflict_s[i] == numPtsPerConflict_f[i]);
-					if (!success) {
-						success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_f[i]);
-						success &= (numPtsPerConflict_s[i] == numPtsPerConflict_f[i]);
-					}
-				}
-				Require(success == true);
-			}
 			Then("the series results match the parallel results") {
 				cl_int error = 0;
 				vector<ConflictInfo> conflictInfo_p(numConflicts);
@@ -1239,10 +1224,20 @@ Scenario("Sample required resolution points", "[resolution]") {
 					if (!success) {
 						success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_p[i]);
 						success &= (numPtsPerConflict_s[i] == numPtsPerConflict_p[i]);
-						if (!success) {
-							success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_p[i]);
-							success &= (numPtsPerConflict_s[i] == numPtsPerConflict_p[i]);
-						}
+					}
+				}
+				Require(success == true);
+			}
+			Then("our results are valid") {
+				vector<ConflictInfo> conflictInfo_f = readFromFile<ConflictInfo>("TestData//simple//conflictInfo.bin", numConflicts);
+				vector<cl_int>numPtsPerConflict_f = readFromFile<cl_int>("TestData//simple//numPtsPerConflict.bin", numConflicts);
+				cl_int success = true;
+				for (int i = 0; i < numConflicts; ++i) {
+					success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_f[i]);
+					success &= (numPtsPerConflict_s[i] == numPtsPerConflict_f[i]);
+					if (!success) {
+						success &= compareConflictInfo(&conflictInfo_s[i], &conflictInfo_f[i]);
+						success &= (numPtsPerConflict_s[i] == numPtsPerConflict_f[i]);
 					}
 				}
 				Require(success == true);

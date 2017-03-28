@@ -3,6 +3,7 @@
 #include "clfw.hpp"
 #include "Shaders/Shaders.hpp"
 #include "Polylines/Polylines.h"
+#include "GLUtilities/Polygons.h"
 #include "GLUtilities/gl_utils.h"
 #include "Options/Options.h"
 #include "Kernels/Kernels.h"
@@ -22,31 +23,20 @@ class Quadtree {
 public:
 	std::vector<OctNode> nodes;
 	std::vector<Conflict> conflicts;
+	std::vector<floatn> resolutionPoints;
 	BoundingBox bb;
 	Resln resln;
 private:
-	std::vector<floatn> points;
+	/*std::vector<floatn> points;
 	std::vector<cl_int> pointColors;
-	std::vector<intn> quantized_points;
-	std::vector<intn> resolutionPoints;
-	std::vector<Line> lines;
-	std::vector<Line> orderedLines;
-	std::vector<Leaf> leaves;
+	std::vector<Line> lines;*/
 	int octreeSize;
 	int totalPoints;
 	int totalLeaves;
 	int totalResPoints;
 	cl_int numConflicts = 0;
+	bool resolutionRequired = true;
 
-	std::vector<glm::vec3> offsets;
-	std::vector<glm::vec3> colors;
-	std::vector<float> scales;
-
-	GLuint boxProgram_vao;
-	GLuint positions_vbo;
-	GLuint position_indices_vbo;
-	GLuint instance_vbo;
-	cl::Buffer untranslatedPointsBuffer;
 	cl::Buffer pointsBuffer;
 	cl::Buffer pntColorsBuffer;
 	cl::Buffer qpoints;
@@ -64,29 +54,19 @@ private:
 public:
 	Quadtree();
 	void build(const PolyLines* lines);
+	void build(const Polygons* polygons);
 	void build(vector<floatn> &points, vector<cl_int> &pointColors, vector<Line> &lines, BoundingBox bb);
-	typedef struct {
-		float offset[3];
-		float scale;
-		float color[3];
-	} Instance;
-	std::vector<Instance> gl_instances;
-
-	/* Drawing Methods */
-	void draw(const glm::mat4& mvMatrix);
 
 private:
-	void build_internal();
+	void build_internal(cl_int numPts, cl_int numLines);
 
 	void clear();
 	cl_int placePointsOnCurve(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &qpoints_o, cl::Buffer &zpoints_o);
 	cl_int buildVertexOctree(cl::Buffer points_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
 	cl_int buildPrunedOctree(cl::Buffer points_i, cl::Buffer pntColors_i, int totalPoints, Resln resln, BoundingBox bb, string uniqueString, cl::Buffer &octree_o, cl_int &totalOctnodes_o, cl::Buffer &leaves_o, cl_int &totalLeaves_o);
 	cl_int resolveAmbiguousCells(cl::Buffer &octree_i, cl_int &totalOctNodes, cl::Buffer leaves_i, cl_int totalLeaves, cl::Buffer lines_i, cl_int totalLines, cl::Buffer qpoints_i, cl::Buffer zpoints_i, cl::Buffer pntCols_i, cl_int totalPoints, cl_int iteration);
-	/* Drawing Methods */
-	void addOctreeNodes(cl::Buffer octree, cl_int totalOctNodes);
-	void addOctreeNodes(vector<OctNode> &octree, int index, floatn offset, float scale, float3 color);
-	void addLeaf(vector<OctNode> octree, int internalIndex, int leafIndex, float3 color);
-	void addConflictCells(cl::Buffer conflicts, cl::Buffer octree, cl_int totalOctnodes, cl::Buffer leaves, cl_int totalLeaves);
-	void drawResolutionPoints(cl::Buffer resPoints, cl_int totalPoints);
+	cl_int initializeConflictCellDetection( cl::Buffer &zpoints_i, cl::Buffer &lines_i, cl_int numLines, Resln &resln, cl::Buffer &octree_i, cl_int numOctNodes, cl::Buffer &lineIndices_o, cl::Buffer &LCPBounds_o);
+	cl_int findConflictCells( cl::Buffer &octree_i, cl_int numOctNodes, cl::Buffer &leaves_i, cl_int numLeaves, cl::Buffer &qpoints_i, cl::Buffer &zpoints_i, cl::Buffer &lines_i, cl_int numLines, bool keepCollisions, Resln &resln, cl::Buffer &conflicts_o, cl_int &numConflicts );
+	cl_int generateResolutionPoints( cl::Buffer &conflicts_i, cl_int numConflicts, Resln &resln, cl::Buffer &qpoints_i, cl::Buffer &resPts, cl::Buffer &resZPts, cl_int &numResPts );
+	cl_int combinePoints( cl::Buffer &qpoints_i, cl::Buffer &zpoints_i, cl::Buffer &pntCols_i, cl_int numPts, cl::Buffer &resPts_i, cl::Buffer &resZPts_i, cl_int numResPts, cl_int iteration, cl::Buffer &combinedQPts_o, cl::Buffer &combinedZPts_o, cl::Buffer &combinedCols_o );
 };

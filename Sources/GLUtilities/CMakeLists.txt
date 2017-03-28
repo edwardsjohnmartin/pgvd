@@ -8,4 +8,6 @@ set (GLUtilities_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/OrthoCamera.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/stb_image.h
 	${CMAKE_CURRENT_SOURCE_DIR}/objload.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Polygons.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Polygons.cpp
 	PARENT_SCOPE)

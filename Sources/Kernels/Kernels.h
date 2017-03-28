@@ -2465,7 +2465,7 @@ namespace Kernels {
 		cl_int error = 0;
 		cl_int globalSize = nextPow2(totalPoints);
 		bool old;
-		error |= CLFW::getBuffer(zpoints, uniqueString + "zpts", globalSize * sizeof(big), old, CLFW::DefaultContext, CL_MEM_READ_ONLY);
+		error |= CLFW::getBuffer(zpoints, uniqueString + "zpts", globalSize * sizeof(big), old, false, CL_MEM_READ_ONLY);
 		cl::Kernel kernel = CLFW::Kernels["PointsToMortonKernel"];
 		error |= kernel.setArg(0, zpoints);
 		error |= kernel.setArg(1, qpoints);
@@ -3525,6 +3525,7 @@ namespace Kernels {
 			//      printf("gpu: o: (%d, %d)\n", c.origin.x, c.origin.y);
 			//      printf("gpu: w: %d\n", c.width);
 		}
+		info.padding[0] = gid;
 		sample_conflict_count(&info, q1, q2, r1, r2, c.origin, c.width);
 		if (debug) {
 			printf("%d gpu - info.num_samples = %d\n", gid, info.num_samples);
@@ -3589,6 +3590,7 @@ namespace Kernels {
 				//        printf("cpu: w: %d\n", c.width);
 			}
 
+			info.padding[0] = gid;
 			sample_conflict_count(&info, q1, q2, r1, r2, c.origin, c.width);
 			if (debug) {
 				printf("%d cpu - info.num_samples = %d\n", gid, info.num_samples);
@@ -3681,6 +3683,9 @@ namespace Kernels {
 		cl_int error = 0;
 
 		error |= CLFW::getBuffer(resolutionPoints_o, "ResPts", nextPow2(numResPts) * sizeof(intn));
+		error |= CLFW::DefaultQueue.finish();
+		assert_cl_error(error);
+
 		error |= kernel.setArg(0, conflicts_i);
 		error |= kernel.setArg(1, conflictInfo_i);
 		error |= kernel.setArg(2, scannedNumPtsPerConflict_i);
@@ -3821,27 +3826,25 @@ namespace Kernels {
 		return temp;
 	}
 	__kernel void multiplyM4V4Kernel(
-		__global float2 *v, float16 m, __global float2 *result
+		__global float2 *v, float16 m
 	) 
 	{
 		float2 vec = v[get_global_id(0)];
 		float4 augmented = { vec.x, vec.y, 0.0, 1.0 };
 		float4 augmentedResult = multiplyM4V4(m, augmented);
 		float2 out = { augmentedResult.s0, augmentedResult.s1 };
-		result[get_global_id(0)] = out;
+		v[get_global_id(0)] = out;
 	}
 #else
-	inline cl_int multiplyM4V4_p (
+	inline cl_int multiplyM4V2_p (
 		cl::Buffer &VBuffer,
 		cl_int numV4,
-		glm::mat4 matrix,
-		string resultName,
-		cl::Buffer &result
+		cl_int offset,
+		glm::mat4 matrix
 	) {
 		cl_int error = 0;
 		cl::CommandQueue &queue = CLFW::DefaultQueue;
 		cl::Kernel &kernel = CLFW::Kernels["multiplyM4V4Kernel"];
-		error |= CLFW::getBuffer(result, resultName, nextPow2(numV4) * sizeof(float2));
 		
 		cl_float16 temp = {
 			matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
@@ -3852,9 +3855,8 @@ namespace Kernels {
 
 		error |= kernel.setArg(0, VBuffer);
 		error |= kernel.setArg(1, temp);
-		error |= kernel.setArg(2, result);
 
-		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(numV4), cl::NullRange);
+		error |= queue.enqueueNDRangeKernel(kernel, cl::NDRange(offset), cl::NDRange(numV4), cl::NullRange);
 		return error;
 	}
 #endif

@@ -170,6 +170,7 @@ namespace GLUtilities {
 		void drawLines(const glm::mat4& mvMatrix);
 		void drawBoxes(const glm::mat4& mvMatrix);
 		void drawPlanes(const glm::mat4& mvMatrix);
+		void drawPlane(string texkey, int planeIndex, const glm::mat4& mvMatrix);
 		void draw();
 		void draw(const glm::mat4& mvMatrix);
 		void uploadImage(string imagePath, string textureName);
@@ -180,6 +181,7 @@ namespace GLUtilities {
 		void add(Plane p);
 		void add(Quadtree &q); 
 		void add(PolyLines &p);
+		void add(Polygons &polygons);
 		void add(vector<vector<floatn>> polygons);
 		void clearPoints();
 		void clearLines();

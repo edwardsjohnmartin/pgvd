@@ -67,7 +67,7 @@ public:
 	static cl_int getSources(cl::Program::Sources &sources, std::vector<std::string> &files);
 	static cl_int getSources(cl::Program::Sources &sources);
 	static cl_int getKernels(std::unordered_map<std::string, cl::Kernel> &Kernels, cl::Program &program = DefaultProgram);
-	static cl_int getBuffer(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old = lastBufferOld, cl::Context &context = DefaultContext, int flag = CL_MEM_READ_WRITE);
+  static cl_int getBuffer(cl::Buffer &buffer, std::string key, cl_ulong size, bool &old = lastBufferOld, bool resize = false, int flag = CL_MEM_READ_WRITE);
 	static cl_int getBestDevice(cl::Device &device, int characteristic = CL_DEVICE_MAX_COMPUTE_UNITS);
 	static cl_int queryDevice(cl::Device &device);
 	static cl_int buildProgram(cl::Program &program, cl::Program::Sources &sources, cl::Context &context = DefaultContext, cl::Device &device = DefaultDevice, std::string options = "");
@@ -78,7 +78,13 @@ public:
 	template<typename T>
 	static cl_int Upload(const std::vector<T> &input, cl::Buffer &buffer);
 	template<typename T>
+	static cl_int Upload(const std::vector<T> &input, cl_int offset, cl::Buffer &buffer);
+	template<typename T>
 	static cl_int Upload(T &input, cl_int offset, cl::Buffer &buffer);
+
+  inline static cl_int NextPow2(cl_int num) {
+    return std::max((int)std::pow(2, std::ceil(std::log((int)num) / std::log((int)2))), 8);
+  }
 };
 
 template<typename T>
@@ -97,6 +103,11 @@ cl_int CLFW::Upload(const std::vector<T> &input, cl::Buffer &buffer) {
 	return CLFW::DefaultQueue.enqueueWriteBuffer(buffer, CL_TRUE, 0, sizeof(T) * input.size(), input.data());
 }
 
+template<typename T>
+cl_int CLFW::Upload(const std::vector<T> &input, cl_int offset, cl::Buffer &buffer) {
+	return CLFW::DefaultQueue.enqueueWriteBuffer(buffer, CL_TRUE, offset * sizeof(T), sizeof(T) * input.size(), input.data());
+}
+
 // Note, T must be a power of two
 template<typename T>
 cl_int CLFW::Upload(T &input, cl_int offset, cl::Buffer &buffer) {
@@ -107,14 +118,14 @@ std::string get_cl_error_msg(cl_int error);
 
 #define print_cl_error(error) { \
 	std::string msg = get_cl_error_msg(error); \
-	std::cout << __FILE__ << " " << __LINE__ << " OpenCL error: " << msg << endl; \
+	std::cout << __FILE__ << " " << __LINE__ << " OpenCL error: " << msg << std::endl; \
 	error = CL_SUCCESS; \
 }
 
 #define assert_cl_error(error) { \
 	if (error != CL_SUCCESS) { \
 		std::string msg = get_cl_error_msg(error);  \
-		std::cout << __FILE__ << " " << __LINE__ << " OpenCL error: " << msg << endl; \
+		std::cout << __FILE__ << " " << __LINE__ << " OpenCL error: " << msg << std::endl; \
 		} \
 		assert(error == CL_SUCCESS); \
 }
