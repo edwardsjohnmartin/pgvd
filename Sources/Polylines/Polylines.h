@@ -34,6 +34,7 @@ class PolyLines {
 
 		void newLine(const float2& p);
 		void addPoint(const float2& p);
+		void replaceLast(const float2 &p);
 		void addLine(const std::vector<float2> newPoints);
 		void undoLine();
 		void clear();

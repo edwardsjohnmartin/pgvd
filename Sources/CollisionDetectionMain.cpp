@@ -70,91 +70,77 @@ int processArgs(int argc, char** argv) {
 	return 0;
 }
 
-vector<vector<float2>> objects;
-void generateGear(int numTeeth, float toothThickness) {
-	numTeeth *= 2;
-	float radius = numTeeth * toothThickness / M_PI;
-	float dAngle = ((toothThickness * 2) / (numTeeth * 2 * toothThickness )) * 2 * M_PI;
 
-	vector<float2> object;
-	float outerRadius = radius;
-	float innerRadius = outerRadius - .1;
+vector<vector<float2>> objects;
+void generateGear(int numTeeth, float toothThickness, float scale) {
+	Gear gear;
+	gear.numTeeth = 2 * numTeeth;
+	gear.toothThickness = toothThickness;
+	gear.outerRadius = gear.numTeeth * gear.toothThickness / M_PI;
+	gear.innerRadius = gear.outerRadius - .1;
+	gear.dAngle = ((gear.toothThickness * 2) / (gear.numTeeth * 2 * gear.toothThickness)) * 2 * M_PI;
+
 	for (int i = 0; i < numTeeth * 2; i += 2) {
-		float theta1 = i * dAngle;
-		float theta2 = (i + .1) * dAngle;
-		float theta3 = (i + .9) * dAngle;
-		float theta4 = (i + 1) * dAngle;
-		float2 p1 = make_float2(sin(theta1) * innerRadius, cos(theta1) * innerRadius);
-		float2 p2 = make_float2(sin(theta2) * outerRadius, cos(theta2) * outerRadius);
-		float2 p3 = make_float2(sin(theta3) * outerRadius, cos(theta3) * outerRadius);
-		float2 p4 = make_float2(sin(theta4) * innerRadius, cos(theta4) * innerRadius);
-		object.push_back(p1);
-		object.push_back(p2);
-		object.push_back(p3);
-		object.push_back(p4);
+		float theta1 = i * gear.dAngle - (gear.dAngle / 2);
+		float theta2 = (i + .15) * gear.dAngle - (gear.dAngle / 2);
+		float theta3 = (i + .85) * gear.dAngle - (gear.dAngle / 2);
+		float theta4 = (i + 1) * gear.dAngle - (gear.dAngle / 2);
+		float2 p1 = make_float2(sin(theta1) * gear.innerRadius, cos(theta1) * gear.innerRadius) * scale;
+		float2 p2 = make_float2(sin(theta2) * gear.outerRadius, cos(theta2) * gear.outerRadius) * scale;
+		float2 p3 = make_float2(sin(theta3) * gear.outerRadius, cos(theta3) * gear.outerRadius) * scale;
+		float2 p4 = make_float2(sin(theta4) * gear.innerRadius, cos(theta4) * gear.innerRadius) * scale;
+		gear.points.push_back(p1);
+		gear.points.push_back(p2);
+		gear.points.push_back(p3);
+		gear.points.push_back(p4);
 	}
-	objects.push_back(object);
+	gear.outerRadius *= scale;
+	gear.innerRadius *= scale;
+	Data::gears.push_back(gear);
+	objects.push_back(gear.points);
 }
 
 int main(int argc, char** argv) {
 	using namespace std;
+	using namespace Data;
 	processArgs(argc, argv);
 
 	CLFW::Initialize(false, Options::computeDevice, Options::cl_options, 2);
 	GLFW::Initialize();
 
 	Shaders::create();
-	//
-	//vector<vector<float2>> objects;
-	//vector<float2> line1, line2;
-	//line1.push_back(make_float2(0.0, -1.0));
-	//line1.push_back(make_float2(0.0,1.0));
-	//line2.push_back(make_float2(0.0, -0.5));
-	//line2.push_back(make_float2(0.0, 0.5));
-	//objects.push_back(line1);
-	//objects.push_back(line2);
 
-	/*
-	int numPts = 32;
-	float innerRadius = .09;
-	float outerRadius = .1;
-	for (int i = 0; i < numPts; i+=2) {
-		float theta1 = i * ((2.0 * M_PI) / numPts);
-		float theta2 = (i + .1) * ((2.0 * M_PI) / numPts);
-		float theta3 = (i + .9) * ((2.0 * M_PI) / numPts);
-		float theta4 = (i + 1) * ((2.0 * M_PI) / numPts);
-		float2 p1 = make_float2(sin(theta1) * innerRadius, cos(theta1) * innerRadius);
-		float2 p2 = make_float2(sin(theta2) * outerRadius, cos(theta2) * outerRadius);
-		float2 p3 = make_float2(sin(theta3) * outerRadius, cos(theta3) * outerRadius);
-		float2 p4 = make_float2(sin(theta4) * innerRadius, cos(theta4) * innerRadius);
-		object.push_back(p1);
-		object.push_back(p2);
-		object.push_back(p3);
-		object.push_back(p4);
-	}
-	objects.push_back(object);
-	objects.push_back(object);
-	objects.push_back(object);*/
-	//for (int i = 0; i < object.size(); ++i) {
-	//	object[i].x += outerRadius + innerRadius;
-	//}
-	//objects.push_back(object);
+	/*Data::gearInfo.R = 128;
+	Data::gearInfo.S = 64;
+	Data::gearInfo.P = 32;*/
 
-	//object.clear();
-	//for (int i = 0; i < numPts; ++i) {
-	//	float theta = i * ((2.0 * M_PI) / numPts);
-	//	float radius = (in) ? .5 : 1.;
-	//	object.push_back(make_float2(sin(theta) * radius, cos(theta))  * radius);
-	//	radius = (!in) ? .5 : 1.;
-	//	object.push_back(make_float2(sin(theta)  * radius, cos(theta))  * radius);
-	//	in = !in;
-	//}
-	//objects.push_back(object);
+	//generateGear(Data::gearInfo.R, .1, .099);
+	//generateGear(Data::gearInfo.S, .1, .099);
+	//generateGear(Data::gearInfo.P, .1, .1);
 
-	for (int i = 2; i < 50; i+= 4) {
-		generateGear(i, .1);
-	}
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+	generateGear(20, .1, .1);
+
 	Data::polygons = new Polygons(objects);
+
+	/*for (int i = 0; i < gears.size(); ++i) {
+		gears[i].matrix = glm::rotate(gears[i].matrix, gears[i].dAngle / 2, glm::vec3(0, 0, 1.0));
+		if (i % 2) {
+			gears[i].matrix = glm::rotate(gears[i].matrix, gears[i].dAngle, glm::vec3(0, 0, 1.0));
+		}
+		Data::polygons->movePolygon(i, gears[i].matrix);
+	}*/
 	Data::quadtree = new Quadtree();
 
 	Events::Initialize();

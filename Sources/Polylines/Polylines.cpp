@@ -78,6 +78,30 @@ void PolyLines::addPoint(const float2& p) {
 	assert_cl_error(error);
 }
 
+void PolyLines::replaceLast(const float2 &p) {
+	bool old;
+	cl_int error = 0;
+	cl_int oldNumPts = points.size();
+	cl_int oldNumLines = lines.size();
+
+	/* Update point/line data */
+	points[points.size() - 1] = p;
+	pointColors[pointColors.size() - 1] = currentColor;
+
+	//Update point/line buffer size if required, then buffer up only the new points.
+	error |= CLFW::getBuffer(pointsBuffer, std::to_string(uid) + "PlylnPts",
+		sizeof(float2) * CLFW::NextPow2(points.size()), old, true);
+	error |= CLFW::getBuffer(pointColorsBuffer, std::to_string(uid) + "PlylnPtClrs",
+		sizeof(cl_int) * CLFW::NextPow2(points.size()), old, true);
+	error |= CLFW::getBuffer(linesBuffer, std::to_string(uid) + "PlylnLn",
+		sizeof(Line) * CLFW::NextPow2(lines.size()), old, true);
+
+	error |= CLFW::Upload<float2>((float2)p, oldNumPts - 1, pointsBuffer);
+	error |= CLFW::Upload<cl_int>(currentColor, oldNumPts - 1, pointColorsBuffer);
+	
+	assert_cl_error(error);
+}
+
 void PolyLines::addLine(const std::vector<float2> newPoints) {
 	bool old;
 	cl_int oldNumPts = points.size();

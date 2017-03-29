@@ -113,7 +113,8 @@ void FindConflictCells(
 
 					
 					//...if the line isn't degenerate...
-					if ((fabs(P1.x - P2.x) > EPSILON || fabs(P1.y - P2.y) > EPSILON))
+					//if ((fabs(P1.x - P2.x) > EPSILON || fabs(P1.y - P2.y) > EPSILON))
+					if ((fabs(P1.x - P2.x) > .001 || fabs(P1.y - P2.y) > .001))
 					{
 						//...and if the line touches the current leaf
 						if (liangBarskey((float2*)(&origin), (float2*)(&max_), &P2, &P1, gid, lineIndx))

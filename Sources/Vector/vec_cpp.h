@@ -24,7 +24,7 @@
 // Use OpenCL's types
 //------------------------------------------------------------
 #define CL_VEC
-#include "cl2.hpp"
+#include "cl.hpp"
 
 #ifndef __APPLE__
 typedef cl_uchar2 bool2;

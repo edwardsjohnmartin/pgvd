@@ -36,10 +36,11 @@ namespace Options {
 	bool showQuantizedObjects = false;
 	bool showOctree = true;
 	bool showObjectIntersections = false;
-	bool showResolutionPoints = false;
+	bool showResolutionPoints = true;
 	bool showInstructions = true;
 
 	bool pruneOctree = true;
+	bool resolveAmbiguousCells = true;
 
 	float conflict_color[3] = { 1.0, 0.0, 0.0 };
 
@@ -49,7 +50,7 @@ namespace Options {
 
 	bool debug = true;
 	bool benchmarking = false;
-	std::string cl_options = "-cl-std=CL2.0 -I ./Sources -D OpenCL -cl-mad-enable";//"-x spir -cl-std=CL2.0";
+	std::string cl_options = "-cl-std=CL1.2 -I ./Sources -D OpenCL -cl-unsafe-math-optimizations";//"-x spir -cl-std=CL2.0";
 
 #define $(flag) (strcmp(argv[i], flag) == 0)
 	bool processArg(int& i, char** argv) {

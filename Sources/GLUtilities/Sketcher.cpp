@@ -113,9 +113,11 @@ namespace GLUtilities {
 		if (q.nodes.size() == 0 && q.conflicts.size() == 0) return;
 
 		/* Add boxes to represent internal quadtree nodes */
-		floatn center = (q.bb.minimum + q.bb.maxwidth*.5);
-		float3 color = { 0.75, 0.75, 0.75 };
-		add_internal(q.nodes, 0, center, q.bb.maxwidth * .5, color);
+		if (Options::showOctree) {
+			floatn center = (q.bb.minimum + q.bb.maxwidth*.5);
+			float3 color = { 0.75, 0.75, 0.75 };
+			add_internal(q.nodes, 0, center, q.bb.maxwidth * .5, color);
+		}
 
 		if (Options::showObjectIntersections)
 			for (int i = 0; i < q.conflicts.size(); ++i) {
@@ -308,7 +310,7 @@ namespace GLUtilities {
 
 		glUniform1f(Shaders::lineProgram->pointSize_id, 10.0);
 		print_gl_error();
-
+		glLineWidth(2.);
 		glDrawArrays(GL_LINES, 0, 2 * lines.size());
 		print_gl_error();
 		glBindVertexArray(0);

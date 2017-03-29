@@ -973,7 +973,8 @@ void sample_v_conflict(
 	while (max_i > 0 && !max_done) {
 		const cl_int i = max_i - 1;
 		// const cl_float po = mypow(alpha, i / 2.0F);
-		const cl_float po = mypow(sqrt(alpha), i);//sqrt(mypow(alpha, i));
+		//const cl_float po = mypow(sqrt(alpha), i);//sqrt(mypow(alpha, i));
+		const cl_float po = mypow(alpha, i / 2);
 		cl_float s;
 		if (i % 2 == 0) {
 			if (parallel) {
@@ -998,7 +999,9 @@ void sample_v_conflict(
 			max_done = true;
 		}
 		else {
+			//printf("point outside box, %f \n", a0);
 			--max_i;
+			//max_done = true;
 		}
 	}
 
@@ -1105,8 +1108,9 @@ void sample_conflict_impl(ConflictInfo* info,
 
 	// If no samples were found, sample two points in the lower-left
 	// and upper-right quadrants
-	if (idx == 0 && width > 1) {
+	if ((idx == 0 || info->num_samples < 2)  && width > 1) {
 		info->num_samples = 2;
+		info->line_pairs[0].num_samples = 0;
 		info->offsets[0] = origin__.x;
 		info->offsets[1] = origin__.y;
 		info->offsets[2] = width;

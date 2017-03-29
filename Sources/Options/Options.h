@@ -39,6 +39,7 @@ namespace Options {
 	extern bool showResolutionPoints;
 	extern bool showInstructions;
 	extern bool pruneOctree;
+	extern bool resolveAmbiguousCells;
 
   extern float conflict_color[3];
 

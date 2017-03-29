@@ -41,7 +41,7 @@ cl::Device CLFW::DefaultDevice;
 cl::Context CLFW::DefaultContext;
 cl::CommandQueue CLFW::DefaultQueue;
 cl::CommandQueue CLFW::SecondaryQueue;
-cl::DeviceCommandQueue CLFW::DeviceQueue;
+//cl::DeviceCommandQueue CLFW::DeviceQueue;
 
 cl::Program CLFW::DefaultProgram;
 cl::Program::Sources CLFW::DefaultSources;
@@ -80,8 +80,8 @@ cl_int CLFW::Initialize(bool _verbose, int chosenDevice, std::string buildOption
 		if (i == 1)
 			SecondaryQueue = queue;
 	}
-	cl_uint maxQueueSize = DefaultDevice.getInfo<CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE>();
-	DeviceQueue = cl::DeviceCommandQueue(DefaultContext, DefaultDevice, maxQueueSize, cl::DeviceQueueProperties::None, &error);
+	//cl_uint maxQueueSize = DefaultDevice.getInfo<CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE>();
+	//DeviceQueue = cl::DeviceCommandQueue(DefaultContext, DefaultDevice, maxQueueSize, cl::DeviceQueueProperties::None, &error);
 
 	error |= getSources(DefaultSources);
 	error |= buildProgram(DefaultProgram, DefaultSources, DefaultContext, DefaultDevice, buildOptions);

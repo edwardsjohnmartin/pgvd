@@ -436,12 +436,11 @@ void Quadtree::build_internal (cl_int numPts, cl_int numLines) {
 	check(error);
 
 	/* Finally, resolve the ambiguous cells. */
-	if (resolutionRequired) {
+	if (resolutionRequired && Options::resolveAmbiguousCells) {
 		error |= resolveAmbiguousCells(octreeBuffer, octreeSize, leavesBuffer, totalLeaves,
 			linesBuffer, numLines, qpoints, zpoints, pntColorsBuffer, numPts, 0);
 		check(error);
 	}
-
 	/* Download the octree for CPU usage */
 	error |= CLFW::Download<OctNode>(octreeBuffer, octreeSize, nodes);
 	check(error);
@@ -498,7 +497,7 @@ void Quadtree::build(const PolyLines *polyLines) {
 	this->pointsBuffer = polyLines->pointsBuffer;
 	this->pntColorsBuffer = polyLines->pointColorsBuffer;
 	this->linesBuffer = polyLines->linesBuffer;
-
+	
 	build_internal(polyLines->points.size(), polyLines->lines.size());
 }
 

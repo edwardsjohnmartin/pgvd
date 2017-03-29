@@ -78,6 +78,16 @@ static void P(bool down) {
 	}
 }
 
+static void K(bool down) {
+	if (down) {
+		cout << "Toggling Karras-only octree" << endl;
+		Options::resolveAmbiguousCells = !Options::resolveAmbiguousCells;
+		Data::quadtree->build(Data::lines);
+		Update();
+		Refresh();
+	}
+}
+
 static void O(bool down) {
 	if (down) {
 		cout << "Toggling Octree!" << endl;
@@ -93,11 +103,10 @@ static void Z(bool down) {
 static void R(bool down) {
 	if (down) {
 		OrthoCamera::reset();
+		Data::quadtree->build(Data::lines);
+		Update();
+		Refresh();
 	}
-
-	Data::quadtree->build(Data::lines);
-	Update();
-	Refresh();
 }
 
 static void Q(bool down) {
@@ -127,7 +136,26 @@ static void U(bool down) {
 static void S(bool down) {
 	if (down) {
 		cout << "Saving lines to folder" << endl;
-		Data::lines->writeToFile("./TestData/TestData/vascular_bundles");
+		Data::lines->writeToFile("./TestData/TestData/temp");
+	}
+}
+
+static void Up(bool down) {
+	if (down) {
+		Options::maxConflictIterations++;
+		Data::quadtree->build(Data::lines);
+		Update();
+		Refresh();
+	}
+}
+
+static void Down(bool down) {
+	if (down) {
+		if (Options::maxConflictIterations > 0)
+			Options::maxConflictIterations--;
+		Data::quadtree->build(Data::lines);
+		Update();
+		Refresh();
 	}
 }
 
@@ -142,12 +170,10 @@ void LeftMouse(bool down, int mods) {
 			Data::lines->addPoint({ temp.x, temp.y });
 			Data::quadtree->build(Data::lines);
 		} /* Else if we're pressing shift but not control */
-		else if ((mods & GLFW_MOD_SHIFT) != 0 && (mods & GLFW_MOD_CONTROL) == 0) {
-			OrthoCamera::zoom(glm::vec2(temp.x, temp.y), .75);
-		} /* else we're only pressing control */
-		else if (mods & GLFW_MOD_CONTROL) {
-			OrthoCamera::zoom(glm::vec2(-temp.x, -temp.y), 1.0 / .75);
-		} /* else we're not pressing any modifiers */
+		else if ((mods & GLFW_MOD_CONTROL) != 0 ) {
+			Data::lines->replaceLast({ temp.x, temp.y });
+			Data::quadtree->build(Data::lines);
+		}
 		else {
 			Data::lines->newLine({ temp.x, temp.y });
 		}
@@ -155,6 +181,7 @@ void LeftMouse(bool down, int mods) {
 		Update();
 		Refresh();
 	}
+	md.mods = mods;
 }
 
 void RightMouse(bool down, int mods) {
@@ -190,6 +217,12 @@ void Events::key_cb(GLFWwindow* window, int key, int scancode, int action, int m
 		break;
 	case GLFW_KEY_L: L(down);
 		break;
+	case GLFW_KEY_K: K(down);
+		break;
+	case GLFW_KEY_UP: Up(down);
+		break;
+	case GLFW_KEY_DOWN: Down(down);
+		break;
 	}
 }
 
@@ -214,7 +247,11 @@ void Events::mouse_move_cb(GLFWwindow* window, double xpos, double ypos) {
 		glm::vec4 temp = glm::vec4(md.x, -md.y, 0.0, 1.0);
 		temp = OrthoCamera::IMV * temp;
 
-		Data::lines->addPoint({ temp.x, temp.y });
+		if ((md.mods & GLFW_MOD_CONTROL) != 0)
+			Data::lines->replaceLast({ temp.x, temp.y });
+		else 
+			Data::lines->addPoint({ temp.x, temp.y });
+
 		Data::quadtree->build(Data::lines);
 
 		Update();
@@ -253,7 +290,7 @@ void Events::focus_cb(GLFWwindow* window, int focused) {
 //#include "opencv2/imgproc/imgproc.hpp"
 void Events::Initialize() {
 	using namespace GLUtilities;
-	string file = "./instructions.png";
+	string file = "./Sources/2d_quadtree_instructions.png";
 	Sketcher::instance()->uploadImage(file, "instructions");
 	Plane p = {};
 	p.width = .5;
@@ -297,11 +334,8 @@ void Events::Initialize() {
 void Events::Update() {
 	using namespace Data;
 	Sketcher::instance()->clear();
-	if (Options::showOctree)
-		Sketcher::instance()->add(*quadtree);
-
-	if (Options::showObjects || Options::showQuantizedObjects)
-		Sketcher::instance()->add(*lines);
+	Sketcher::instance()->add(*quadtree);
+	Sketcher::instance()->add(*lines);
 }
 
 void Events::Refresh() {
@@ -311,14 +345,9 @@ void Events::Refresh() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	/* Draw objects */
-	if (Options::showOctree)
-		Sketcher::instance()->drawBoxes(OrthoCamera::MV);
-
-	if (Options::showObjects || Options::showQuantizedObjects)
-		Sketcher::instance()->drawLines(OrthoCamera::MV);
-
-	if (Options::showObjectVertices || Options::showResolutionPoints)
-		Sketcher::instance()->drawPoints(OrthoCamera::MV);
+	Sketcher::instance()->drawBoxes(OrthoCamera::MV);
+	Sketcher::instance()->drawLines(OrthoCamera::MV);
+	Sketcher::instance()->drawPoints(OrthoCamera::MV);
 
 	if (Options::showInstructions)
 		Sketcher::instance()->drawPlane("instructions", 0, glm::mat4(1));

@@ -17,6 +17,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <algorithm>
 
 
 enum Vendor { Nvidia, Intel, UnknownPlatform };
@@ -41,7 +42,7 @@ public:
 	static cl::Context DefaultContext;
 	static cl::CommandQueue DefaultQueue;
 	static cl::CommandQueue SecondaryQueue;
-	static cl::DeviceCommandQueue DeviceQueue;
+//	static cl::DeviceCommandQueue DeviceQueue;
 
 	static cl::Program DefaultProgram;
 	static cl::Program::Sources DefaultSources;
@@ -83,7 +84,7 @@ public:
 	static cl_int Upload(T &input, cl_int offset, cl::Buffer &buffer);
 
   inline static cl_int NextPow2(cl_int num) {
-    return std::max((int)std::pow(2, std::ceil(std::log((int)num) / std::log((int)2))), 8);
+		return std::max((int)std::pow(2, std::ceil(std::log((int)num) / std::log((int)2))), 8);
   }
 };
 

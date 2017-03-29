@@ -11,41 +11,9 @@ static MouseData md;
 static GLFWcursor* crossHairCursor;
 static floatn point1 = make_floatn(-1.0, -1.0);
 static floatn point2 = make_floatn(1.0, 1.0);
-
-static void one(bool down) {
+static void X(bool down) {
 	if (down) {
-		cout << "Toggling conflicts" << endl;
 		Options::showObjectIntersections = !Options::showObjectIntersections;
-		Data::quadtree->build(Data::lines);
-		Update();
-		Refresh();
-	}
-}
-
-static void two(bool down) {
-	if (down) {
-		cout << "Toggling Points" << endl;
-		Options::showObjectVertices = !Options::showObjectVertices;
-		Update();
-		Refresh();
-	}
-}
-
-static void three(bool down) {
-	if (down) {
-		cout << "Toggling lines" << endl;
-		if (Options::showObjects) {
-			Options::showObjects = !Options::showObjects;
-			Options::showQuantizedObjects = !Options::showQuantizedObjects;
-		}
-		else if (Options::showQuantizedObjects) {
-			Options::showQuantizedObjects = !Options::showQuantizedObjects;
-		}
-		else if (!Options::showObjects) {
-			Options::showObjects = !Options::showObjects;
-		}
-		Update();
-		Refresh();
 	}
 }
 
@@ -63,16 +31,20 @@ static void R(bool down) {
 		OrthoCamera::reset();
 	}
 
-	Data::quadtree->build(Data::lines);
+	Data::quadtree->build(Data::polygons);
 	Update();
 	Refresh();
 }
 
-static void Q(bool down) {
+static void V(bool down) {
 	if (down) {
-		cout << "Quitting!" << endl;
-		glfwSetWindowShouldClose(GLUtilities::window, 1);
+		Options::showResolutionPoints = !Options::showResolutionPoints;
 	}
+}
+
+static void L(bool down) {
+	if (down)
+		Options::showObjects = !Options::showObjects;
 }
 
 void LeftMouse(bool down, int mods) {
@@ -85,7 +57,15 @@ void RightMouse(bool down, int mods) {
 void Events::key_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	bool down = action == GLFW_PRESS || action == GLFW_REPEAT;
 	switch (key) {
+	case GLFW_KEY_O: O(down);
+		break;
 	case GLFW_KEY_R: R(down);
+		break;
+	case GLFW_KEY_X: X(down);
+		break;
+	case GLFW_KEY_V: V(down);
+		break;
+	case GLFW_KEY_L: L(down);
 		break;
 	}
 }
@@ -136,6 +116,22 @@ void Events::focus_cb(GLFWwindow* window, int focused) {
 }
 
 void Events::Initialize() {
+	using namespace Data;
+
+	glm::vec3 offset(0.0);
+	for (int i = 0; i < gears.size(); ++i) {
+		glm::mat4 matrix(1.0);
+		if (i != 0) {
+			float angle = i * gears[i].dAngle * 3;
+			float displacement = gears[i - 1].outerRadius + gears[i].innerRadius;
+			offset += glm::vec3(cos(angle) * displacement, sin(angle) * displacement, 0.0);
+			matrix = glm::translate(matrix, offset);
+			if (i %2 == 1)
+				matrix = glm::rotate(matrix, gears[i].dAngle, glm::vec3(0.0, 0.0, 1.0));
+		}
+		Data::polygons->movePolygon(i, matrix);
+	}
+
 	Data::quadtree->build(Data::polygons);
 	Update();
 }
@@ -150,19 +146,38 @@ void Events::Update() {
 		Sketcher::instance()->add(*polygons);
 }
 
-
+float yAngle = 0.;
 void Events::Refresh() {
 	using namespace GLUtilities;
-
+	using namespace Data;
 	/* Clear stuff */
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	for (int i = 1; i < 11; ++i) {
-
+	float speed = .01;
+	glm::vec3 offset(0.0);
+	for (int i = 0; i < gears.size(); ++i) {
 		glm::mat4 matrix(1.0);
-		matrix = glm::rotate(matrix, i * .001f, glm::vec3{ 0.0f, 0.0f, 1.0f });
-		Data::polygons->movePolygon(i-1, matrix);
+		float angle = i * gears[i].dAngle * 3;
+		float displacement = (i == 0) ? 0 : gears[i - 1].outerRadius + gears[i].innerRadius;
+		offset += glm::vec3(cos(angle) * displacement, sin(angle) * displacement, 0.0);
+		matrix = glm::translate(matrix, offset);
+		if (i%2 == 1)
+			matrix = glm::rotate(matrix, speed, glm::vec3(0.0, 0.0, 1.0));
+		else
+			matrix = glm::rotate(matrix, -speed, glm::vec3(0.0, 0.0, 1.0));
+
+		matrix = glm::translate(matrix, -offset);
+
+		Data::polygons->movePolygon(i, matrix);
 	}
+
+	/*matrix = glm::inverse(Data::gears[1].matrix) * matrix;
+	Data::gears[1].matrix = matrix;
+
+ 	//for (int i = 1; i < 11; ++i) {
+	//glm::mat4 matrix(1.0);
+	//matrix = glm::rotate(matrix, .01f, glm::vec3{ 0.0f, 0.0f, 1.0f });
+	//Data::polygons->movePolygon(0, matrix);
+	//}
 	/* Move objects */
 	Data::quadtree->build(Data::polygons);
 	Update();

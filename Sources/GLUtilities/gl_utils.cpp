@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <string>
 #include <iostream>
+#include <fstream>
 #define GL_LOG_FILE "gl.log"
 #define MAX_SHADER_LENGTH 262144
 
@@ -178,9 +179,11 @@ namespace GLUtilities {
 	bool parse_file_into_str(
 		const char* file_name, char* shader_str, int max_len
 	) {
+		using namespace std;
 		shader_str[0] = '\0'; // reset string
 		FILE* file = fopen(file_name, "r");
 		if (!file) {
+			std::cout << "error" << std::endl;
 			gl_log_err("ERROR: opening file for reading: %s\n", file_name);
 			return false;
 		}
@@ -218,7 +221,8 @@ namespace GLUtilities {
 	bool create_shader(const char* file_name, GLuint* shader, GLenum type) {
 		gl_log("creating shader from %s...\n", file_name);
 		char shader_string[MAX_SHADER_LENGTH];
-		assert(parse_file_into_str(file_name, shader_string, MAX_SHADER_LENGTH));
+		bool result = parse_file_into_str(file_name, shader_string, MAX_SHADER_LENGTH);
+		assert(result);
 		*shader = glCreateShader(type);
 		const GLchar* p = (const GLchar*)shader_string;
 		glShaderSource(*shader, 1, &p, NULL);

@@ -13,7 +13,7 @@
 #ifndef OpenCL
 // Had to move this here to compile on Mac
 #include "GLUtilities/gl_utils.h"
-#include "cl2.hpp"
+#include "cl.hpp"
 #include "BoundingBox/BoundingBox.h"
 #include  "Options/options.h"
 #include "./glm/gtc/matrix_transform.hpp"
@@ -3516,6 +3516,14 @@ namespace Kernels {
 		intn r1 = qPoints[c.q2[0]];
 		intn r2 = qPoints[c.q2[1]];
 
+		if (q1.x == q2.x && q1.y == q2.y) {
+			printf("%d Degenerate line found\n", gid);
+		}
+
+		if (r1.x == r2.x && r1.y == r2.y) {
+			printf("%d Degenerate line found\n", gid);
+		}
+
 		if (debug) {
 			printf("gpu\n");
 			//      printf("gpu: q1: (%d, %d)\n", q1.x, q1.y);
@@ -3748,70 +3756,70 @@ namespace Kernels {
 		//	printf("gid %d got CLK_OUT_OF_RESOURCES\n", id);
 	}
 
-	__kernel void DynamicParallelsim_internal(
-		queue_t queue,
-		cl_int location,
-		cl_int recursionLevel
-		)
-	{
-		if (location == 0)
-			printf("level %d\n", recursionLevel);
-		if (recursionLevel < 512) {
-			ndrange_t ndrange = ndrange_1D(1);
-			int result = enqueue_kernel(
-				queue,
-				CLK_ENQUEUE_FLAGS_NO_WAIT,
-				ndrange,
-				^{ DynamicParallelsim_internal(queue, location, recursionLevel + 1); });
-			//checkError(result, location);
-		}
-		else {
-			printf("id %d recursed successfully\n", location);
-		}
-	}
-	__kernel void DynamicParallelismTest (
-		queue_t queue
-		) 
-	{
-		int gid = get_global_id(0);
+	//__kernel void `Parallelsim_internal(
+	//	queue_t queue,
+	//	cl_int location,
+	//	cl_int recursionLevel
+	//	)
+	//{
+	//	if (location == 0)
+	//		printf("level %d\n", recursionLevel);
+	//	if (recursionLevel < 512) {
+	//		ndrange_t ndrange = ndrange_1D(1);
+	//		int result = enqueue_kernel(
+	//			queue,
+	//			CLK_ENQUEUE_FLAGS_NO_WAIT,
+	//			ndrange,
+	//			^{ DynamicParallelsim_internal(queue, location, recursionLevel + 1); });
+	//		//checkError(result, location);
+	//	}
+	//	else {
+	//		printf("id %d recursed successfully\n", location);
+	//	}
+	//}
+	//__kernel void DynamicParallelismTest (
+	//	queue_t queue
+	//	) 
+	//{
+	//	int gid = get_global_id(0);
 
-		ndrange_t ndrange = ndrange_1D(1);
+	//	ndrange_t ndrange = ndrange_1D(1);
 
-		int result = enqueue_kernel(
-			queue,
-			CLK_ENQUEUE_FLAGS_NO_WAIT,
-			ndrange,
-			^{ DynamicParallelsim_internal(queue, gid, 0); });
-		//checkError(result, gid);
-	}
+	//	int result = enqueue_kernel(
+	//		queue,
+	//		CLK_ENQUEUE_FLAGS_NO_WAIT,
+	//		ndrange,
+	//		^{ DynamicParallelsim_internal(queue, gid, 0); });
+	//	//checkError(result, gid);
+	//}
 #else
 	/* Dynamic Parallelism Test*/
-	inline cl_int DynamicParallelsim() 
-	{
-		cl_int error = 0;
-		cl::CommandQueue &queue = CLFW::DefaultQueue;
-		cl::Kernel &kernel = CLFW::Kernels["DynamicParallelismTest"];
-		cl::Buffer test;
-		cl_int n = 1;
-		CLFW::getBuffer(test, "test", sizeof(cl_int) * n);
+	//inline cl_int DynamicParallelsim() 
+	//{
+	//	cl_int error = 0;
+	//	cl::CommandQueue &queue = CLFW::DefaultQueue;
+	//	cl::Kernel &kernel = CLFW::Kernels["DynamicParallelismTest"];
+	//	cl::Buffer test;
+	//	cl_int n = 1;
+	//	CLFW::getBuffer(test, "test", sizeof(cl_int) * n);
 
-		error |= kernel.setArg(0, CLFW::DeviceQueue);
-		queue.finish();
+	//	error |= kernel.setArg(0, CLFW::DeviceQueue);
+	//	queue.finish();
 
-		auto start = std::chrono::high_resolution_clock::now();
-		error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(n), cl::NullRange);
-		queue.finish();
-		auto elapsed = high_resolution_clock::now() - start;
-		cout<< std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count()<<endl;
-		
-		vector<cl_int> result;
-		error |= CLFW::Download<cl_int>(test, n, result);
+	//	auto start = std::chrono::high_resolution_clock::now();
+	//	error |= queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(n), cl::NullRange);
+	//	queue.finish();
+	//	auto elapsed = high_resolution_clock::now() - start;
+	//	cout<< std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count()<<endl;
+	//	
+	//	vector<cl_int> result;
+	//	error |= CLFW::Download<cl_int>(test, n, result);
 
-		for (int i = 0; i < n; ++i) {
-			cout << result[i] << endl;
-		}
-		return error;
-	}
+	//	for (int i = 0; i < n; ++i) {
+	//		cout << result[i] << endl;
+	//	}
+	//	return error;
+	//}
 #endif
 
 	/* Matrix Vector Multiplier */
@@ -3835,6 +3843,7 @@ namespace Kernels {
 		float2 out = { augmentedResult.s0, augmentedResult.s1 };
 		v[get_global_id(0)] = out;
 	}
+	
 #else
 	inline cl_int multiplyM4V2_p (
 		cl::Buffer &VBuffer,

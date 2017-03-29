@@ -6,4 +6,5 @@ struct MouseData {
 	bool rightDown;
 	float x;
 	float y;
+	int mods;
 };
